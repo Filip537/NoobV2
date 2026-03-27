@@ -18,7 +18,22 @@ const commands = [
     ),
 new SlashCommandBuilder()
   .setName("addblist")
-  .setDescription("Add the user to blacklist"),
+  .setDescription("Add user to blacklist")
+  .addStringOption(o =>
+    o.setName("growid")
+      .setDescription("GrowID")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("reason")
+      .setDescription("Reason")
+      .setRequired(true)
+  )
+  .addUserOption(o =>
+    o.setName("proof")
+      .setDescription("Proof by")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("games")
   .setDescription("Play mini games"),

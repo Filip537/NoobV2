@@ -214,86 +214,79 @@ client.on("interactionCreate", async (interaction) => {
 if (interaction.commandName === "addblist") {
 
   if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
-    return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+    return interaction.reply({ content: "You don't have permission.", ephemeral: true });
   }
 
-  const modal = new ModalBuilder()
-    .setCustomId("blist_modal")
-    .setTitle("Add Blacklist");
+  const growid = interaction.options.getString("growid");
+  const reason = interaction.options.getString("reason");
+  const proofUser = interaction.options.getUser("proof");
 
-  const growid = new TextInputBuilder()
-    .setCustomId("growid")
-    .setLabel("GrowID")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
+  const channel = await client.channels.fetch(PENDING_CHANNEL);
 
-  const reason = new TextInputBuilder()
-    .setCustomId("reason")
-    .setLabel("Reason")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
+  const embed = new EmbedBuilder()
+    .setTitle("Blacklist Request")
+    .setDescription(`Hello ${interaction.user}`)
+    .addFields(
+      { name: "GrowID", value: growid, inline: true },
+      { name: "Reason", value: reason, inline: true },
+      { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
+    )
+    .setColor("Yellow");
 
-  const proof = new TextInputBuilder()
-    .setCustomId("proof")
-    .setLabel("Proof By")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`approve_${interaction.user.id}`)
+      .setLabel("Approve")
+      .setStyle(ButtonStyle.Success),
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(growid),
-    new ActionRowBuilder().addComponents(reason),
-    new ActionRowBuilder().addComponents(proof)
+    new ButtonBuilder()
+      .setCustomId(`deny_${interaction.user.id}`)
+      .setLabel("Not Approve")
+      .setStyle(ButtonStyle.Danger)
   );
 
-  return interaction.showModal(modal);
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: "✅ Your blacklist is currently pending.",
+    ephemeral: true
+  });
 }
 
-if (interaction.isModalSubmit()) {
+    const birthdays = loadBirthdays();
 
-  if (interaction.customId === "blist_modal") {
+    if (interaction.commandName === "addbirthday") {
+      birthdays[interaction.user.id] = {
+        day: interaction.options.getInteger("day"),
+        month: interaction.options.getInteger("month"),
+        year: interaction.options.getInteger("year")
+      };
+      saveBirthdays(birthdays);
+      return interaction.reply("Saved!");
+    }
 
-    const growid = interaction.fields.getTextInputValue("growid");
-    const reason = interaction.fields.getTextInputValue("reason");
-    const proof = interaction.fields.getTextInputValue("proof");
+    if (interaction.commandName === "games") {
 
-    const channel = await client.channels.fetch(PENDING_CHANNEL);
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId("game")
+        .setPlaceholder("Choose game")
+        .addOptions([
+          { label: "Sudoku", value: "sudoku" }
+        ]);
 
-    const embed = new EmbedBuilder()
-      .setTitle("📋 Blacklist Request")
-      .setDescription(`Hello ${interaction.user}`)
-      .addFields(
-        { name: "GrowID", value: growid, inline: true },
-        { name: "Reason", value: reason, inline: true },
-        { name: "Proof By", value: proof, inline: true }
-      )
-      .setColor("Yellow");
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`approve_${interaction.user.id}`)
-        .setLabel("Approve")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId(`deny_${interaction.user.id}`)
-        .setLabel("Not Approve")
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await channel.send({
-      embeds: [embed],
-      components: [row]
-    });
-
-    return interaction.reply({
-      content: "Your blacklist is pending approval.",
-      ephemeral: true
-    });
+      return interaction.reply({
+        content: "🎮 Choose a game:",
+        components: [new ActionRowBuilder().addComponents(menu)]
+      });
+    }
   }
-}
 
-if (interaction.isButton()) {
+  if (interaction.isButton()) {
 
+  // ===== BLACKLIST =====
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
     const ownerId = interaction.customId.split("_")[1];
@@ -330,7 +323,6 @@ if (interaction.isButton()) {
       embed.setColor("Green").setFooter({ text: "Approved" });
 
     } else {
-
       embed.setColor("Red").setFooter({ text: "Not Approved" });
     }
 
@@ -339,35 +331,61 @@ if (interaction.isButton()) {
       components: []
     });
   }
-}
-    const birthdays = loadBirthdays();
 
-    if (interaction.commandName === "addbirthday") {
-      birthdays[interaction.user.id] = {
-        day: interaction.options.getInteger("day"),
-        month: interaction.options.getInteger("month"),
-        year: interaction.options.getInteger("year")
-      };
-      saveBirthdays(birthdays);
-      return interaction.reply("Saved!");
-    }
+  // ===== SUDOKU =====
+  const game = sudokuGames.get(interaction.message.id);
+  if (!game) return;
 
-    if (interaction.commandName === "games") {
+  if (interaction.customId === "new") {
+    const newGame = createGame();
+    sudokuGames.set(interaction.message.id, newGame);
 
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId("game")
-        .setPlaceholder("Choose game")
-        .addOptions([
-          { label: "Sudoku", value: "sudoku" }
-        ]);
-
-      return interaction.reply({
-        content: "🎮 Choose a game:",
-        components: [new ActionRowBuilder().addComponents(menu)]
-      });
-    }
+    return interaction.update({
+      embeds: [getEmbed(newGame)],
+      components: getUI(newGame)
+    });
   }
 
+  if (interaction.customId === "set") {
+    if (!game.row || !game.col || !game.num) {
+      return interaction.reply({ content: "Select row/col/num first", ephemeral: true });
+    }
+
+    const r = game.row - 1;
+    const c = game.col - 1;
+
+    if (game.puzzle[r][c] !== 0) {
+      return interaction.reply({ content: "Cannot change fixed cell", ephemeral: true });
+    }
+
+    game.board[r][c] = game.num;
+
+    return interaction.update({
+      embeds: [getEmbed(game)],
+      components: getUI(game)
+    });
+  }
+
+  if (interaction.customId === "clear") {
+    if (!game.row || !game.col) {
+      return interaction.reply({ content: "Select row/col first", ephemeral: true });
+    }
+
+    const r = game.row - 1;
+    const c = game.col - 1;
+
+    if (game.puzzle[r][c] !== 0) {
+      return interaction.reply({ content: "Cannot clear fixed cell", ephemeral: true });
+    }
+
+    game.board[r][c] = 0;
+
+    return interaction.update({
+      embeds: [getEmbed(game)],
+      components: getUI(game)
+    });
+  }
+}
   // ================= SELECT =================
   if (interaction.isStringSelectMenu()) {
 
@@ -402,65 +420,7 @@ if (interaction.isButton()) {
     });
   }
 
-  // ================= BUTTON =================
-  if (interaction.isButton()) {
-
-    const game = sudokuGames.get(interaction.message.id);
-    if (!game) return;
-
-    if (interaction.customId === "new") {
-      const newGame = createGame();
-      sudokuGames.set(interaction.message.id, newGame);
-
-      return interaction.update({
-        embeds: [getEmbed(newGame)],
-        components: getUI(newGame)
-      });
-    }
-
-    if (interaction.customId === "set") {
-
-      if (!game.row || !game.col || !game.num) {
-        return interaction.reply({ content: "Select row/col/num first", ephemeral: true });
-      }
-
-      const r = game.row - 1;
-      const c = game.col - 1;
-
-      if (game.puzzle[r][c] !== 0) {
-        return interaction.reply({ content: "Cannot change fixed cell", ephemeral: true });
-      }
-
-      game.board[r][c] = game.num;
-
-      return interaction.update({
-        embeds: [getEmbed(game)],
-        components: getUI(game)
-      });
-    }
-
-    if (interaction.customId === "clear") {
-
-      if (!game.row || !game.col) {
-        return interaction.reply({ content: "Select row/col first", ephemeral: true });
-      }
-
-      const r = game.row - 1;
-      const c = game.col - 1;
-
-      if (game.puzzle[r][c] !== 0) {
-        return interaction.reply({ content: "Cannot clear fixed cell", ephemeral: true });
-      }
-
-      game.board[r][c] = 0;
-
-      return interaction.update({
-        embeds: [getEmbed(game)],
-        components: getUI(game)
-      });
-    }
-  }
-
 });
+
 
 client.login(process.env.TOKEN);
