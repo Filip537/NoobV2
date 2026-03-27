@@ -35,7 +35,7 @@ new SlashCommandBuilder()
       .setRequired(true)
   )
   .addAttachmentOption(o =>
-  o.setName("image/video")
+  o.setName("files")
    .setDescription("Upload proof image or video (optional)")
    .setRequired(false)
 ),
