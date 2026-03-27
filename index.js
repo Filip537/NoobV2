@@ -15,7 +15,7 @@ const {
 
 const fs = require("fs");
 const cron = require("node-cron");
-
+const image = interaction.options.getAttachment("image");
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -204,6 +204,21 @@ function getUI(game) {
 
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  function updateStatus() {
+    const guild = client.guilds.cache.first();
+    if (!guild) return;
+
+    const memberCount = guild.memberCount;
+
+    client.user.setActivity(`with ${memberCount} members`, {
+      type: 0 // PLAYING
+    });
+  }
+
+  updateStatus();
+
+  setInterval(updateStatus, 300000);
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -223,15 +238,19 @@ if (interaction.commandName === "addblist") {
 
   const channel = await client.channels.fetch(PENDING_CHANNEL);
 
-  const embed = new EmbedBuilder()
-    .setTitle("Blacklist Request")
-    .setDescription(`Hello ${interaction.user}`)
-    .addFields(
-      { name: "GrowID", value: growid, inline: true },
-      { name: "Reason", value: reason, inline: true },
-      { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
-    )
-    .setColor("Yellow");
+ const embed = new EmbedBuilder()
+  .setTitle("Blacklist Request")
+  .setDescription(`Hello ${interaction.user}`)
+  .addFields(
+    { name: "GrowID", value: growid, inline: true },
+    { name: "Reason", value: reason, inline: true },
+    { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
+  )
+  .setColor("Yellow");
+
+if (image) {
+  embed.setImage(image.url);
+}
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -291,12 +310,16 @@ if (interaction.commandName === "addblist") {
 
     const ownerId = interaction.customId.split("_")[1];
 
-    if (interaction.user.id === ownerId) {
-      return interaction.reply({
-        content: "❌ You cannot approve your own blacklist.",
-        ephemeral: true
-      });
-    }
+const SELF_APPROVE_ROLE = "1448858787296317553";
+
+if (interaction.user.id === ownerId) {
+  if (!interaction.member.roles.cache.has(SELF_APPROVE_ROLE)) {
+    return interaction.reply({
+      content: "❌ You cannot approve your own blacklist.",
+      ephemeral: true
+    });
+  }
+}
 
     const embed = EmbedBuilder.from(interaction.message.embeds[0]);
     const fields = embed.data.fields;
@@ -309,14 +332,18 @@ if (interaction.commandName === "addblist") {
 
       const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
-      const finalEmbed = new EmbedBuilder()
-        .setAuthor({ name: interaction.user.username })
-        .setDescription(
+ const finalEmbed = new EmbedBuilder()
+  .setAuthor({ name: interaction.user.username })
+  .setDescription(
 `**GrowID:** ${growid}
 **Reason:** ${reason}
 **Blacklisted & Proof By:** ${proof}`
-        )
-        .setColor("Red");
+  )
+  .setColor("Red");
+
+if (interaction.message.embeds[0].image?.url) {
+  finalEmbed.setImage(interaction.message.embeds[0].image.url);
+}
 
       await finalChannel.send({ embeds: [finalEmbed] });
 

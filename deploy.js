@@ -33,7 +33,12 @@ new SlashCommandBuilder()
     o.setName("proof")
       .setDescription("Proof by")
       .setRequired(true)
-  ),
+  )
+  .addAttachmentOption(o =>
+  o.setName("image")
+   .setDescription("Upload proof image (optional)")
+   .setRequired(false)
+),
 new SlashCommandBuilder()
   .setName("games")
   .setDescription("Play mini games"),
