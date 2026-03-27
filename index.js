@@ -336,20 +336,21 @@ if (interaction.user.id === ownerId) {
 
       const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
- const finalEmbed = new EmbedBuilder()
-  .setAuthor({ name: interaction.user.username })
-  .setDescription(
-`**GrowID:** ${growid}
-**Reason:** ${reason}
-**Blacklisted & Proof By:** ${proof}`
-  )
-  .setColor("Red");
+let message = `**${interaction.user.username}**
 
-if (interaction.message.embeds[0].image?.url) {
-  finalEmbed.setImage(interaction.message.embeds[0].image.url);
+**GrowID:** ${growid}
+**Reason:** ${reason}
+**Blacklisted & Proof By:** ${proof}`;
+
+const imageUrl = interaction.message.embeds[0].image?.url;
+
+if (imageUrl) {
+  message += `\n${imageUrl}`;
 }
 
-      await finalChannel.send({ embeds: [finalEmbed] });
+await finalChannel.send({
+  content: message
+});
 
       embed.setColor("Green").setFooter({ text: "Approved" });
 
