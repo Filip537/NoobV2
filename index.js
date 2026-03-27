@@ -1,0 +1,331 @@
+require("dotenv").config();
+
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require("discord.js");
+
+const fs = require("fs");
+const cron = require("node-cron");
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+const birthdayFile = "./birthdays.json";
+const birthdayChannel = "1444902597730504725";
+const adminRole = "1411991650573484073";
+
+// messageId → game
+const sudokuGames = new Map();
+
+function loadBirthdays() {
+  if (!fs.existsSync(birthdayFile)) {
+    fs.writeFileSync(birthdayFile, "{}");
+  }
+  return JSON.parse(fs.readFileSync(birthdayFile, "utf8"));
+}
+
+function saveBirthdays(data) {
+  fs.writeFileSync(birthdayFile, JSON.stringify(data, null, 2));
+}
+
+function clone(board) {
+  return board.map(r => [...r]);
+}
+
+function getPuzzle() {
+  return {
+    puzzle: [
+      [5,3,0,0,7,0,0,0,0],
+      [6,0,0,1,9,5,0,0,0],
+      [0,9,8,0,0,0,0,6,0],
+      [8,0,0,0,6,0,0,0,3],
+      [4,0,0,8,0,3,0,0,1],
+      [7,0,0,0,2,0,0,0,6],
+      [0,6,0,0,0,0,2,8,0],
+      [0,0,0,4,1,9,0,0,5],
+      [0,0,0,0,8,0,0,7,9]
+    ],
+    solution: [
+      [5,3,4,6,7,8,9,1,2],
+      [6,7,2,1,9,5,3,4,8],
+      [1,9,8,3,4,2,5,6,7],
+      [8,5,9,7,6,1,4,2,3],
+      [4,2,6,8,5,3,7,9,1],
+      [7,1,3,9,2,4,8,5,6],
+      [9,6,1,5,3,7,2,8,4],
+      [2,8,7,4,1,9,6,3,5],
+      [3,4,5,2,8,6,1,7,9]
+    ]
+  };
+}
+
+function format(board, selected) {
+  let out = "";
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+
+      let val = board[r][c] === 0 ? "·" : board[r][c];
+
+      // highlight selected cell
+      if (selected && selected.r === r && selected.c === c) {
+        val = `[${val}]`;
+      }
+
+      out += val + " ";
+
+      if (c === 2 || c === 5) out += "| ";
+    }
+
+    out += "\n";
+    if (r === 2 || r === 5) out += "------+-------+------\n";
+  }
+
+  return "```" + out + "```";
+}
+
+function createGame() {
+  const { puzzle, solution } = getPuzzle();
+
+  return {
+    board: clone(puzzle),
+    puzzle: clone(puzzle),
+    solution: clone(solution),
+    selected: null
+  };
+}
+
+function getEmbed(game) {
+  return new EmbedBuilder()
+    .setTitle("🧩 Sudoku 9x9")
+    .setColor("Blue")
+    .setDescription(format(game.board, game.selected))
+    .setFooter({ text: "Click a cell → choose number below" });
+}
+
+function getGridUI(game) {
+  const rows = [];
+
+  for (let r = 0; r < 9; r++) {
+    const actionRow = new ActionRowBuilder();
+
+    for (let c = 0; c < 9; c++) {
+
+      const value = game.board[r][c];
+      const isFixed = game.puzzle[r][c] !== 0;
+
+      actionRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`cell_${r}_${c}`)
+          .setLabel(value === 0 ? " " : String(value))
+          .setStyle(
+            game.selected?.r === r && game.selected?.c === c
+              ? ButtonStyle.Primary
+              : isFixed
+              ? ButtonStyle.Secondary
+              : ButtonStyle.Success
+          )
+          .setDisabled(isFixed && value !== 0)
+      );
+    }
+
+    rows.push(actionRow);
+  }
+
+  return rows;
+}
+
+function getNumberPad() {
+  const row = new ActionRowBuilder();
+
+  for (let i = 1; i <= 9; i++) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`num_${i}`)
+        .setLabel(String(i))
+        .setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  return row;
+}
+function getControls() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("clear").setLabel("Clear").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("new").setLabel("New Game").setStyle(ButtonStyle.Danger)
+  );
+}
+function getUI(game) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("row")
+        .setPlaceholder("Row")
+        .addOptions([...Array(9)].map((_, i) => ({
+          label: `Row ${i+1}`, value: String(i+1)
+        })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("col")
+        .setPlaceholder("Column")
+        .addOptions([...Array(9)].map((_, i) => ({
+          label: `Col ${i+1}`, value: String(i+1)
+        })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("num")
+        .setPlaceholder("Number")
+        .addOptions([...Array(9)].map((_, i) => ({
+          label: `${i+1}`, value: String(i+1)
+        })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("set").setLabel("Set").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("clear").setLabel("Clear").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("new").setLabel("New Game").setStyle(ButtonStyle.Danger)
+    )
+  ];
+}
+
+client.once("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
+
+client.on("interactionCreate", async (interaction) => {
+
+  // ================= COMMAND =================
+  if (interaction.isChatInputCommand()) {
+
+    const birthdays = loadBirthdays();
+
+    if (interaction.commandName === "addbirthday") {
+      birthdays[interaction.user.id] = {
+        day: interaction.options.getInteger("day"),
+        month: interaction.options.getInteger("month"),
+        year: interaction.options.getInteger("year")
+      };
+      saveBirthdays(birthdays);
+      return interaction.reply("Saved!");
+    }
+
+    if (interaction.commandName === "games") {
+
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId("game")
+        .setPlaceholder("Choose game")
+        .addOptions([
+          { label: "Sudoku", value: "sudoku" }
+        ]);
+
+      return interaction.reply({
+        content: "🎮 Choose a game:",
+        components: [new ActionRowBuilder().addComponents(menu)]
+      });
+    }
+  }
+
+  // ================= SELECT =================
+  if (interaction.isStringSelectMenu()) {
+
+    if (interaction.customId === "game") {
+      if (interaction.values[0] === "sudoku") {
+
+        const msg = await interaction.reply({
+          content: "🧩 Starting Sudoku...",
+          fetchReply: true
+        });
+
+        const game = createGame();
+        sudokuGames.set(msg.id, game);
+
+        return interaction.editReply({
+          embeds: [getEmbed(game)],
+          components: getUI(game)
+        });
+      }
+    }
+
+    const game = sudokuGames.get(interaction.message.id);
+    if (!game) return;
+
+    if (interaction.customId === "row") game.row = parseInt(interaction.values[0]);
+    if (interaction.customId === "col") game.col = parseInt(interaction.values[0]);
+    if (interaction.customId === "num") game.num = parseInt(interaction.values[0]);
+
+    return interaction.update({
+      embeds: [getEmbed(game)],
+      components: getUI(game)
+    });
+  }
+
+  // ================= BUTTON =================
+  if (interaction.isButton()) {
+
+    const game = sudokuGames.get(interaction.message.id);
+    if (!game) return;
+
+    if (interaction.customId === "new") {
+      const newGame = createGame();
+      sudokuGames.set(interaction.message.id, newGame);
+
+      return interaction.update({
+        embeds: [getEmbed(newGame)],
+        components: getUI(newGame)
+      });
+    }
+
+    if (interaction.customId === "set") {
+
+      if (!game.row || !game.col || !game.num) {
+        return interaction.reply({ content: "Select row/col/num first", ephemeral: true });
+      }
+
+      const r = game.row - 1;
+      const c = game.col - 1;
+
+      if (game.puzzle[r][c] !== 0) {
+        return interaction.reply({ content: "Cannot change fixed cell", ephemeral: true });
+      }
+
+      game.board[r][c] = game.num;
+
+      return interaction.update({
+        embeds: [getEmbed(game)],
+        components: getUI(game)
+      });
+    }
+
+    if (interaction.customId === "clear") {
+
+      if (!game.row || !game.col) {
+        return interaction.reply({ content: "Select row/col first", ephemeral: true });
+      }
+
+      const r = game.row - 1;
+      const c = game.col - 1;
+
+      if (game.puzzle[r][c] !== 0) {
+        return interaction.reply({ content: "Cannot clear fixed cell", ephemeral: true });
+      }
+
+      game.board[r][c] = 0;
+
+      return interaction.update({
+        embeds: [getEmbed(game)],
+        components: getUI(game)
+      });
+    }
+  }
+
+});
+
+client.login(process.env.TOKEN);
