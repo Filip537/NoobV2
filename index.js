@@ -15,7 +15,6 @@ const {
 
 const fs = require("fs");
 const cron = require("node-cron");
-const image = interaction.options.getAttachment("image");
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -202,22 +201,20 @@ function getUI(game) {
   ];
 }
 
-client.once("ready", () => {
+client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
-  function updateStatus() {
-    const guild = client.guilds.cache.first();
+  async function updateStatus() {
+    const guild = await client.guilds.fetch(process.env.GUILD_ID).catch(() => null);
     if (!guild) return;
 
-    const memberCount = guild.memberCount;
-
+const memberCount = (await guild.members.fetch()).size;
     client.user.setActivity(`with ${memberCount} members`, {
-      type: 0 // PLAYING
+      type: 0
     });
   }
 
-  updateStatus();
-
+  await updateStatus();
   setInterval(updateStatus, 300000);
 });
 
@@ -227,6 +224,7 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.isChatInputCommand()) {
 
 if (interaction.commandName === "addblist") {
+const image = interaction.options.getAttachment("image");
 
   if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
     return interaction.reply({ content: "You don't have permission.", ephemeral: true });
