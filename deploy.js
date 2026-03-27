@@ -16,7 +16,9 @@ const commands = [
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
-
+new SlashCommandBuilder()
+  .setName("addblist")
+  .setDescription("Add the user to blacklist"),
 new SlashCommandBuilder()
   .setName("games")
   .setDescription("Play mini games"),

@@ -7,7 +7,10 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require("discord.js");
 
 const fs = require("fs");
@@ -20,6 +23,9 @@ const client = new Client({
 const birthdayFile = "./birthdays.json";
 const birthdayChannel = "1444902597730504725";
 const adminRole = "1411991650573484073";
+const BLIST_ROLE = "1483241188868882657";
+const PENDING_CHANNEL = "1481767733304623235";
+const APPROVED_CHANNEL = "1454171558305202348";
 
 // messageId → game
 const sudokuGames = new Map();
@@ -205,6 +211,135 @@ client.on("interactionCreate", async (interaction) => {
   // ================= COMMAND =================
   if (interaction.isChatInputCommand()) {
 
+if (interaction.commandName === "addblist") {
+
+  if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
+    return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId("blist_modal")
+    .setTitle("Add Blacklist");
+
+  const growid = new TextInputBuilder()
+    .setCustomId("growid")
+    .setLabel("GrowID")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const reason = new TextInputBuilder()
+    .setCustomId("reason")
+    .setLabel("Reason")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  const proof = new TextInputBuilder()
+    .setCustomId("proof")
+    .setLabel("Proof By")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(growid),
+    new ActionRowBuilder().addComponents(reason),
+    new ActionRowBuilder().addComponents(proof)
+  );
+
+  return interaction.showModal(modal);
+}
+
+if (interaction.isModalSubmit()) {
+
+  if (interaction.customId === "blist_modal") {
+
+    const growid = interaction.fields.getTextInputValue("growid");
+    const reason = interaction.fields.getTextInputValue("reason");
+    const proof = interaction.fields.getTextInputValue("proof");
+
+    const channel = await client.channels.fetch(PENDING_CHANNEL);
+
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Blacklist Request")
+      .setDescription(`Hello ${interaction.user}`)
+      .addFields(
+        { name: "GrowID", value: growid, inline: true },
+        { name: "Reason", value: reason, inline: true },
+        { name: "Proof By", value: proof, inline: true }
+      )
+      .setColor("Yellow");
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`approve_${interaction.user.id}`)
+        .setLabel("Approve")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(`deny_${interaction.user.id}`)
+        .setLabel("Not Approve")
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    await channel.send({
+      embeds: [embed],
+      components: [row]
+    });
+
+    return interaction.reply({
+      content: "Your blacklist is pending approval.",
+      ephemeral: true
+    });
+  }
+}
+
+if (interaction.isButton()) {
+
+  if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
+
+    const ownerId = interaction.customId.split("_")[1];
+
+    if (interaction.user.id === ownerId) {
+      return interaction.reply({
+        content: "❌ You cannot approve your own blacklist.",
+        ephemeral: true
+      });
+    }
+
+    const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+    const fields = embed.data.fields;
+
+    const growid = fields.find(f => f.name === "GrowID").value;
+    const reason = fields.find(f => f.name === "Reason").value;
+    const proof = fields.find(f => f.name === "Proof By").value;
+
+    if (interaction.customId.startsWith("approve_")) {
+
+      const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
+
+      const finalEmbed = new EmbedBuilder()
+        .setAuthor({ name: interaction.user.username })
+        .setDescription(
+`**GrowID:** ${growid}
+**Reason:** ${reason}
+**Blacklisted & Proof By:** ${proof}`
+        )
+        .setColor("Red");
+
+      await finalChannel.send({ embeds: [finalEmbed] });
+
+      embed.setColor("Green").setFooter({ text: "Approved" });
+
+    } else {
+
+      embed.setColor("Red").setFooter({ text: "Not Approved" });
+    }
+
+    return interaction.update({
+      embeds: [embed],
+      components: []
+    });
+  }
+}
     const birthdays = loadBirthdays();
 
     if (interaction.commandName === "addbirthday") {
