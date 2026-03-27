@@ -15,6 +15,7 @@ const {
 
 const fs = require("fs");
 const cron = require("node-cron");
+const activeInteractions = new Set();
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -219,12 +220,17 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
-
   // ================= COMMAND =================
   if (interaction.isChatInputCommand()) {
 
 if (interaction.commandName === "addblist") {
-const image = interaction.options.getAttachment("image");
+
+  if (activeInteractions.has(interaction.id)) return;
+  activeInteractions.add(interaction.id);
+
+  setTimeout(() => activeInteractions.delete(interaction.id), 5000);
+
+  const image = interaction.options.getAttachment("image");
 
   if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
     return interaction.reply({ content: "You don't have permission.", ephemeral: true });
