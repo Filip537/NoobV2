@@ -224,7 +224,7 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.isChatInputCommand()) {
 
 if (interaction.commandName === "addblist") {
-const image = interaction.options.getAttachment("uploadfile");
+const image = interaction.options.getAttachment("image");
 
   if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
     return interaction.reply({ content: "You don't have permission.", ephemeral: true });
