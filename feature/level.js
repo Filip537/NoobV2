@@ -53,9 +53,9 @@ module.exports = {
       const reward = getReward(user.level);
 
       // LEVEL UP MESSAGE
-      await message.channel.send(
-        `***<:Announcement:1324498827918708746> You reach Level ${user.level} and earned ${neededXP} XP and ${reward} <:World_Lock:1457364439899836501> World Locks nice!***`
-      );
+await message.channel.send(
+  `***<:Announcement:1324498827918708746> You reach Level ${user.level} and earned ${neededXP} XP and ${reward} <:World_Lock:1455752235966533662> World Locks nice!***`
+);
     }
 
     saveLevels(data);
