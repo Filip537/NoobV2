@@ -10,7 +10,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle("<:ItemSprites23:1449424903416840394> Dice Roll")
       .setDescription(
-        `You spun a dice and got **${roll}**\n\n<:arrow:1442712798969729087> You punched the dice and got **${roll}**`
+        `You spun a dice and got **${roll}**`
       )
       .setColor("Purple");
 
