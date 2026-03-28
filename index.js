@@ -237,6 +237,33 @@ const memberCount = (await guild.members.fetch()).size;
 
 client.on("interactionCreate", async (interaction) => {
 
+  if (interaction.commandName === "leaderboard") {
+
+  const category = interaction.options.getString("category");
+
+  if (category === "level") {
+    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+
+    const sorted = Object.entries(data)
+      .sort((a, b) => b[1].level - a[1].level)
+      .slice(0, 10);
+
+    if (sorted.length === 0) {
+      return interaction.reply("No data yet.");
+    }
+
+    let text = "## Level Leaderboard\n\n";
+
+    for (let i = 0; i < sorted.length; i++) {
+      const [userId, info] = sorted[i];
+
+      text += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
+    }
+
+    return interaction.reply({ content: text });
+  }
+}
+
 if (interaction.isChatInputCommand()) {
 
   if (interaction.commandName === "wouldyourather") {
@@ -340,32 +367,7 @@ if (interaction.customId.startsWith("wyr_")) {
   return wyr.handleButton(interaction);
 }
 
-if (interaction.commandName === "leaderboard") {
 
-  const category = interaction.options.getString("category");
-
-  if (category === "level") {
-    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-    const sorted = Object.entries(data)
-      .sort((a, b) => b[1].level - a[1].level)
-      .slice(0, 10);
-
-    if (sorted.length === 0) {
-      return interaction.reply("No data yet.");
-    }
-
-    let text = "## 🏆 Level Leaderboard\n\n";
-
-    for (let i = 0; i < sorted.length; i++) {
-      const [userId, info] = sorted[i];
-
-      text += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
-    }
-
-    return interaction.reply({ content: text });
-  }
-}
   // ===== BLACKLIST =====
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
