@@ -237,7 +237,8 @@ const memberCount = (await guild.members.fetch()).size;
 
 client.on("interactionCreate", async (interaction) => {
 
-  if (interaction.commandName === "leaderboard") {
+if (interaction.isChatInputCommand()) {
+if (interaction.commandName === "leaderboard") {
 
   const category = interaction.options.getString("category");
 
@@ -252,7 +253,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply("No data yet.");
     }
 
-    let text = "## Level Leaderboard\n\n";
+    let text = "## 🏆 Level Leaderboard\n\n";
 
     for (let i = 0; i < sorted.length; i++) {
       const [userId, info] = sorted[i];
@@ -263,9 +264,7 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.reply({ content: text });
   }
 }
-
-if (interaction.isChatInputCommand()) {
-
+  
   if (interaction.commandName === "wouldyourather") {
     return wyr.execute(interaction);
   }
@@ -277,6 +276,8 @@ if (interaction.isChatInputCommand()) {
   if (interaction.commandName === "quote") {
   return quote.execute(interaction);
 }
+
+
 if (interaction.commandName === "addblist") {
 
   if (activeInteractions.has(interaction.id)) return;
