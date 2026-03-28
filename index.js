@@ -262,7 +262,7 @@ if (interaction.commandName === "leaderboard") {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle("<:Announcement:1324498827918708746> Level Leaderboard")
+.setTitle("<:bulletin:1447778065512923217> Level Leaderboard")
       .setDescription(description)
       .setColor("Gold");
 

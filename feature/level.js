@@ -54,7 +54,7 @@ module.exports = {
 
       // LEVEL UP MESSAGE
 await message.channel.send(
-  `***<:Announcement:1324498827918708746> You reach Level ${user.level} and earned ${neededXP} XP and ${reward} <:World_Lock:1455752235966533662> World Locks nice!***`
+  `***<:bulletin:1447778065512923217> You reach Level ${user.level} and earned ${neededXP} XP and ${reward} <:World_Lock:1455752235966533662> World Locks nice!***`
 );
     }
 
