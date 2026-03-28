@@ -312,11 +312,8 @@ module.exports = {
     const selected = quotes[category];
     const quote = getRandom(selected);
 
-    const embed = new EmbedBuilder()
-      .setTitle("<:ItemSprites23:1449424903416840394> Quote")
-      .setDescription(`${quote}`)
-      .setColor("Purple");
-
-    await interaction.reply({ embeds: [embed] });
+await interaction.reply({
+  content: `## *${quote}*`
+});
   }
 };
