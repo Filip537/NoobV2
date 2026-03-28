@@ -253,14 +253,23 @@ if (interaction.commandName === "leaderboard") {
       return interaction.reply("No data yet.");
     }
 
-let text = "## <:Announcement:1324498827918708746> Level Leaderboard\n\n";
+    let description = "";
+
     for (let i = 0; i < sorted.length; i++) {
       const [userId, info] = sorted[i];
 
-      text += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
+      description += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
     }
 
-    return interaction.reply({ content: text });
+    const embed = new EmbedBuilder()
+      .setTitle("<:Announcement:1324498827918708746> Level Leaderboard")
+      .setDescription(description)
+      .setColor("Gold");
+
+    return interaction.reply({
+      embeds: [embed],
+      allowedMentions: { parse: [] } // 🚫 prevents ping
+    });
   }
 }
   
