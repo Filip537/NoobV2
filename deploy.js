@@ -40,6 +40,17 @@ new SlashCommandBuilder()
    .setRequired(false)
 ),
 new SlashCommandBuilder()
+  .setName("leaderboard")
+  .setDescription("View leaderboard")
+  .addStringOption(option =>
+    option.setName("category")
+      .setDescription("Choose leaderboard category")
+      .setRequired(true)
+      .addChoices(
+        { name: "Level", value: "level" }
+      )
+  ),
+new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),
 new SlashCommandBuilder()
