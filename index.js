@@ -253,7 +253,7 @@ if (interaction.commandName === "leaderboard") {
       return interaction.reply("No data yet.");
     }
 
-    let text = "## 🏆 Level Leaderboard\n\n";
+    let text = "## <:bot:1304727277094834206> Level Leaderboard\n\n";
 
     for (let i = 0; i < sorted.length; i++) {
       const [userId, info] = sorted[i];
