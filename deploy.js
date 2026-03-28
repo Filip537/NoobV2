@@ -40,6 +40,10 @@ new SlashCommandBuilder()
    .setRequired(false)
 ),
 new SlashCommandBuilder()
+  .setName("wouldyourather")
+  .setDescription("Play Would You Rather"),
+
+new SlashCommandBuilder()
   .setName("games")
   .setDescription("Play mini games"),
   new SlashCommandBuilder()

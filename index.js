@@ -8,6 +8,7 @@ process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
 });
 
+const wyr = require("./commands/wyr.js");
 const {
   Client,
   GatewayIntentBits,
@@ -228,9 +229,12 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
-  // ================= COMMAND =================
+
   if (interaction.isChatInputCommand()) {
 
+    if (interaction.commandName === "wouldyourather") {
+      return wyr.execute(interaction);
+    }
 if (interaction.commandName === "addblist") {
 
   if (activeInteractions.has(interaction.id)) return;
@@ -316,7 +320,10 @@ if (image) {
   }
 
   if (interaction.isButton()) {
-
+// WYR buttons
+if (interaction.customId.startsWith("wyr_")) {
+  return wyr.handleButton(interaction);
+}
   // ===== BLACKLIST =====
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
