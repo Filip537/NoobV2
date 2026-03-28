@@ -336,9 +336,9 @@ if (interaction.user.id === ownerId) {
 
       const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
-let message = `GrowID: ${growid}
-Reason: ${reason}
-Blacklisted & Proof By: ${proof}`;
+let message = `**GrowID**: ${growid}
+**Reason**: ${reason}
+**Blacklisted & Proof By**: ${proof}`;
 
 const imageUrl = interaction.message.embeds[0].image?.url;
 
