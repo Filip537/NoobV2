@@ -46,7 +46,7 @@ function createEmbed(q) {
   return new EmbedBuilder()
     .setTitle("<:ItemSprites23:1449424903416840394> Would You Rather")
     .setDescription(
-      `\n## <:arrow:1442712798969729087> ${q[0]}\n\n**or**\n\n## <:arrow:1442712798969729087> ${q[1]}`
+      `\n## <:arrow:1442712798969729087> ${q[0]} \n\n## <:arrow:1442712798969729087> ${q[1]}`
     )
     .setColor("Purple");
 }
