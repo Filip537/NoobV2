@@ -274,7 +274,7 @@ if (image) {
   });
 
   return interaction.reply({
-    content: "✅ Your blacklist is currently pending.",
+    content: "✅ Your blacklist is currently pending, Check <#1481767733304623235>.",
     ephemeral: true
   });
 }
