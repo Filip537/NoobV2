@@ -238,6 +238,50 @@ const memberCount = (await guild.members.fetch()).size;
 client.on("interactionCreate", async (interaction) => {
 
 if (interaction.isChatInputCommand()) {
+  if (interaction.commandName === "profile") {
+
+  const target = interaction.options.getUser("user") || interaction.user;
+  const member = await interaction.guild.members.fetch(target.id);
+
+  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+
+  const userData = levels[target.id] || { level: 1, xp: 0 };
+
+  // WL BANK (you can change later if you make economy system)
+  const wlBank = (userData.level * 10); // simple scaling for now
+
+  const embed = new EmbedBuilder()
+    .setColor("Blurple")
+    .setAuthor({
+      name: `@${target.username}`,
+      iconURL: target.displayAvatarURL()
+    })
+    .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
+
+    .addFields(
+      {
+        name: "User Info",
+        value:
+`**ID:** ${target.id}
+**Name:** @${target.username}
+**Created:** <t:${Math.floor(target.createdTimestamp / 1000)}:F>`
+      },
+      {
+        name: "Member Info",
+        value:
+`**Joined:** <t:${Math.floor(member.joinedTimestamp / 1000)}:F>`
+      },
+      {
+        name: "Progress",
+        value:
+`**Level:** ${userData.level}
+**XP:** ${userData.xp}
+**WL Bank:** <:World_Lock:1455752235966533662> ${wlBank}`
+      }
+    );
+
+  return interaction.reply({ embeds: [embed] });
+}
 if (interaction.commandName === "leaderboard") {
 
   const category = interaction.options.getString("category");

@@ -50,6 +50,14 @@ new SlashCommandBuilder()
         { name: "Level", value: "level" }
       )
   ),
+  new SlashCommandBuilder()
+  .setName("profile")
+  .setDescription("View your profile")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("Select a user")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),
