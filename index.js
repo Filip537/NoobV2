@@ -11,6 +11,7 @@ process.on("uncaughtException", (err) => {
 const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
+const level = require("./feature/level.js");
 const {
   Client,
   GatewayIntentBits,
@@ -28,7 +29,11 @@ const fs = require("fs");
 const cron = require("node-cron");
 const activeInteractions = new Set();
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 const birthdayFile = "./birthdays.json";
@@ -475,7 +480,10 @@ await finalChannel.send({
     });
   }
 
+  
 });
 
-
+  client.on("messageCreate", async (message) => {
+  level.handleMessage(message);
+});
 client.login(process.env.TOKEN);
