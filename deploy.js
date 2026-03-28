@@ -40,6 +40,9 @@ new SlashCommandBuilder()
    .setRequired(false)
 ),
 new SlashCommandBuilder()
+  .setName("testdice")
+  .setDescription("Roll a dice"),
+new SlashCommandBuilder()
   .setName("wouldyourather")
   .setDescription("Play Would You Rather"),
 

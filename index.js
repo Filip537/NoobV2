@@ -9,6 +9,7 @@ process.on("uncaughtException", (err) => {
 });
 
 const wyr = require("./commands/wyr.js");
+const dice = require("./commands/dice.js");
 const {
   Client,
   GatewayIntentBits,
@@ -230,11 +231,15 @@ const memberCount = (await guild.members.fetch()).size;
 
 client.on("interactionCreate", async (interaction) => {
 
-  if (interaction.isChatInputCommand()) {
+if (interaction.isChatInputCommand()) {
 
-    if (interaction.commandName === "wouldyourather") {
-      return wyr.execute(interaction);
-    }
+  if (interaction.commandName === "wouldyourather") {
+    return wyr.execute(interaction);
+  }
+
+  if (interaction.commandName === "testdice") {
+    return dice.execute(interaction);
+  }
 if (interaction.commandName === "addblist") {
 
   if (activeInteractions.has(interaction.id)) return;
