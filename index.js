@@ -10,6 +10,7 @@ process.on("uncaughtException", (err) => {
 
 const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
+const quote = require("./commands/quote.js");
 const {
   Client,
   GatewayIntentBits,
@@ -240,6 +241,10 @@ if (interaction.isChatInputCommand()) {
   if (interaction.commandName === "testdice") {
     return dice.execute(interaction);
   }
+
+  if (interaction.commandName === "quote") {
+  return quote.execute(interaction);
+}
 if (interaction.commandName === "addblist") {
 
   if (activeInteractions.has(interaction.id)) return;

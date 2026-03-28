@@ -45,7 +45,21 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("wouldyourather")
   .setDescription("Play Would You Rather"),
-
+new SlashCommandBuilder()
+  .setName("quote")
+  .setDescription("Get a random quote")
+  .addStringOption(option =>
+    option.setName("category")
+      .setDescription("Choose a quote category")
+      .setRequired(true)
+      .addChoices(
+        { name: "Motivational", value: "motivational" },
+        { name: "Romantic", value: "romantic" },
+        { name: "Funny", value: "funny" },
+        { name: "Sad", value: "sad" },
+        { name: "Wisdom", value: "wisdom" }
+      )
+  ),
 new SlashCommandBuilder()
   .setName("games")
   .setDescription("Play mini games"),
