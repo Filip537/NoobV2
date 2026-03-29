@@ -553,39 +553,43 @@ if (image) {
 
 if (interaction.customId === "buy_confirm_hotchoco") {
 
-  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-  const user = levels[interaction.user.id] || { level: 1, xp: 0 };
+const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
 
-  let wl = user.level * 10;
+const user = levels[interaction.user.id] || { level: 1, xp: 0, wl: 0 };
 
-  if (wl < 150) {
-    return interaction.reply({
-      content: "❌ You don't have enough World Locks.",
-      ephemeral: true
-    });
-  }
+// ✅ USE REAL WL
+let wl = user.wl || 0;
 
-  // subtract WL (simulate)
-
-  levels[interaction.user.id] = user;
-  fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
-
-  // save item
-  const inv = loadInv();
-
-  if (!inv[interaction.user.id]) inv[interaction.user.id] = [];
-
-  if (!inv[interaction.user.id].includes("hotchoco")) {
-    inv[interaction.user.id].push("hotchoco");
-  }
-
-  saveInv(inv);
-
-  return interaction.update({
-    content: "✅ Thanks for purchasing **Riding Hot Chocolate** for 150 World Locks!",
-    embeds: [],
-    components: []
+if (wl < 150) {
+  return interaction.reply({
+    content: "❌ You don't have enough World Locks.",
+    ephemeral: true
   });
+}
+
+// ✅ DEDUCT WL
+user.wl -= 150;
+
+// save back
+levels[interaction.user.id] = user;
+fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
+
+// save item
+const inv = loadInv();
+
+if (!inv[interaction.user.id]) inv[interaction.user.id] = [];
+
+if (!inv[interaction.user.id].includes("hotchoco")) {
+  inv[interaction.user.id].push("hotchoco");
+}
+
+saveInv(inv);
+
+return interaction.update({
+  content: "✅ Thanks for purchasing **Riding Hot Chocolate** for 150 World Locks!",
+  embeds: [],
+  components: []
+});
 }
 // WYR buttons
 if (interaction.customId.startsWith("wyr_")) {
