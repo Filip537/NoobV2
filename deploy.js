@@ -58,6 +58,18 @@ new SlashCommandBuilder()
       .setDescription("Select a user")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("wordban")
+  .setDescription("Ban a word")
+  .addStringOption(option =>
+    option.setName("word")
+      .setDescription("Word to blacklist")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("wordbanlist")
+  .setDescription("View blacklisted words"),
 new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),

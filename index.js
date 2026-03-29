@@ -12,6 +12,7 @@ const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const level = require("./feature/level.js");
+const words = require("./feature/words.js");
 const {
   Client,
   GatewayIntentBits,
@@ -236,7 +237,39 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
+if (interaction.commandName === "wordban") {
 
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+  }
+
+  const word = interaction.options.getString("word");
+
+  words.addWord(word);
+
+  return interaction.reply({
+    content: `Word **${word}** has been blacklisted.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "wordbanlist") {
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+  }
+
+  const list = words.getWords();
+
+  if (list.length === 0) {
+    return interaction.reply("No blacklisted words.");
+  }
+
+  return interaction.reply({
+    content: `📛 Blacklisted Words:\n\n${list.map(w => `• ${w}`).join("\n")}`,
+    ephemeral: true
+  });
+}
 if (interaction.isChatInputCommand()) {
   if (interaction.commandName === "profile") {
 
@@ -565,7 +598,29 @@ await finalChannel.send({
   
 });
 
-  client.on("messageCreate", async (message) => {
+client.on("messageCreate", async (message) => {
+
+  if (message.author.bot) return;
+
+  // 🚫 check banned words
+  const badWord = words.containsBadWord(message.content);
+
+  if (badWord) {
+    await message.delete().catch(() => {});
+
+    const logChannel = await client.channels.fetch("1487613700516085760");
+
+    logChannel.send({
+      content: `🚫 Message deleted from ${message.author}
+
+**Word:** ${badWord}
+**Message:** ${message.content}`
+    });
+
+    return;
+  }
+
+  // level system
   level.handleMessage(message);
 });
 client.login(process.env.TOKEN);
