@@ -68,8 +68,15 @@ new SlashCommandBuilder()
   ),
 new SlashCommandBuilder()
   .setName("buy")
-  .setDescription("Buy items"),
-
+  .setDescription("Buy items")
+  .addStringOption(option =>
+    option.setName("item")
+      .setDescription("Choose item to buy")
+      .setRequired(true)
+      .addChoices(
+        { name: "Riding Hot Chocolate", value: "hotchoco" }
+      )
+  ),
 new SlashCommandBuilder()
   .setName("myset")
   .setDescription("View your equipped set"),

@@ -248,23 +248,36 @@ const memberCount = (await guild.members.fetch()).size;
 
 client.on("interactionCreate", async (interaction) => {
 
-  if (interaction.commandName === "buy") {
+ if (interaction.commandName === "buy") {
 
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId("buy_menu")
-    .setPlaceholder("Select item")
-    .addOptions([
-      {
-        label: "Riding Hot Chocolate",
-        value: "hotchoco",
-        description: "150 WL"
-      }
-    ]);
+  const item = interaction.options.getString("item");
 
-  return interaction.reply({
-    content: "Choose an item to buy:",
-    components: [new ActionRowBuilder().addComponents(menu)]
-  });
+  if (item === "hotchoco") {
+
+    const embed = new EmbedBuilder()
+      .setColor("Yellow")
+      .setTitle("Purchase Confirmation")
+      .setDescription(
+        "Are you sure that you want to buy **Riding Hot Chocolate** <:hotchocolate:1487617641903423589>\n\nCost: **150 World Locks <:World_Lock:1455752235966533662>**"
+      );
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("buy_confirm_hotchoco")
+        .setLabel("Sure")
+        .setStyle(ButtonStyle.Primary), // closest to yellow
+
+      new ButtonBuilder()
+        .setCustomId("buy_cancel")
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      embeds: [embed],
+      components: [row]
+    });
+  }
 }
 
 if (interaction.commandName === "myset") {
