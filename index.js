@@ -43,19 +43,10 @@ const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
 const PENDING_CHANNEL = "1481767733304623235";
 const APPROVED_CHANNEL = "1454171558305202348";
+const PAY_CHANNEL = "1439935159926394960";
 
 // messageId → game
 const sudokuGames = new Map();
-const INV_FILE = "./inventory.json";
-
-function loadInv() {
-  if (!fs.existsSync(INV_FILE)) fs.writeFileSync(INV_FILE, "{}");
-  return JSON.parse(fs.readFileSync(INV_FILE));
-}
-
-function saveInv(data) {
-  fs.writeFileSync(INV_FILE, JSON.stringify(data, null, 2));
-}
 
 function loadBirthdays() {
   if (!fs.existsSync(birthdayFile)) {
@@ -247,91 +238,7 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
-if (interaction.commandName === "givewl") {
-
-  if (!interaction.member.roles.cache.has(adminRole)) {
-    return interaction.reply({
-      content: "❌ You don't have permission.",
-      ephemeral: true
-    });
-  }
-
-  const target = interaction.options.getUser("user");
-  const amount = interaction.options.getInteger("amount");
-
-  if (amount <= 0) {
-    return interaction.reply({
-      content: "❌ Amount must be greater than 0.",
-      ephemeral: true
-    });
-  }
-
-  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-  if (!levels[target.id]) {
-    levels[target.id] = { level: 1, xp: 0, wl: 0 };
-  }
-
-  if (!levels[target.id].wl) {
-    levels[target.id].wl = 0;
-  }
-
-  levels[target.id].wl += amount;
-
-  fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
-
-  return interaction.reply({
-    content: `Successfully gave **${amount} WL** to ${target}`,
-  });
-}
- if (interaction.commandName === "buy") {
-
-  const item = interaction.options.getString("item");
-
-  if (item === "hotchoco") {
-
-    const embed = new EmbedBuilder()
-      .setColor("Yellow")
-      .setTitle("Purchase Confirmation")
-      .setDescription(
-        "Are you sure that you want to buy **Riding Hot Chocolate** <:hotchocolate:1487617641903423589>\n\nCost: **150 World Locks <:World_Lock:1455752235966533662>**"
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("buy_confirm_hotchoco")
-        .setLabel("Sure")
-        .setStyle(ButtonStyle.Primary), // closest to yellow
-
-      new ButtonBuilder()
-        .setCustomId("buy_cancel")
-        .setLabel("Cancel")
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    return interaction.reply({
-      embeds: [embed],
-      components: [row]
-    });
-  }
-}
-
-if (interaction.commandName === "myset") {
-
-  const inv = loadInv();
-  const userItems = inv[interaction.user.id];
-
-  if (!userItems || userItems.length === 0) {
-    return interaction.reply("❌ You don't have any clothing yet. Use /buy.");
-  }
-
-  if (userItems.includes("hotchoco")) {
-    return interaction.reply({
-      content: "Your Set:",
-      files: ["../images/chocoride.png"]
-    });
-  }
-}
+ 
 if (interaction.commandName === "wordban") {
 
   if (!interaction.member.roles.cache.has(adminRole)) {
@@ -366,6 +273,28 @@ if (interaction.commandName === "wordbanlist") {
   });
 }
 if (interaction.isChatInputCommand()) {
+
+  // 💰 WL CHECK
+  if (interaction.channel.id === PAY_CHANNEL) {
+
+    const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+    const user = levels[interaction.user.id] || { wl: 0 };
+
+    if ((user.wl || 0) < 3) {
+      return interaction.reply({
+        content: "❌ You need 3 World Locks to use this channel.",
+        ephemeral: true
+      });
+    }
+
+    user.wl -= 3;
+    levels[interaction.user.id] = user;
+
+    fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
+  }
+
+  // 👇 ALL COMMANDS BELOW HERE
+
   if (interaction.commandName === "profile") {
 
   const target = interaction.options.getUser("user") || interaction.user;
@@ -542,55 +471,6 @@ if (image) {
   }
 
   if (interaction.isButton()) {
-
-    if (interaction.customId === "buy_cancel") {
-  return interaction.update({
-    content: "❌ Purchase cancelled.",
-    embeds: [],
-    components: []
-  });
-}
-
-if (interaction.customId === "buy_confirm_hotchoco") {
-
-const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-const user = levels[interaction.user.id] || { level: 1, xp: 0, wl: 0 };
-
-// ✅ USE REAL WL
-let wl = user.wl || 0;
-
-if (wl < 150) {
-  return interaction.reply({
-    content: "❌ You don't have enough World Locks.",
-    ephemeral: true
-  });
-}
-
-// ✅ DEDUCT WL
-user.wl -= 150;
-
-// save back
-levels[interaction.user.id] = user;
-fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
-
-// save item
-const inv = loadInv();
-
-if (!inv[interaction.user.id]) inv[interaction.user.id] = [];
-
-if (!inv[interaction.user.id].includes("hotchoco")) {
-  inv[interaction.user.id].push("hotchoco");
-}
-
-saveInv(inv);
-
-return interaction.update({
-  content: "✅ Thanks for purchasing **Riding Hot Chocolate** for 150 World Locks!",
-  embeds: [],
-  components: []
-});
-}
 // WYR buttons
 if (interaction.customId.startsWith("wyr_")) {
   return wyr.handleButton(interaction);
@@ -706,37 +586,7 @@ await finalChannel.send({
 }
   // ================= SELECT =================
   if (interaction.isStringSelectMenu()) {
-if (interaction.customId === "buy_menu") {
 
-  const choice = interaction.values[0];
-
-  if (choice === "hotchoco") {
-
-    const embed = new EmbedBuilder()
-      .setColor("Yellow")
-      .setTitle("Purchase Confirmation")
-      .setDescription(
-        "Are you sure you want to buy **Riding Hot Chocolate** <:hotchocolate:1487617641903423589>\n\nCost: **150 World Locks <:World_Lock:1455752235966533662>**"
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("buy_confirm_hotchoco")
-        .setLabel("Sure")
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId("buy_cancel")
-        .setLabel("Cancel")
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    return interaction.update({
-      embeds: [embed],
-      components: [row]
-    });
-  }
-}
     if (interaction.customId === "game") {
       if (interaction.values[0] === "sudoku") {
 
@@ -772,8 +622,24 @@ if (interaction.customId === "buy_menu") {
 });
 
 client.on("messageCreate", async (message) => {
+    if (message.author.bot) return; 
 
-  if (message.author.bot) return;
+if (message.channel.id === PAY_CHANNEL) {
+
+  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+  const user = levels[message.author.id] || { wl: 0 };
+
+if ((user.wl || 0) < 3) {
+  await message.delete().catch(() => {});
+  await message.author.send("❌ You need 3 World Locks to use that channel.").catch(() => {});
+  return; // 🔥 VERY IMPORTANT
+}
+  // deduct WL
+  user.wl -= 3;
+  levels[message.author.id] = user;
+
+  fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
+}
 
   // 🚫 check banned words
   const badWord = words.containsBadWord(message.content);

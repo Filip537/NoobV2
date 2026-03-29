@@ -77,19 +77,7 @@ new SlashCommandBuilder()
         { name: "Riding Hot Chocolate", value: "hotchoco" }
       )
   ),
-  new SlashCommandBuilder()
-  .setName("givewl")
-  .setDescription("Give World Locks")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("Select user")
-      .setRequired(true)
-  )
-  .addIntegerOption(option =>
-    option.setName("amount")
-      .setDescription("Amount of WL")
-      .setRequired(true)
-  ),
+
 new SlashCommandBuilder()
   .setName("myset")
   .setDescription("View your equipped set"),
