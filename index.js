@@ -13,6 +13,7 @@ const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const level = require("./feature/level.js");
 const words = require("./feature/words.js");
+const ticket = require("./feature/ticket.js");
 const {
   Client,
   GatewayIntentBits,
@@ -238,7 +239,9 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
- 
+ if (interaction.commandName === "ticketpanel") {
+  return ticket.execute(interaction);
+}
 if (interaction.commandName === "wordban") {
 
   if (!interaction.member.roles.cache.has(adminRole)) {

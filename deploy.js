@@ -77,7 +77,9 @@ new SlashCommandBuilder()
         { name: "Riding Hot Chocolate", value: "hotchoco" }
       )
   ),
-
+new SlashCommandBuilder()
+  .setName("ticketpanel")
+  .setDescription("Send ticket panel"),
 new SlashCommandBuilder()
   .setName("myset")
   .setDescription("View your equipped set"),
