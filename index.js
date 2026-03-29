@@ -610,12 +610,18 @@ client.on("messageCreate", async (message) => {
 
     const logChannel = await client.channels.fetch("1487613700516085760");
 
-    logChannel.send({
-      content: `🚫 Message deleted from ${message.author}
+const embed = new EmbedBuilder()
+  .setColor("Red")
+  .setTitle("Blacklisted Word Detected")
+  .setThumbnail(message.author.displayAvatarURL())
+  .addFields(
+    { name: "User", value: `${message.author}`, inline: true },
+    { name: "Channel", value: `${message.channel}`, inline: true },
+    { name: "Message", value: message.content.slice(0, 1000) || "No content" }
+  )
+  .setTimestamp();
 
-**Word:** ${badWord}
-**Message:** ${message.content}`
-    });
+logChannel.send({ embeds: [embed] });
 
     return;
   }
