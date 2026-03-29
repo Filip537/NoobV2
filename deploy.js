@@ -79,7 +79,12 @@ new SlashCommandBuilder()
   ),
 new SlashCommandBuilder()
   .setName("ticketpanel")
-  .setDescription("Send ticket panel"),
+  .setDescription("Send ticket panel")
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Where to send the ticket panel")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("myset")
   .setDescription("View your equipped set"),
