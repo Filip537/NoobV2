@@ -474,7 +474,12 @@ if (image) {
   }
 
   if (interaction.isButton()) {
-    if (interaction.customId === "create_ticket" || interaction.customId === "close_ticket") {
+if (
+  interaction.customId === "create_ticket" ||
+  interaction.customId === "close_ticket" ||
+  interaction.customId === "admin_form" ||
+  interaction.customId === "support_form"
+) {
   return ticket.handleButton(interaction);
 }
 // WYR buttons
