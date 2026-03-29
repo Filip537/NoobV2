@@ -247,7 +247,43 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
+if (interaction.commandName === "givewl") {
 
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ You don't have permission.",
+      ephemeral: true
+    });
+  }
+
+  const target = interaction.options.getUser("user");
+  const amount = interaction.options.getInteger("amount");
+
+  if (amount <= 0) {
+    return interaction.reply({
+      content: "❌ Amount must be greater than 0.",
+      ephemeral: true
+    });
+  }
+
+  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+
+  if (!levels[target.id]) {
+    levels[target.id] = { level: 1, xp: 0, wl: 0 };
+  }
+
+  if (!levels[target.id].wl) {
+    levels[target.id].wl = 0;
+  }
+
+  levels[target.id].wl += amount;
+
+  fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
+
+  return interaction.reply({
+    content: `Successfully gave **${amount} WL** to ${target}`,
+  });
+}
  if (interaction.commandName === "buy") {
 
   const item = interaction.options.getString("item");
@@ -340,8 +376,7 @@ if (interaction.isChatInputCommand()) {
   const userData = levels[target.id] || { level: 1, xp: 0 };
 
   // WL BANK (you can change later if you make economy system)
-  const wlBank = (userData.level * 10); // simple scaling for now
-
+const wlBank = userData.wl || 0;
   const embed = new EmbedBuilder()
     .setColor("Blurple")
     .setAuthor({
@@ -531,7 +566,6 @@ if (interaction.customId === "buy_confirm_hotchoco") {
   }
 
   // subtract WL (simulate)
-  user.level -= 15; // since 1 level = 10 WL
 
   levels[interaction.user.id] = user;
   fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
