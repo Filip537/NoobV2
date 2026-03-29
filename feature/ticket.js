@@ -118,9 +118,8 @@ If your issue is not related, do NOT click unnecessarily.`
           .setLabel("🔒 Close Ticket")
           .setStyle(ButtonStyle.Danger)
       );
-
-      await channel.send({
-        content: `<@${interaction.user.id}> <@&${SUPPORT_ROLE}>`,
+await channel.send({
+  content: `Hello <@${interaction.user.id}>`,
         embeds: [embed],
         components: [row1, row2]
       });
@@ -174,7 +173,6 @@ Any use of **GenAI** is **strictly prohibited**. All responses must be your own 
 
 Extra Note: Since having access to the world comes with responsibility, a compromised account could cause serious issues. Please confirm that your account is fully protected against potential hackers.
 \`\`\``,
-        ephemeral: true
       });
     }
 
@@ -196,7 +194,6 @@ Do NOT send your messages one by one, you must say it in one message, otherwise 
 - How would you respond if someone opened a ticket?
 - How could we trust you to be a support?
 \`\`\``,
-        ephemeral: true
       });
     }
 
