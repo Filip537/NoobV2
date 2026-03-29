@@ -66,7 +66,13 @@ new SlashCommandBuilder()
       .setDescription("Word to blacklist")
       .setRequired(true)
   ),
+new SlashCommandBuilder()
+  .setName("buy")
+  .setDescription("Buy items"),
 
+new SlashCommandBuilder()
+  .setName("myset")
+  .setDescription("View your equipped set"),
 new SlashCommandBuilder()
   .setName("wordbanlist")
   .setDescription("View blacklisted words"),

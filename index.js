@@ -46,6 +46,16 @@ const APPROVED_CHANNEL = "1454171558305202348";
 
 // messageId → game
 const sudokuGames = new Map();
+const INV_FILE = "./inventory.json";
+
+function loadInv() {
+  if (!fs.existsSync(INV_FILE)) fs.writeFileSync(INV_FILE, "{}");
+  return JSON.parse(fs.readFileSync(INV_FILE));
+}
+
+function saveInv(data) {
+  fs.writeFileSync(INV_FILE, JSON.stringify(data, null, 2));
+}
 
 function loadBirthdays() {
   if (!fs.existsSync(birthdayFile)) {
@@ -237,6 +247,42 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
+
+  if (interaction.commandName === "buy") {
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("buy_menu")
+    .setPlaceholder("Select item")
+    .addOptions([
+      {
+        label: "Riding Hot Chocolate",
+        value: "hotchoco",
+        description: "150 WL"
+      }
+    ]);
+
+  return interaction.reply({
+    content: "Choose an item to buy:",
+    components: [new ActionRowBuilder().addComponents(menu)]
+  });
+}
+
+if (interaction.commandName === "myset") {
+
+  const inv = loadInv();
+  const userItems = inv[interaction.user.id];
+
+  if (!userItems || userItems.length === 0) {
+    return interaction.reply("❌ You don't have any clothing yet. Use /buy.");
+  }
+
+  if (userItems.includes("hotchoco")) {
+    return interaction.reply({
+      content: "Your Set:",
+      files: ["../images/chocoride.png"]
+    });
+  }
+}
 if (interaction.commandName === "wordban") {
 
   if (!interaction.member.roles.cache.has(adminRole)) {
@@ -448,6 +494,52 @@ if (image) {
   }
 
   if (interaction.isButton()) {
+
+    if (interaction.customId === "buy_cancel") {
+  return interaction.update({
+    content: "❌ Purchase cancelled.",
+    embeds: [],
+    components: []
+  });
+}
+
+if (interaction.customId === "buy_confirm_hotchoco") {
+
+  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+  const user = levels[interaction.user.id] || { level: 1, xp: 0 };
+
+  let wl = user.level * 10;
+
+  if (wl < 150) {
+    return interaction.reply({
+      content: "❌ You don't have enough World Locks.",
+      ephemeral: true
+    });
+  }
+
+  // subtract WL (simulate)
+  user.level -= 15; // since 1 level = 10 WL
+
+  levels[interaction.user.id] = user;
+  fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
+
+  // save item
+  const inv = loadInv();
+
+  if (!inv[interaction.user.id]) inv[interaction.user.id] = [];
+
+  if (!inv[interaction.user.id].includes("hotchoco")) {
+    inv[interaction.user.id].push("hotchoco");
+  }
+
+  saveInv(inv);
+
+  return interaction.update({
+    content: "✅ Thanks for purchasing **Riding Hot Chocolate** for 150 World Locks!",
+    embeds: [],
+    components: []
+  });
+}
 // WYR buttons
 if (interaction.customId.startsWith("wyr_")) {
   return wyr.handleButton(interaction);
@@ -563,7 +655,37 @@ await finalChannel.send({
 }
   // ================= SELECT =================
   if (interaction.isStringSelectMenu()) {
+if (interaction.customId === "buy_menu") {
 
+  const choice = interaction.values[0];
+
+  if (choice === "hotchoco") {
+
+    const embed = new EmbedBuilder()
+      .setColor("Yellow")
+      .setTitle("Purchase Confirmation")
+      .setDescription(
+        "Are you sure you want to buy **Riding Hot Chocolate** <:hotchocolate:1487617641903423589>\n\nCost: **150 World Locks <:World_Lock:1455752235966533662>**"
+      );
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("buy_confirm_hotchoco")
+        .setLabel("Sure")
+        .setStyle(ButtonStyle.Primary),
+
+      new ButtonBuilder()
+        .setCustomId("buy_cancel")
+        .setLabel("Cancel")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.update({
+      embeds: [embed],
+      components: [row]
+    });
+  }
+}
     if (interaction.customId === "game") {
       if (interaction.values[0] === "sudoku") {
 
