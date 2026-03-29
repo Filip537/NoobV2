@@ -654,31 +654,53 @@ if ((user.wl || 0) < 3) {
 
   // 🚫 check banned words
  // 🚫 check banned words
+// 🚫 check banned words
 const badWord = words.containsBadWord(message.content);
 
 if (badWord) {
   await message.delete().catch(() => {});
 
-  // ⚠️ Send warning in same channel
+  // ⚠️ Send warning
   const warnMsg = await message.channel.send({
     content: `⚠️ ${message.author}, watch your language. You have been muted for 1 minute.`
   });
 
-  // ⏱️ Timeout user for 1 minute
+  // ⏱️ Timeout
   try {
     await message.member.timeout(60 * 1000);
   } catch (err) {
     console.log("Timeout failed:", err);
   }
 
-  // 🧹 Auto delete warning after 5 seconds (optional clean)
+  // 📜 LOG (RESTORED)
+  try {
+    const logChannel = await client.channels.fetch("1487613700516085760");
+
+    const embed = new EmbedBuilder()
+      .setColor("Red")
+      .setTitle("Blacklisted Word Detected")
+      .setThumbnail(message.author.displayAvatarURL())
+      .addFields(
+        { name: "User", value: `${message.author}`, inline: true },
+        { name: "Channel", value: `${message.channel}`, inline: true },
+        { name: "Action", value: "Muted 1 minute", inline: true },
+        { name: "Message", value: message.content.slice(0, 1000) || "No content" }
+      )
+      .setTimestamp();
+
+    logChannel.send({ embeds: [embed] });
+
+  } catch (err) {
+    console.log("Log failed:", err);
+  }
+
+  // 🧹 Clean warning
   setTimeout(() => {
     warnMsg.delete().catch(() => {});
   }, 5000);
 
   return;
 }
-
   // level system
   level.handleMessage(message);
 });
