@@ -239,6 +239,56 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "bdaylist") {
+
+  const birthdays = loadBirthdays();
+
+  if (Object.keys(birthdays).length === 0) {
+    return interaction.reply("No birthdays saved.");
+  }
+
+  let list = "";
+
+  for (const userId in birthdays) {
+    const b = birthdays[userId];
+    list += `<@${userId}> → ${b.day}/${b.month}/${b.year}\n`;
+  }
+
+  return interaction.reply({
+    content: `**Birthday List**\n\n${list}`,
+    allowedMentions: { parse: [] } // no ping spam
+  });
+}
+
+if (interaction.commandName === "testbday") {
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ Admin only.", ephemeral: true });
+  }
+
+  const channel = await client.channels.fetch(birthdayChannel);
+
+  const birthdays = loadBirthdays();
+  const today = new Date();
+
+  let found = false;
+
+  for (const userId in birthdays) {
+    const b = birthdays[userId];
+
+    if (b.day === today.getDate() && b.month === (today.getMonth() + 1)) {
+      found = true;
+
+      channel.send(`🎉 Happy Birthday <@${userId}>! 🎂`);
+    }
+  }
+
+  if (!found) {
+    return interaction.reply("No birthdays today.");
+  }
+
+  return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
+}
  if (interaction.commandName === "ticketpanel") {
   return ticket.execute(interaction);
 }
