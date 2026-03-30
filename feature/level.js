@@ -13,9 +13,8 @@ function saveLevels(data) {
   fs.writeFileSync(levelFile, JSON.stringify(data, null, 2));
 }
 
-// XP formula (easy → hard scaling)
 function getXPNeeded(level) {
-  return Math.floor(50 + (level * level * 2.5)); 
+  return Math.floor(100 + Math.pow(level, 2.2) * 10);
 }
 
 // Reward system (World Locks scaling)
@@ -39,8 +38,7 @@ module.exports = {
     const user = data[message.author.id];
 
     // XP per message (random small amount)
-    const gainedXP = Math.floor(Math.random() * 5) + 3; // 3–7 XP
-    user.xp += gainedXP;
+const gainedXP = Math.floor(Math.random() * 3) + 1; // 1–3 XP    user.xp += gainedXP;
 
     const neededXP = getXPNeeded(user.level);
 

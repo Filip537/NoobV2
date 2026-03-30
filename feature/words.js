@@ -31,7 +31,12 @@ function getWords() {
 
 function containsBadWord(content) {
   const words = load();
-  return words.find(w => content.toLowerCase().includes(w));
+
+  const messageWords = content
+    .toLowerCase()
+    .split(/\s+/) // split by spaces
+
+  return words.find(w => messageWords.includes(w));
 }
 
 module.exports = {
