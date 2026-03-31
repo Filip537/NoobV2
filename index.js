@@ -14,6 +14,7 @@ const quote = require("./commands/quote.js");
 const level = require("./feature/level.js");
 const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
+const settings = require("./feature/settings.js");
 const {
   Client,
   GatewayIntentBits,
@@ -239,96 +240,10 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "bdaylist") {
 
-  const birthdays = loadBirthdays();
-
-  if (Object.keys(birthdays).length === 0) {
-    return interaction.reply("No birthdays saved.");
-  }
-
-  let list = "";
-
-  for (const userId in birthdays) {
-    const b = birthdays[userId];
-    list += `<@${userId}> → ${b.day}/${b.month}/${b.year}\n`;
-  }
-
-  return interaction.reply({
-    content: `**Birthday List**\n\n${list}`,
-    allowedMentions: { parse: [] } // no ping spam
-  });
-}
-
-if (interaction.commandName === "testbday") {
-
-  if (!interaction.member.roles.cache.has(adminRole)) {
-    return interaction.reply({ content: "❌ Admin only.", ephemeral: true });
-  }
-
-  const channel = await client.channels.fetch(birthdayChannel);
-
-  const birthdays = loadBirthdays();
-  const today = new Date();
-
-  let found = false;
-
-  for (const userId in birthdays) {
-    const b = birthdays[userId];
-
-    if (b.day === today.getDate() && b.month === (today.getMonth() + 1)) {
-      found = true;
-
-      channel.send(`🎉 Happy Birthday <@${userId}>! 🎂`);
-    }
-  }
-
-  if (!found) {
-    return interaction.reply("No birthdays today.");
-  }
-
-  return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
-}
- if (interaction.commandName === "ticketpanel") {
-  return ticket.execute(interaction);
-}
-if (interaction.commandName === "wordban") {
-
-  if (!interaction.member.roles.cache.has(adminRole)) {
-    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
-  }
-
-  const word = interaction.options.getString("word");
-
-  words.addWord(word);
-
-  return interaction.reply({
-    content: `Word **${word}** has been blacklisted.`,
-    ephemeral: true
-  });
-}
-
-if (interaction.commandName === "wordbanlist") {
-
-  if (!interaction.member.roles.cache.has(adminRole)) {
-    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
-  }
-
-  const list = words.getWords();
-
-  if (list.length === 0) {
-    return interaction.reply("No blacklisted words.");
-  }
-
-  return interaction.reply({
-    content: `📛 Blacklisted Words:\n\n${list.map(w => `• ${w}`).join("\n")}`,
-    ephemeral: true
-  });
-}
-if (interaction.isChatInputCommand()) {
-
-  // 💰 WL CHECK
-  if (interaction.channel.id === PAY_CHANNEL) {
+  // ================= SETTINGS COMMAND =================
+  if (interaction.isChatInputCommand()) {
+if (interaction.channel.id === PAY_CHANNEL) {
 
     const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
     const user = levels[interaction.user.id] || { wl: 0 };
@@ -345,9 +260,6 @@ if (interaction.isChatInputCommand()) {
 
     fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
   }
-
-  // 👇 ALL COMMANDS BELOW HERE
-
   if (interaction.commandName === "profile") {
 
   const target = interaction.options.getUser("user") || interaction.user;
@@ -425,6 +337,96 @@ if (interaction.commandName === "leaderboard") {
     });
   }
 }
+if (interaction.commandName === "wordbanlist") {
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+  }
+
+  const list = words.getWords();
+
+  if (list.length === 0) {
+    return interaction.reply("No blacklisted words.");
+  }
+
+  return interaction.reply({
+    content: `📛 Blacklisted Words:\n\n${list.map(w => `• ${w}`).join("\n")}`,
+    ephemeral: true
+  });
+}
+
+      if (interaction.commandName === "bdaylist") {
+
+  const birthdays = loadBirthdays();
+
+  if (Object.keys(birthdays).length === 0) {
+    return interaction.reply("No birthdays saved.");
+  }
+
+  let list = "";
+
+  for (const userId in birthdays) {
+    const b = birthdays[userId];
+    list += `<@${userId}> → ${b.day}/${b.month}/${b.year}\n`;
+  }
+
+  return interaction.reply({
+    content: `**Birthday List**\n\n${list}`,
+    allowedMentions: { parse: [] } // no ping spam
+  });
+}
+
+if (interaction.commandName === "testbday") {
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ Admin only.", ephemeral: true });
+  }
+
+  const channel = await client.channels.fetch(birthdayChannel);
+
+  const birthdays = loadBirthdays();
+  const today = new Date();
+
+  let found = false;
+
+  for (const userId in birthdays) {
+    const b = birthdays[userId];
+
+    if (b.day === today.getDate() && b.month === (today.getMonth() + 1)) {
+      found = true;
+
+      channel.send(`🎉 Happy Birthday <@${userId}>! 🎂`);
+    }
+  }
+
+  if (!found) {
+    return interaction.reply("No birthdays today.");
+  }
+
+  return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
+}
+ if (interaction.commandName === "ticketpanel") {
+  return ticket.execute(interaction);
+}
+if (interaction.commandName === "wordban") {
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+  }
+
+  const word = interaction.options.getString("word");
+
+  words.addWord(word);
+
+  return interaction.reply({
+    content: `Word **${word}** has been blacklisted.`,
+    ephemeral: true
+  });
+}
+    if (interaction.commandName === "settings") {
+      return settings.execute(interaction, adminRole);
+    }
+    
   
   if (interaction.commandName === "wouldyourather") {
     return wyr.execute(interaction);
@@ -437,13 +439,11 @@ if (interaction.commandName === "leaderboard") {
   if (interaction.commandName === "quote") {
   return quote.execute(interaction);
 }
-
-
+// ================= ADD BLACKLIST =================
 if (interaction.commandName === "addblist") {
 
   if (activeInteractions.has(interaction.id)) return;
   activeInteractions.add(interaction.id);
-
   setTimeout(() => activeInteractions.delete(interaction.id), 5000);
 
   const image = interaction.options.getAttachment("image");
@@ -458,101 +458,153 @@ if (interaction.commandName === "addblist") {
 
   const channel = await client.channels.fetch(PENDING_CHANNEL);
 
- const embed = new EmbedBuilder()
-  .setTitle("Blacklist Request")
-  .setDescription(`Hello ${interaction.user}`)
-  .addFields(
-    { name: "GrowID", value: growid, inline: true },
-    { name: "Reason", value: reason, inline: true },
-    { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
-  )
-  .setColor("Yellow");
+  const embed = new EmbedBuilder()
+    .setTitle("Blacklist Request")
+    .setDescription(`Hello ${interaction.user}`)
+    .addFields(
+      { name: "GrowID", value: growid, inline: true },
+      { name: "Reason", value: reason, inline: true },
+      { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
+    )
+    .setColor("Yellow");
 
-if (image) {
-  embed.setImage(image.url);
-}
+  if (image) embed.setImage(image.url);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`approve_${interaction.user.id}`)
       .setLabel("Approve")
       .setStyle(ButtonStyle.Success),
-
     new ButtonBuilder()
       .setCustomId(`deny_${interaction.user.id}`)
       .setLabel("Not Approve")
       .setStyle(ButtonStyle.Danger)
   );
 
-  await channel.send({
-    embeds: [embed],
-    components: [row]
-  });
+  await channel.send({ embeds: [embed], components: [row] });
 
   return interaction.reply({
-    content: "✅ Your blacklist is currently pending, Check <#1481767733304623235>.",
+    content: "✅ Your blacklist is currently pending.",
     ephemeral: true
   });
 }
 
-    const birthdays = loadBirthdays();
+// ================= ADD BIRTHDAY =================
+if (interaction.commandName === "addbirthday") {
 
-    if (interaction.commandName === "addbirthday") {
-      birthdays[interaction.user.id] = {
-        day: interaction.options.getInteger("day"),
-        month: interaction.options.getInteger("month"),
-        year: interaction.options.getInteger("year")
-      };
-      saveBirthdays(birthdays);
-      return interaction.reply("Saved!");
+  const birthdays = loadBirthdays();
+
+  birthdays[interaction.user.id] = {
+    day: interaction.options.getInteger("day"),
+    month: interaction.options.getInteger("month"),
+    year: interaction.options.getInteger("year")
+  };
+
+  saveBirthdays(birthdays);
+  return interaction.reply("Saved!");
+}
+
+// ================= GAMES =================
+if (interaction.commandName === "games") {
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("game")
+    .setPlaceholder("Choose game")
+    .addOptions([{ label: "Sudoku", value: "sudoku" }]);
+
+  return interaction.reply({
+    content: "🎮 Choose a game:",
+    components: [new ActionRowBuilder().addComponents(menu)]
+  });
+}
+  }
+
+  // ================= DROPDOWN =================
+ if (interaction.isStringSelectMenu()) {
+
+    if (interaction.customId === "settings_menu") {
+      return settings.handleMenu(interaction);
     }
 
-    if (interaction.commandName === "games") {
+    if (interaction.customId === "panel_menu") {
+      return settings.handlePanelMenu(interaction);
+    }
+  
+  if (interaction.customId === "game") {
 
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId("game")
-        .setPlaceholder("Choose game")
-        .addOptions([
-          { label: "Sudoku", value: "sudoku" }
-        ]);
+    if (interaction.values[0] === "sudoku") {
 
-      return interaction.reply({
-        content: "🎮 Choose a game:",
-        components: [new ActionRowBuilder().addComponents(menu)]
+      const msg = await interaction.reply({
+        content: "🧩 Starting Sudoku...",
+        fetchReply: true
+      });
+
+      const game = createGame();
+      sudokuGames.set(msg.id, game);
+
+      return interaction.editReply({
+        embeds: [getEmbed(game)],
+        components: getUI(game)
       });
     }
   }
 
-  if (interaction.isButton()) {
-if (
-  interaction.customId === "create_ticket" ||
-  interaction.customId === "close_ticket" ||
-  interaction.customId === "admin_form" ||
-  interaction.customId === "support_form"
-) {
-  return ticket.handleButton(interaction);
-}
-// WYR buttons
-if (interaction.customId.startsWith("wyr_")) {
-  return wyr.handleButton(interaction);
+  const game = sudokuGames.get(interaction.message.id);
+  if (!game) return;
+
+  if (interaction.customId === "row") game.row = parseInt(interaction.values[0]);
+  if (interaction.customId === "col") game.col = parseInt(interaction.values[0]);
+  if (interaction.customId === "num") game.num = parseInt(interaction.values[0]);
+
+  return interaction.update({
+    embeds: [getEmbed(game)],
+    components: getUI(game)
+  });
 }
 
+  // ================= MODAL =================
+  if (interaction.isModalSubmit()) {
+    return settings.handleModal(interaction);
+  }
 
-  // ===== BLACKLIST =====
+  // ================= BUTTON =================
+if (interaction.isButton()) {
+
+  if (
+    interaction.customId === "confirm_bot" ||
+    interaction.customId === "cancel_bot" ||
+    interaction.customId === "edit_ticket"
+  ) {
+    return settings.handleButton(interaction, client);
+  }
+
+  if (
+    interaction.customId === "create_ticket" ||
+    interaction.customId === "close_ticket" ||
+    interaction.customId === "admin_form" ||
+    interaction.customId === "support_form"
+  ) {
+    return ticket.handleButton(interaction);
+  }
+
+  if (interaction.customId.startsWith("wyr_")) {
+    return wyr.handleButton(interaction);
+  }
+
+  // ===== BLACKLIST APPROVE / DENY =====
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
     const ownerId = interaction.customId.split("_")[1];
+    const SELF_APPROVE_ROLE = "1448858787296317553";
 
-const SELF_APPROVE_ROLE = "1448858787296317553";
-
-if (interaction.user.id === ownerId) {
-  if (!interaction.member.roles.cache.has(SELF_APPROVE_ROLE)) {
-    return interaction.reply({
-      content: "❌ You cannot approve your own blacklist.",
-      ephemeral: true
-    });
-  }
-}
+    if (interaction.user.id === ownerId) {
+      if (!interaction.member.roles.cache.has(SELF_APPROVE_ROLE)) {
+        return interaction.reply({
+          content: "❌ You cannot approve your own blacklist.",
+          ephemeral: true
+        });
+      }
+    }
 
     const embed = EmbedBuilder.from(interaction.message.embeds[0]);
     const fields = embed.data.fields;
@@ -565,19 +617,14 @@ if (interaction.user.id === ownerId) {
 
       const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
-let message = `**GrowID**: ${growid}
+      let message = `**GrowID**: ${growid}
 **Reason**: ${reason}
 **Blacklisted & Proof By**: ${proof}`;
 
-const imageUrl = interaction.message.embeds[0].image?.url;
+      const imageUrl = interaction.message.embeds[0].image?.url;
+      if (imageUrl) message += `\n${imageUrl}`;
 
-if (imageUrl) {
-  message += `\n${imageUrl}`;
-}
-
-await finalChannel.send({
-  content: message
-});
+      await finalChannel.send({ content: message });
 
       embed.setColor("Green").setFooter({ text: "Approved" });
 
@@ -591,7 +638,7 @@ await finalChannel.send({
     });
   }
 
-  // ===== SUDOKU =====
+  // ===== SUDOKU BUTTONS =====
   const game = sudokuGames.get(interaction.message.id);
   if (!game) return;
 
@@ -645,43 +692,8 @@ await finalChannel.send({
     });
   }
 }
-  // ================= SELECT =================
-  if (interaction.isStringSelectMenu()) {
 
-    if (interaction.customId === "game") {
-      if (interaction.values[0] === "sudoku") {
-
-        const msg = await interaction.reply({
-          content: "🧩 Starting Sudoku...",
-          fetchReply: true
-        });
-
-        const game = createGame();
-        sudokuGames.set(msg.id, game);
-
-        return interaction.editReply({
-          embeds: [getEmbed(game)],
-          components: getUI(game)
-        });
-      }
-    }
-
-    const game = sudokuGames.get(interaction.message.id);
-    if (!game) return;
-
-    if (interaction.customId === "row") game.row = parseInt(interaction.values[0]);
-    if (interaction.customId === "col") game.col = parseInt(interaction.values[0]);
-    if (interaction.customId === "num") game.num = parseInt(interaction.values[0]);
-
-    return interaction.update({
-      embeds: [getEmbed(game)],
-      components: getUI(game)
-    });
-  }
-
-  
 });
-
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; 
 
@@ -690,12 +702,12 @@ if (message.channel.id === PAY_CHANNEL) {
   const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
   const user = levels[message.author.id] || { wl: 0 };
 
-if ((user.wl || 0) < 3) {
-  await message.delete().catch(() => {});
-  await message.author.send("❌ You need 3 World Locks to use that channel.").catch(() => {});
-  return; // 🔥 VERY IMPORTANT
-}
-  // deduct WL
+  if ((user.wl || 0) < 3) {
+    await message.delete().catch(() => {});
+    await message.author.send("❌ You need 3 World Locks to use that channel.").catch(() => {});
+    return;
+  }
+
   user.wl -= 3;
   levels[message.author.id] = user;
 

@@ -85,6 +85,9 @@ new SlashCommandBuilder()
       .setDescription("Where to send the ticket panel")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("settings")
+  .setDescription("Open server settings panel"),
 new SlashCommandBuilder()
   .setName("myset")
   .setDescription("View your equipped set"),
