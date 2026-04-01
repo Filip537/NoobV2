@@ -240,7 +240,60 @@ const memberCount = (await guild.members.fetch()).size;
 });
 
 client.on("interactionCreate", async (interaction) => {
+// ================= EDIT WORD BAN =================
+if (interaction.commandName === "editwordban") {
 
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Admin only.",
+      ephemeral: true
+    });
+  }
+
+  const word = interaction.options.getString("word");
+
+  const list = words.getWords();
+
+  if (!list.includes(word.toLowerCase())) {
+    return interaction.reply({
+      content: "❌ That word is not in the blacklist.",
+      ephemeral: true
+    });
+  }
+
+  words.removeWord(word);
+
+  return interaction.reply({
+    content: `✅ Removed **${word}** from blacklist.`,
+    ephemeral: true
+  });
+}
+if (interaction.commandName === "editbday") {
+
+  const birthdays = loadBirthdays();
+
+  // ❌ if user has no birthday yet
+  if (!birthdays[interaction.user.id]) {
+    return interaction.reply({
+      content: "❌ You don't have a birthday set. Use /addbirthday first.",
+      ephemeral: true
+    });
+  }
+
+  // ✅ update ONLY their own
+  birthdays[interaction.user.id] = {
+    day: interaction.options.getInteger("day"),
+    month: interaction.options.getInteger("month"),
+    year: interaction.options.getInteger("year")
+  };
+
+  saveBirthdays(birthdays);
+
+  return interaction.reply({
+    content: "✅ Your birthday has been updated.",
+    ephemeral: true
+  });
+}
   // ================= SETTINGS COMMAND =================
   if (interaction.isChatInputCommand()) {
 if (interaction.channel.id === PAY_CHANNEL) {
@@ -714,9 +767,6 @@ if (message.channel.id === PAY_CHANNEL) {
   fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
 }
 
-  // 🚫 check banned words
- // 🚫 check banned words
-// 🚫 check banned words
 const badWord = words.containsBadWord(message.content);
 
 if (badWord) {

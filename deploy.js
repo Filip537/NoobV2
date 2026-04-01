@@ -94,6 +94,14 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("wordbanlist")
   .setDescription("View blacklisted words"),
+  new SlashCommandBuilder()
+  .setName("editwordban")
+  .setDescription("Remove a word from blacklist")
+  .addStringOption(option =>
+    option.setName("word")
+      .setDescription("Word to remove")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),

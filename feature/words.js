@@ -39,8 +39,15 @@ function containsBadWord(content) {
   return words.find(w => messageWords.includes(w));
 }
 
+function removeWord(word) {
+  const words = load();
+  const updated = words.filter(w => w !== word.toLowerCase());
+  save(updated);
+  return updated;
+}
 module.exports = {
   addWord,
   getWords,
-  containsBadWord
+  containsBadWord,
+  removeWord
 };
