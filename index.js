@@ -48,6 +48,7 @@ const APPROVED_CHANNEL = "1454171558305202348";
 const PAY_CHANNEL = "1439935159926394960";
 const STORY_CHANNEL = "1493097672373047347";
 const storyFile = "./stories.json";
+const NOTE_CHANNEL = "1493571345491955853";
 
 // messageId → game
 const sudokuGames = new Map();
@@ -303,8 +304,7 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  const storyChannel = await client.channels.fetch(STORY_CHANNEL).catch(() => null);
-
+const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
   if (!storyChannel) {
     return interaction.reply({
       content: "❌ Story channel not found.",
@@ -359,8 +359,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   return interaction.reply({
-    content: `✅ ${interaction.user} posted a note. Please view it in <#${STORY_CHANNEL}>.`,
-    allowedMentions: { users: [interaction.user.id] }
+content: `✅ ${interaction.user} posted a note. Please view it in <#${NOTE_CHANNEL}>.`,    allowedMentions: { users: [interaction.user.id] }
   });
 }
 if (interaction.isChatInputCommand() && interaction.commandName === "poststory") {
