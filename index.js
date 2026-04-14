@@ -323,7 +323,6 @@ if (interaction.isChatInputCommand() && interaction.commandName === "postnote") 
       iconURL: interaction.user.displayAvatarURL({ dynamic: true })
     })
     .setDescription(`This note will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
-    .setFooter({ text: "Instagram-style note" })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
@@ -402,7 +401,6 @@ if (interaction.isChatInputCommand() && interaction.commandName === "poststory")
       iconURL: interaction.user.displayAvatarURL({ dynamic: true })
     })
     .setDescription(`This story will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
-    .setFooter({ text: "Instagram-style story" })
     .setTimestamp()
     .addFields({
       name: "Story Type",
