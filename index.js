@@ -293,6 +293,76 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
+  const text = interaction.options.getString("text");
+
+  if (!text || !text.trim()) {
+    return interaction.reply({
+      content: "❌ Please enter a note.",
+      ephemeral: true
+    });
+  }
+
+  const storyChannel = await client.channels.fetch(STORY_CHANNEL).catch(() => null);
+
+  if (!storyChannel) {
+    return interaction.reply({
+      content: "❌ Story channel not found.",
+      ephemeral: true
+    });
+  }
+
+  const storyId = makeStoryId();
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+
+  const embed = new EmbedBuilder()
+    .setColor("Purple")
+    .setAuthor({
+      name: `${interaction.user.username}'s Note`,
+      iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+    })
+    .setDescription(`This note will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
+    .setFooter({ text: "Instagram-style note" })
+    .setTimestamp();
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`view_note_${storyId}`)
+      .setLabel(`View ${interaction.user.username}'s Note`)
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const sentMessage = await storyChannel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  const stories = loadStories();
+  stories.push({
+    storyId,
+    ownerId: interaction.user.id,
+    ownerTag: interaction.user.tag,
+    channelId: STORY_CHANNEL,
+    messageId: sentMessage.id,
+    mediaType: "note",
+    noteText: text,
+    expiresAt,
+    viewers: []
+  });
+  saveStories(stories);
+
+  if (interaction.channel.id === STORY_CHANNEL) {
+    return interaction.reply({
+      content: "✅ Your note has been posted.",
+      ephemeral: true
+    });
+  }
+
+  return interaction.reply({
+    content: `✅ ${interaction.user} posted a note. Please view it in <#${STORY_CHANNEL}>.`,
+    allowedMentions: { users: [interaction.user.id] }
+  });
+}
 if (interaction.isChatInputCommand() && interaction.commandName === "poststory") {
   const media = interaction.options.getAttachment("media");
 
@@ -334,14 +404,17 @@ if (interaction.isChatInputCommand() && interaction.commandName === "poststory")
     .setFooter({ text: "Instagram-style story" })
     .setTimestamp();
 
-  if (contentType.startsWith("image/")) {
-    embed.setImage(media.url);
-  } else {
-    embed.addFields({
-      name: "Video Story",
-      value: `[Click here to open the video](${media.url})`
-    });
-  }
+if (contentType.startsWith("image/")) {
+  embed.addFields({
+    name: "Story Type",
+    value: "Image story"
+  });
+} else {
+  embed.addFields({
+    name: "Story Type",
+    value: "Video story"
+  });
+}
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -763,6 +836,58 @@ if (interaction.commandName === "games") {
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("view_note_")) {
+  const storyId = interaction.customId.replace("view_note_", "");
+  const stories = loadStories();
+  const story = stories.find(s => s.storyId === storyId);
+
+  if (!story) {
+    return interaction.reply({
+      content: "❌ This note no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (Date.now() >= story.expiresAt) {
+    return interaction.reply({
+      content: "❌ This note has expired.",
+      ephemeral: true
+    });
+  }
+
+  const alreadyViewed = story.viewers.some(v => v.userId === interaction.user.id);
+
+  if (!alreadyViewed) {
+    story.viewers.push({
+      userId: interaction.user.id,
+      tag: interaction.user.tag,
+      viewedAt: Date.now()
+    });
+    saveStories(stories);
+
+    try {
+      const owner = await client.users.fetch(story.ownerId).catch(() => null);
+      if (owner) {
+        await owner.send(`👀 **${interaction.user.tag}** viewed your note.`).catch(() => {});
+      }
+    } catch (err) {
+      console.log("Failed to DM note owner:", err);
+    }
+  }
+
+  const viewEmbed = new EmbedBuilder()
+    .setColor("Purple")
+    .setAuthor({
+      name: `${story.ownerTag}'s Note`
+    })
+    .setDescription(story.noteText)
+    .setFooter({ text: "Note view" });
+
+  return interaction.reply({
+    embeds: [viewEmbed],
+    ephemeral: true
+  });
+}
 if (interaction.customId.startsWith("view_story_")) {
   const storyId = interaction.customId.replace("view_story_", "");
   const stories = loadStories();

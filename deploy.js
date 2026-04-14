@@ -111,6 +111,15 @@ new SlashCommandBuilder()
       .setDescription("Choose an image or video")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("postnote")
+  .setDescription("Post a note that disappears after 24 hours")
+  .addStringOption(option =>
+    option
+      .setName("text")
+      .setDescription("Write your note")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),
