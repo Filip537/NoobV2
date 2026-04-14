@@ -294,7 +294,7 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
+if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
   const text = interaction.options.getString("text");
 
   if (!text || !text.trim()) {
@@ -304,10 +304,11 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
-  if (!storyChannel) {
+  const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
+
+  if (!noteChannel) {
     return interaction.reply({
-      content: "❌ Story channel not found.",
+      content: "❌ Note channel not found.",
       ephemeral: true
     });
   }
@@ -332,7 +333,7 @@ const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
       .setStyle(ButtonStyle.Primary)
   );
 
-  const sentMessage = await storyChannel.send({
+  const sentMessage = await noteChannel.send({
     embeds: [embed],
     components: [row]
   });
@@ -342,7 +343,7 @@ const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
     storyId,
     ownerId: interaction.user.id,
     ownerTag: interaction.user.tag,
-    channelId: STORY_CHANNEL,
+    channelId: NOTE_CHANNEL,
     messageId: sentMessage.id,
     mediaType: "note",
     noteText: text,
@@ -351,7 +352,7 @@ const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
   });
   saveStories(stories);
 
-  if (interaction.channel.id === STORY_CHANNEL) {
+  if (interaction.channel.id === NOTE_CHANNEL) {
     return interaction.reply({
       content: "✅ Your note has been posted.",
       ephemeral: true
@@ -359,7 +360,8 @@ const noteChannel = await client.channels.fetch(NOTE_CHANNEL).catch(() => null);
   }
 
   return interaction.reply({
-content: `✅ ${interaction.user} posted a note. Please view it in <#${NOTE_CHANNEL}>.`,    allowedMentions: { users: [interaction.user.id] }
+    content: `✅ ${interaction.user} posted a note. Please view it in <#${NOTE_CHANNEL}>.`,
+    allowedMentions: { users: [interaction.user.id] }
   });
 }
 if (interaction.isChatInputCommand() && interaction.commandName === "poststory") {
@@ -401,19 +403,11 @@ if (interaction.isChatInputCommand() && interaction.commandName === "poststory")
     })
     .setDescription(`This story will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
     .setFooter({ text: "Instagram-style story" })
-    .setTimestamp();
-
-if (contentType.startsWith("image/")) {
-  embed.addFields({
-    name: "Story Type",
-    value: "Image story"
-  });
-} else {
-  embed.addFields({
-    name: "Story Type",
-    value: "Video story"
-  });
-}
+    .setTimestamp()
+    .addFields({
+      name: "Story Type",
+      value: contentType.startsWith("image/") ? "Image story" : "Video story"
+    });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -444,7 +438,7 @@ if (contentType.startsWith("image/")) {
 
   if (interaction.channel.id === STORY_CHANNEL) {
     return interaction.reply({
-      content: `✅ Your story has been posted.`,
+      content: "✅ Your story has been posted.",
       ephemeral: true
     });
   }
