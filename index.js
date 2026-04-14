@@ -46,9 +46,51 @@ const BLIST_ROLE = "1483241188868882657";
 const PENDING_CHANNEL = "1481767733304623235";
 const APPROVED_CHANNEL = "1454171558305202348";
 const PAY_CHANNEL = "1439935159926394960";
+const STORY_CHANNEL = "1493097672373047347";
+const storyFile = "./stories.json";
 
 // messageId → game
 const sudokuGames = new Map();
+
+function loadStories() {
+  if (!fs.existsSync(storyFile)) {
+    fs.writeFileSync(storyFile, "[]");
+  }
+  return JSON.parse(fs.readFileSync(storyFile, "utf8"));
+}
+
+function saveStories(data) {
+  fs.writeFileSync(storyFile, JSON.stringify(data, null, 2));
+}
+
+function makeStoryId() {
+  return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+}
+
+async function cleanupExpiredStories() {
+  const stories = loadStories();
+  const now = Date.now();
+
+  const remaining = [];
+
+  for (const story of stories) {
+    if (story.expiresAt <= now) {
+      try {
+        const channel = await client.channels.fetch(story.channelId).catch(() => null);
+        if (channel) {
+          const msg = await channel.messages.fetch(story.messageId).catch(() => null);
+          if (msg) await msg.delete().catch(() => {});
+        }
+      } catch (err) {
+        console.log("Failed to delete expired story:", err);
+      }
+    } else {
+      remaining.push(story);
+    }
+  }
+
+  saveStories(remaining);
+}
 
 function loadBirthdays() {
   if (!fs.existsSync(birthdayFile)) {
@@ -237,11 +279,98 @@ const memberCount = (await guild.members.fetch()).size;
 
   await updateStatus();
   setInterval(updateStatus, 300000);
+
+  if (!fs.existsSync(storyFile)) {
+  fs.writeFileSync(storyFile, "[]");
+}
+
+await cleanupExpiredStories();
+
+// every 5 minutes
+cron.schedule("*/5 * * * *", async () => {
+  await cleanupExpiredStories();
+});
 });
 
 client.on("interactionCreate", async (interaction) => {
-// ================= EDIT WORD BAN =================
-if (interaction.commandName === "editwordban") {
+if (interaction.commandName === "poststory") {
+  const media = interaction.options.getAttachment("media");
+
+  if (!media) {
+    return interaction.reply({
+      content: "❌ Please upload an image or video.",
+      ephemeral: true
+    });
+  }
+
+  const contentType = media.contentType || "";
+
+  if (
+    !contentType.startsWith("image/") &&
+    !contentType.startsWith("video/")
+  ) {
+    return interaction.reply({
+      content: "❌ Only image or video files are allowed.",
+      ephemeral: true
+    });
+  }
+
+  const storyChannel = await client.channels.fetch(STORY_CHANNEL).catch(() => null);
+
+  if (!storyChannel) {
+    return interaction.reply({
+      content: "❌ Story channel not found.",
+      ephemeral: true
+    });
+  }
+
+  const storyId = makeStoryId();
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+
+const embed = new EmbedBuilder()
+  .setColor("Purple")
+  .setAuthor({
+    name: `${interaction.user.username}'s Story`,
+    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+  })
+  .setDescription(`This story will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
+  .setFooter({ text: "Instagram-style story" })
+  .setTimestamp();
+
+if (contentType.startsWith("image/")) {
+  embed.setImage(media.url);
+} else {
+  embed.addFields({
+    name: "Video Story",
+    value: `[Click here to open the video](${media.url})`
+  });
+}
+
+const sentMessage = await storyChannel.send({
+  embeds: [embed],
+  components: [row]
+});
+
+  const stories = loadStories();
+  stories.push({
+    storyId,
+    ownerId: interaction.user.id,
+    ownerTag: interaction.user.tag,
+    channelId: STORY_CHANNEL,
+    messageId: sentMessage.id,
+    mediaUrl: media.url,
+    mediaType: contentType,
+    mediaName: media.name || "story",
+    expiresAt,
+    viewers: []
+  });
+  saveStories(stories);
+
+  return interaction.reply({
+    content: `✅ Your story has been posted in <#${STORY_CHANNEL}> and will disappear in 24 hours.`,
+    ephemeral: true
+  });
+}if (interaction.commandName === "editwordban") {
 
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
@@ -622,7 +751,67 @@ if (interaction.commandName === "games") {
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
+if (interaction.customId.startsWith("view_story_")) {
+  const storyId = interaction.customId.replace("view_story_", "");
+  const stories = loadStories();
+  const story = stories.find(s => s.storyId === storyId);
 
+  if (!story) {
+    return interaction.reply({
+      content: "❌ This story no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (Date.now() >= story.expiresAt) {
+    return interaction.reply({
+      content: "❌ This story has expired.",
+      ephemeral: true
+    });
+  }
+
+  const alreadyViewed = story.viewers.some(v => v.userId === interaction.user.id);
+
+  if (!alreadyViewed) {
+    story.viewers.push({
+      userId: interaction.user.id,
+      tag: interaction.user.tag,
+      viewedAt: Date.now()
+    });
+    saveStories(stories);
+
+    try {
+      const owner = await client.users.fetch(story.ownerId).catch(() => null);
+      if (owner) {
+        await owner.send(
+          `👀 **${interaction.user.tag}** viewed your story.`
+        ).catch(() => {});
+      }
+    } catch (err) {
+      console.log("Failed to DM story owner:", err);
+    }
+  }
+
+  if (story.mediaType.startsWith("image/")) {
+    const viewEmbed = new EmbedBuilder()
+      .setColor("Purple")
+      .setAuthor({
+        name: `${story.ownerTag}'s Story`
+      })
+      .setImage(story.mediaUrl)
+      .setFooter({ text: "Story view" });
+
+    return interaction.reply({
+      embeds: [viewEmbed],
+      ephemeral: true
+    });
+  }
+
+  return interaction.reply({
+    content: `▶️ Here is the story video:\n${story.mediaUrl}`,
+    ephemeral: true
+  });
+}
   if (
     interaction.customId === "confirm_bot" ||
     interaction.customId === "cancel_bot" ||

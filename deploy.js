@@ -102,6 +102,15 @@ new SlashCommandBuilder()
       .setDescription("Word to remove")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("poststory")
+  .setDescription("Post a story that disappears after 24 hours")
+  .addAttachmentOption(option =>
+    option
+      .setName("media")
+      .setDescription("Choose an image or video")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("testdice")
   .setDescription("Roll a dice"),
