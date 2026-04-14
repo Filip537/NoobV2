@@ -293,7 +293,7 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-if (interaction.commandName === "poststory") {
+if (interaction.isChatInputCommand() && interaction.commandName === "poststory") {
   const media = interaction.options.getAttachment("media");
 
   if (!media) {
@@ -305,10 +305,7 @@ if (interaction.commandName === "poststory") {
 
   const contentType = media.contentType || "";
 
-  if (
-    !contentType.startsWith("image/") &&
-    !contentType.startsWith("video/")
-  ) {
+  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
     return interaction.reply({
       content: "❌ Only image or video files are allowed.",
       ephemeral: true
@@ -327,29 +324,36 @@ if (interaction.commandName === "poststory") {
   const storyId = makeStoryId();
   const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
-const embed = new EmbedBuilder()
-  .setColor("Purple")
-  .setAuthor({
-    name: `${interaction.user.username}'s Story`,
-    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-  })
-  .setDescription(`This story will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
-  .setFooter({ text: "Instagram-style story" })
-  .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setColor("Purple")
+    .setAuthor({
+      name: `${interaction.user.username}'s Story`,
+      iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+    })
+    .setDescription(`This story will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
+    .setFooter({ text: "Instagram-style story" })
+    .setTimestamp();
 
-if (contentType.startsWith("image/")) {
-  embed.setImage(media.url);
-} else {
-  embed.addFields({
-    name: "Video Story",
-    value: `[Click here to open the video](${media.url})`
+  if (contentType.startsWith("image/")) {
+    embed.setImage(media.url);
+  } else {
+    embed.addFields({
+      name: "Video Story",
+      value: `[Click here to open the video](${media.url})`
+    });
+  }
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`view_story_${storyId}`)
+      .setLabel(`View ${interaction.user.username}'s Story`)
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const sentMessage = await storyChannel.send({
+    embeds: [embed],
+    components: [row]
   });
-}
-
-const sentMessage = await storyChannel.send({
-  embeds: [embed],
-  components: [row]
-});
 
   const stories = loadStories();
   stories.push({
@@ -366,11 +370,19 @@ const sentMessage = await storyChannel.send({
   });
   saveStories(stories);
 
+  if (interaction.channel.id === STORY_CHANNEL) {
+    return interaction.reply({
+      content: `✅ Your story has been posted.`,
+      ephemeral: true
+    });
+  }
+
   return interaction.reply({
-    content: `✅ Your story has been posted in <#${STORY_CHANNEL}> and will disappear in 24 hours.`,
-    ephemeral: true
+    content: `✅ ${interaction.user} posted a story. Please view it in <#${STORY_CHANNEL}>.`,
+    allowedMentions: { users: [interaction.user.id] }
   });
-}if (interaction.commandName === "editwordban") {
+}
+if (interaction.commandName === "editwordban") {
 
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
