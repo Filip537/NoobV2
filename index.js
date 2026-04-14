@@ -874,7 +874,6 @@ if (interaction.isButton()) {
       name: `${story.ownerTag}'s Note`
     })
     .setDescription(story.noteText)
-    .setFooter({ text: "Note view" });
 
   return interaction.reply({
     embeds: [viewEmbed],
@@ -929,7 +928,6 @@ if (interaction.customId.startsWith("view_story_")) {
         name: `${story.ownerTag}'s Story`
       })
       .setImage(story.mediaUrl)
-      .setFooter({ text: "Story view" });
 
     return interaction.reply({
       embeds: [viewEmbed],
