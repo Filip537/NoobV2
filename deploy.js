@@ -156,19 +156,22 @@ new SlashCommandBuilder()
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
-new SlashCommandBuilder()
-  .setName("postgif")
-  .setDescription("Post a gif that disappears after 24 hours")
-  .addAttachmentOption(option =>
-    option
-      .setName("gif")
-      .setDescription("Choose a gif")
-      .setRequired(true)
-  ),
+
   new SlashCommandBuilder()
     .setName("bdaylist")
     .setDescription("Show birthday list"),
-
+new SlashCommandBuilder()
+  .setName("createprofile")
+  .setDescription("Create your profile"),
+  new SlashCommandBuilder()
+  .setName("viewprofile")
+  .setDescription("View another user's profile")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Select a user")
+      .setRequired(true)
+  ),
   new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")

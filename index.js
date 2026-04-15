@@ -15,6 +15,7 @@ const level = require("./feature/level.js");
 const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
+const profileFeature = require("./feature/profile.js");
 const {
   Client,
   GatewayIntentBits,
@@ -49,7 +50,6 @@ const PAY_CHANNEL = "1439935159926394960";
 const STORY_CHANNEL = "1493097672373047347";
 const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
-const GIF_CHANNEL = "1493851627113676871";
 
 // messageId → game
 const sudokuGames = new Map();
@@ -295,91 +295,16 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isChatInputCommand() && interaction.commandName === "postgif") {
-  const gif = interaction.options.getAttachment("gif");
+ if (interaction.isChatInputCommand() && interaction.commandName === "createprofile") {
+  return profileFeature.executeCreateProfile(interaction);
+}
 
-  if (!gif) {
-    return interaction.reply({
-      content: "❌ Please upload a gif.",
-      ephemeral: true
-    });
-  }
+if (interaction.isChatInputCommand() && interaction.commandName === "profile") {
+  return profileFeature.executeProfile(interaction);
+}
 
-  const contentType = gif.contentType || "";
-  const isGif =
-    contentType === "image/gif" ||
-    (gif.name && gif.name.toLowerCase().endsWith(".gif"));
-
-  if (!isGif) {
-    return interaction.reply({
-      content: "❌ Only GIF files are allowed.",
-      ephemeral: true
-    });
-  }
-
-  const gifChannel = await client.channels.fetch(GIF_CHANNEL).catch(() => null);
-
-  if (!gifChannel) {
-    return interaction.reply({
-      content: "❌ GIF channel not found.",
-      ephemeral: true
-    });
-  }
-
-  const storyId = makeStoryId();
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-
-  const embed = new EmbedBuilder()
-    .setColor("Purple")
-    .setAuthor({
-      name: `${interaction.user.username}'s GIF`,
-      iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-    })
-    .setDescription(`This GIF will disappear <t:${Math.floor(expiresAt / 1000)}:R>.`)
-    .setTimestamp()
-    .addFields({
-      name: "Post Type",
-      value: "GIF"
-    });
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`view_gif_${storyId}`)
-      .setLabel(`View ${interaction.user.username}'s GIF`)
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  const sentMessage = await gifChannel.send({
-    embeds: [embed],
-    components: [row]
-  });
-
-  const stories = loadStories();
-  stories.push({
-    storyId,
-    ownerId: interaction.user.id,
-    ownerTag: interaction.user.tag,
-    channelId: GIF_CHANNEL,
-    messageId: sentMessage.id,
-    mediaUrl: gif.url,
-    mediaType: "gif",
-    mediaName: gif.name || "gif",
-    expiresAt,
-    viewers: []
-  });
-  saveStories(stories);
-
-  if (interaction.channel.id === GIF_CHANNEL) {
-    return interaction.reply({
-      content: "✅ Your GIF has been posted.",
-      ephemeral: true
-    });
-  }
-
-  return interaction.reply({
-    content: `✅ ${interaction.user} posted a GIF. Please view it in <#${GIF_CHANNEL}>.`,
-    allowedMentions: { users: [interaction.user.id] }
-  });
+if (interaction.isChatInputCommand() && interaction.commandName === "viewprofile") {
+  return profileFeature.executeViewProfile(interaction);
 }
 if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
   const text = interaction.options.getString("text");
@@ -605,49 +530,7 @@ if (interaction.channel.id === PAY_CHANNEL) {
 
     fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
   }
-  if (interaction.commandName === "profile") {
-
-  const target = interaction.options.getUser("user") || interaction.user;
-  const member = await interaction.guild.members.fetch(target.id);
-
-  const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-  const userData = levels[target.id] || { level: 1, xp: 0 };
-
-  // WL BANK (you can change later if you make economy system)
-const wlBank = userData.wl || 0;
-  const embed = new EmbedBuilder()
-    .setColor("Blurple")
-    .setAuthor({
-      name: `@${target.username}`,
-      iconURL: target.displayAvatarURL()
-    })
-    .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
-
-    .addFields(
-      {
-        name: "User Info",
-        value:
-`**ID:** ${target.id}
-**Name:** @${target.username}
-**Created:** <t:${Math.floor(target.createdTimestamp / 1000)}:F>`
-      },
-      {
-        name: "Member Info",
-        value:
-`**Joined:** <t:${Math.floor(member.joinedTimestamp / 1000)}:F>`
-      },
-      {
-        name: "Progress",
-        value:
-`**Level:** ${userData.level}
-**XP:** ${userData.xp}
-**WL Bank:** <:World_Lock:1455752235966533662> ${wlBank}`
-      }
-    );
-
-  return interaction.reply({ embeds: [embed] });
-}
+  
 if (interaction.commandName === "leaderboard") {
 
   const category = interaction.options.getString("category");
@@ -908,64 +791,17 @@ if (interaction.commandName === "games") {
 }
 
   // ================= MODAL =================
-  if (interaction.isModalSubmit()) {
-    return settings.handleModal(interaction);
-  }
+if (interaction.isModalSubmit()) {
+  const handled = await profileFeature.handleModal(interaction);
+  if (handled) return;
+
+  return settings.handleModal(interaction);
+}
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
-  if (interaction.customId.startsWith("view_gif_")) {
-  const storyId = interaction.customId.replace("view_gif_", "");
-  const stories = loadStories();
-  const story = stories.find(s => s.storyId === storyId);
-
-  if (!story) {
-    return interaction.reply({
-      content: "❌ This GIF no longer exists.",
-      ephemeral: true
-    });
-  }
-
-  if (Date.now() >= story.expiresAt) {
-    return interaction.reply({
-      content: "❌ This GIF has expired.",
-      ephemeral: true
-    });
-  }
-
-  const alreadyViewed = story.viewers.some(v => v.userId === interaction.user.id);
-
-  if (!alreadyViewed) {
-    story.viewers.push({
-      userId: interaction.user.id,
-      tag: interaction.user.tag,
-      viewedAt: Date.now()
-    });
-    saveStories(stories);
-
-    try {
-      const owner = await client.users.fetch(story.ownerId).catch(() => null);
-      if (owner) {
-        await owner.send(`👀 **${interaction.user.tag}** viewed your GIF.`).catch(() => {});
-      }
-    } catch (err) {
-      console.log("Failed to DM gif owner:", err);
-    }
-  }
-
-  const viewEmbed = new EmbedBuilder()
-    .setColor("Purple")
-    .setAuthor({
-      name: `${story.ownerTag}'s GIF`
-    })
-    .setImage(story.mediaUrl)
-    .setFooter({ text: "GIF view" });
-
-  return interaction.reply({
-    embeds: [viewEmbed],
-    ephemeral: true
-  });
-}
+    const handledProfileButton = await profileFeature.handleButton(interaction, client);
+  if (handledProfileButton) return;
   if (interaction.customId.startsWith("view_note_")) {
   const storyId = interaction.customId.replace("view_note_", "");
   const stories = loadStories();
