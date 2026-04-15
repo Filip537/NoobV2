@@ -33,12 +33,10 @@ function savePanel(data) {
 }
 
 module.exports = {
-
   pendingChanges,
 
   // ================= MAIN =================
   async execute(interaction, adminRole) {
-
     if (!interaction.member.roles.cache.has(adminRole)) {
       return interaction.reply({
         content: "❌ Admin only.",
@@ -73,12 +71,27 @@ module.exports = {
 
   // ================= MENU =================
   async handleMenu(interaction) {
-
     const choice = interaction.values[0];
+
+    // 🔹 SERVER INFO
+    if (choice === "server") {
+      const guild = interaction.guild;
+
+      const embed = new EmbedBuilder()
+        .setColor("Blue")
+        .setTitle("Server Info")
+        .setDescription(
+          `Members: **${guild.memberCount}**\nRoles: **${guild.roles.cache.size}**`
+        );
+
+      return interaction.update({
+        embeds: [embed],
+        components: []
+      });
+    }
 
     // 🔹 CUSTOMIZE BOT
     if (choice === "bot") {
-
       const modal = new ModalBuilder()
         .setCustomId("bot_modal")
         .setTitle("Customize NoobV2");
@@ -86,12 +99,14 @@ module.exports = {
       const name = new TextInputBuilder()
         .setCustomId("name")
         .setLabel("Bot Name")
-        .setStyle(TextInputStyle.Short);
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
 
       const avatar = new TextInputBuilder()
         .setCustomId("avatar")
         .setLabel("Avatar URL")
-        .setStyle(TextInputStyle.Short);
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false);
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(name),
@@ -101,9 +116,29 @@ module.exports = {
       return interaction.showModal(modal);
     }
 
+    // 🔹 SERVER CONFIGS
+    if (choice === "config") {
+      const embed = new EmbedBuilder()
+        .setColor("Orange")
+        .setTitle("Server Configs")
+        .setDescription("Select what to edit");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("roles_reaction")
+          .setLabel("Roles Reaction")
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      return interaction.update({
+        content: "",
+        embeds: [embed],
+        components: [row]
+      });
+    }
+
     // 🔹 PANEL CONFIGS
     if (choice === "panel") {
-
       const panelMenu = new StringSelectMenuBuilder()
         .setCustomId("panel_menu")
         .setPlaceholder("Panel Configs")
@@ -127,9 +162,7 @@ module.exports = {
 
   // ================= PANEL MENU =================
   async handlePanelMenu(interaction) {
-
     if (interaction.values[0] === "ticket_edit") {
-
       const panel = loadPanel();
 
       const embed = new EmbedBuilder()
@@ -153,10 +186,8 @@ module.exports = {
 
   // ================= MODAL =================
   async handleModal(interaction) {
-
     // 🔹 BOT SETTINGS
     if (interaction.customId === "bot_modal") {
-
       const name = interaction.fields.getTextInputValue("name");
       const avatar = interaction.fields.getTextInputValue("avatar");
 
@@ -189,7 +220,6 @@ module.exports = {
 
     // 🔹 TICKET EDIT
     if (interaction.customId === "ticket_modal") {
-
       const title = interaction.fields.getTextInputValue("title");
       const desc = interaction.fields.getTextInputValue("desc");
       const button = interaction.fields.getTextInputValue("button");
@@ -207,10 +237,8 @@ module.exports = {
 
   // ================= BUTTON =================
   async handleButton(interaction, client) {
-
     // 🔹 APPLY BOT
     if (interaction.customId === "confirm_bot") {
-
       const data = pendingChanges.get(interaction.user.id);
 
       try {
@@ -222,7 +250,6 @@ module.exports = {
           embeds: [],
           components: []
         });
-
       } catch {
         return interaction.update({
           content: "❌ Failed (rate limit or bad URL).",
@@ -240,9 +267,16 @@ module.exports = {
       });
     }
 
+    // 🔹 SERVER CONFIG BUTTON
+    if (interaction.customId === "roles_reaction") {
+      return interaction.reply({
+        content: "✅ Roles Reaction editor coming soon.",
+        ephemeral: true
+      });
+    }
+
     // 🔹 EDIT TICKET PANEL
     if (interaction.customId === "edit_ticket") {
-
       const modal = new ModalBuilder()
         .setCustomId("ticket_modal")
         .setTitle("Edit Ticket Panel");

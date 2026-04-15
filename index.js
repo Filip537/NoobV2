@@ -916,7 +916,9 @@ if (interaction.customId.startsWith("view_story_")) {
   if (
     interaction.customId === "confirm_bot" ||
     interaction.customId === "cancel_bot" ||
-    interaction.customId === "edit_ticket"
+    interaction.customId === "edit_ticket" ||
+      interaction.customId === "roles_reaction"
+
   ) {
     return settings.handleButton(interaction, client);
   }
