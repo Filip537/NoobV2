@@ -762,11 +762,11 @@ if (interaction.commandName === "games") {
   
     if (
   interaction.customId === "rr_message_type" ||
-  interaction.customId === "rr_selection_type" ||
-  interaction.customId === "rr_channel_select"
+  interaction.customId === "rr_selection_type" 
 ) {
   return settings.handleSelect(interaction);
 }
+
   if (interaction.customId === "game") {
 
     if (interaction.values[0] === "sudoku") {
@@ -923,15 +923,19 @@ if (interaction.customId.startsWith("view_story_")) {
     ephemeral: true
   });
 }
-  if (
-    interaction.customId === "confirm_bot" ||
-    interaction.customId === "cancel_bot" ||
-    interaction.customId === "edit_ticket" ||
-      interaction.customId === "roles_reaction" 
-
-  ) {
-    return settings.handleButton(interaction, client);
-  }
+if (
+  interaction.customId === "confirm_bot" ||
+  interaction.customId === "cancel_bot" ||
+  interaction.customId === "edit_ticket" ||
+  interaction.customId === "roles_reaction" ||
+  interaction.customId === "rr_set_name" ||
+  interaction.customId === "rr_set_channel" ||
+  interaction.customId === "rr_add_reaction" ||
+  interaction.customId === "rr_save" ||
+  interaction.customId === "rr_cancel"
+) {
+  return settings.handleButton(interaction, client);
+}
 
   if (
     interaction.customId === "create_ticket" ||
@@ -1048,6 +1052,11 @@ if (interaction.customId.startsWith("view_story_")) {
   }
 }
 
+if (interaction.isChannelSelectMenu()) {
+  if (interaction.customId === "rr_channel_select") {
+    return settings.handleSelect(interaction);
+  }
+}
 });
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; 
