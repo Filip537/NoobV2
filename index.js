@@ -917,7 +917,10 @@ if (interaction.customId.startsWith("view_story_")) {
     interaction.customId === "confirm_bot" ||
     interaction.customId === "cancel_bot" ||
     interaction.customId === "edit_ticket" ||
-      interaction.customId === "roles_reaction"
+      interaction.customId === "roles_reaction" ||
+        interaction.customId === "rr_message_type" ||
+  interaction.customId === "rr_selection_type" ||
+  interaction.customId === "rr_channel_select"
 
   ) {
     return settings.handleButton(interaction, client);
