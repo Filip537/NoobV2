@@ -156,7 +156,15 @@ new SlashCommandBuilder()
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
-
+new SlashCommandBuilder()
+  .setName("postgif")
+  .setDescription("Post a gif that disappears after 24 hours")
+  .addAttachmentOption(option =>
+    option
+      .setName("gif")
+      .setDescription("Choose a gif")
+      .setRequired(true)
+  ),
   new SlashCommandBuilder()
     .setName("bdaylist")
     .setDescription("Show birthday list"),
