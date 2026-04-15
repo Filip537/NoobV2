@@ -275,7 +275,7 @@ client.once("ready", async () => {
     const guild = await client.guilds.fetch(process.env.GUILD_ID).catch(() => null);
     if (!guild) return;
 
-const memberCount = (await guild.members.fetch()).size;
+const memberCount = guild.memberCount;
     client.user.setActivity(`with ${memberCount} members`, {
       type: 0
     });
