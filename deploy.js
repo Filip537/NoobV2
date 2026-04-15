@@ -50,14 +50,9 @@ new SlashCommandBuilder()
         { name: "Level", value: "level" }
       )
   ),
-  new SlashCommandBuilder()
+new SlashCommandBuilder()
   .setName("profile")
-  .setDescription("View your profile")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("Select a user")
-      .setRequired(false)
-  ),
+  .setDescription("View your profile"),
   new SlashCommandBuilder()
   .setName("wordban")
   .setDescription("Ban a word")
