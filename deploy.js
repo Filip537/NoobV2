@@ -168,6 +168,14 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("sendinfo")
+  .setDescription("Send the server info panel")
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Channel to send the info panel")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")
 

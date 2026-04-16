@@ -295,6 +295,60 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "sendinfo") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ No permission.",
+      ephemeral: true
+    });
+  }
+
+  const targetChannel = interaction.options.getChannel("channel");
+
+  const mainEmbed = new EmbedBuilder()
+    .setTitle("Server Info")
+    .setColor("Blue")
+    .setDescription(
+      "Please use the dropdown menu below to view important server information, including the server rules, admin guide, and VIP guide."
+    )
+    .setFooter({
+      text: "NoobV2 Information Panel"
+    });
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("server_info_menu")
+    .setPlaceholder("Select an information category")
+    .addOptions(
+      {
+        label: "Server Rules",
+        description: "View the official server rules",
+        value: "server_rules"
+      },
+      {
+        label: "Admin Guide",
+        description: "View how to become an admin",
+        value: "admin_guide"
+      },
+      {
+        label: "VIP Guide",
+        description: "View VIP sponsorship information",
+        value: "vip_guide"
+      }
+    );
+
+  const row = new ActionRowBuilder().addComponents(menu);
+
+  await targetChannel.send({
+    embeds: [mainEmbed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: `✅ Server info panel sent to ${targetChannel}.`,
+    ephemeral: true
+  });
+}
+
  if (interaction.isChatInputCommand() && interaction.commandName === "createprofile") {
   return profileFeature.executeCreateProfile(interaction);
 }
@@ -750,6 +804,72 @@ if (interaction.commandName === "games") {
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
 
+  if (interaction.customId === "server_info_menu") {
+  const value = interaction.values[0];
+
+  if (value === "server_rules") {
+    const embed = new EmbedBuilder()
+      .setTitle("Server Rules")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **No toxicity or bullying.**\n` +
+        `<:arrow:1442712798969729087> **No bots, spamming, or hacks.**\n` +
+        `<:arrow:1442712798969729087> **Advertising other worlds is not allowed.**\n` +
+        `<:arrow:1442712798969729087> **No doubling World Locks or Diamond Locks.**\n` +
+        `<:arrow:1442712798969729087> **If an admin tells you to stop doing something, you must stop immediately. Ignoring staff instructions may lead to a punishment or ban.**\n` +
+        `<:arrow:1442712798969729087> **Do not bully, insult, or disrespect other admins.**\n` +
+        `<:arrow:1442712798969729087> **Using glitches to survive fire is not allowed and may result in a ban.**\n\n` +
+        `If you need to report a player or an admin, please contact an admin on Discord.\n\n` +
+        `To make a valid report, you must provide clear proof such as screenshots or recordings. Without proof, staff may not be able to take action.\n\n` +
+        `✨ **Respect others and enjoy your time in NoobV2.**`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "admin_guide") {
+    const embed = new EmbedBuilder()
+      .setTitle("Admin Guide")
+      .setColor("Blue")
+      .setDescription(
+        `To become an admin in **NoobV2**, please review the requirements below:\n\n` +
+        `<:arrow:1442712798969729087> You must be **recognized and trusted** by at least **3 admins** and **1 owner or co-owner**.\n` +
+        `<:arrow:1442712798969729087> You must be an **active player** in the world for at least **10 days**.\n` +
+        `<:arrow:1442712798969729087> You should actively **support the server**, such as helping with giveaways, sponsoring events, assisting admins, or contributing to activities like dice games or parkour drops.\n` +
+        `<:arrow:1442712798969729087> After that, the owners will discuss whether you are suitable for the position.\n\n` +
+        `Please note that meeting these requirements does **not guarantee** that you will become an admin, as there may be competition from other players.\n\n` +
+        `However, all genuine effort will always be noticed and appreciated. ❤️`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "vip_guide") {
+    const embed = new EmbedBuilder()
+      .setTitle("VIP Guide")
+      .setColor("Blue")
+      .setDescription(
+        `## :blue_crown: VIP Sponsorship Information\n\n` +
+        `<:arrow:1442712798969729087> The **@Vip** role that can be granted is the one listed **below the dice**.\n\n` +
+        `<:arrow:1442712798969729087> This role is given to players who sponsor **3 BGLs or more**. This can be done through **one single donation** or **multiple smaller donations** that add up to **3 BGLs**.\n\n` +
+        `<:arrow:1442712798969729087> Once a player receives the **VIP role**, they may keep it by continuing to sponsor from time to time, even in smaller amounts.\n\n` +
+        `<:arrow:1442712798969729087> If there is **no sponsorship activity for 10 days**, the **VIP role will be removed**.\n\n` +
+        `To claim your **VIP spot**, please tag me or **padrohell**, or create a ticket in <#1413404892416053289>.\n\n` +
+        `Thank you for your cooperation.`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+}
     if (interaction.customId === "settings_menu") {
       return settings.handleMenu(interaction);
     }
