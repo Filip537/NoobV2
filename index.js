@@ -854,15 +854,15 @@ if (interaction.commandName === "games") {
     const embed = new EmbedBuilder()
       .setTitle("VIP Guide")
       .setColor("Blue")
-      .setDescription(
-        `## :blue_crown: VIP Sponsorship Information\n\n` +
-        `<:arrow:1442712798969729087> The **@Vip** role that can be granted is the one listed **below the dice**.\n\n` +
-        `<:arrow:1442712798969729087> This role is given to players who sponsor **3 BGLs or more**. This can be done through **one single donation** or **multiple smaller donations** that add up to **3 BGLs**.\n\n` +
-        `<:arrow:1442712798969729087> Once a player receives the **VIP role**, they may keep it by continuing to sponsor from time to time, even in smaller amounts.\n\n` +
-        `<:arrow:1442712798969729087> If there is **no sponsorship activity for 10 days**, the **VIP role will be removed**.\n\n` +
-        `To claim your **VIP spot**, please tag me or **padrohell**, or create a ticket in <#1413404892416053289>.\n\n` +
-        `Thank you for your cooperation.`
-      );
+.setDescription(
+  `## <:bulletin:1447778065512923217> VIP Sponsorship Information\n\n` +
+  `<:arrow:1442712798969729087> The **<@&1479616262223953972>** role that can be granted is the one listed **below the dice**.\n\n` +
+  `<:arrow:1442712798969729087> This role is given to players who sponsor **3 BGLs or more**. This can be done through **one single donation** or **multiple smaller donations** that add up to **3 BGLs**.\n\n` +
+  `<:arrow:1442712798969729087> Once a player receives the **VIP role**, they may keep it by continuing to sponsor from time to time, even in smaller amounts.\n\n` +
+  `<:arrow:1442712798969729087> If there is **no sponsorship activity for 10 days**, the **VIP role will be removed**.\n\n` +
+  `To claim your **VIP spot**, tag me or **padrohell**, or create a ticket in <#1413404892416053289>.\n\n` +
+  `Thank you for your cooperation.`
+)
 
     return interaction.reply({
       embeds: [embed],
