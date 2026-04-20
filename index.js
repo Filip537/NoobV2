@@ -364,6 +364,40 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "dms") {
+  const targetUser = interaction.options.getUser("user");
+  const message = interaction.options.getString("message");
+
+  if (!targetUser) {
+    return interaction.reply({
+      content: "❌ Please choose a user.",
+      ephemeral: true
+    });
+  }
+
+  if (!message || !message.trim()) {
+    return interaction.reply({
+      content: "❌ Please enter a message.",
+      ephemeral: true
+    });
+  }
+
+  try {
+    await targetUser.send(message);
+
+    return interaction.reply({
+      content: `✅ Message sent to ${targetUser.tag}.`,
+      ephemeral: true
+    });
+  } catch (err) {
+    console.log("DM send failed:", err);
+
+    return interaction.reply({
+      content: "❌ Could not send DM to that user.",
+      ephemeral: true
+    });
+  }
+}
 if (interaction.commandName === "sendupdates") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
@@ -1193,40 +1227,7 @@ if (interaction.commandName === "games") {
     });
   }
 }
-if (interaction.commandName === "dms") {
-  const targetUser = interaction.options.getUser("user");
-  const message = interaction.options.getString("message");
 
-  if (!targetUser) {
-    return interaction.reply({
-      content: "❌ Please choose a user.",
-      ephemeral: true
-    });
-  }
-
-  if (!message || !message.trim()) {
-    return interaction.reply({
-      content: "❌ Please enter a message.",
-      ephemeral: true
-    });
-  }
-
-  try {
-    await targetUser.send(message);
-
-    return interaction.reply({
-      content: `✅ Message sent to ${targetUser.tag}.`,
-      ephemeral: true
-    });
-  } catch (err) {
-    console.log("DM send failed:", err);
-
-    return interaction.reply({
-      content: "❌ Could not send DM to that user.",
-      ephemeral: true
-    });
-  }
-}
 if (interaction.customId === "help_menu") {
   const value = interaction.values[0];
 
