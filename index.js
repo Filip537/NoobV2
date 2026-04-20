@@ -364,6 +364,78 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "sendupdates") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ No permission.",
+      ephemeral: true
+    });
+  }
+
+  const targetChannel = interaction.options.getChannel("channel");
+
+  const embed = new EmbedBuilder()
+    .setTitle("✨ NoobV2 Bot Update Log")
+    .setColor("Green")
+    .setDescription("Here are the latest updates and improvements added to the bot today.")
+    .addFields(
+      {
+        name: "Profile & Social Features",
+        value:
+          `<:arrow:1442712798969729087> Users can now create profiles like Instagram\n` +
+          `<:arrow:1442712798969729087> View profiles with followers and following\n` +
+          `<:arrow:1442712798969729087> Post photos and videos (reels)\n` +
+          `<:arrow:1442712798969729087> View posts, likes, and comments`
+      },
+      {
+        name: "Stories & Highlights",
+        value:
+          `<:arrow:1442712798969729087> Post stories that disappear after 24 hours\n` +
+          `<:arrow:1442712798969729087> Post text notes as stories\n` +
+          `<:arrow:1442712798969729087> Highlight your favorite stories\n` +
+          `<:arrow:1442712798969729087> Track story views, likes, and comments`
+      },
+      {
+        name: "Interaction System",
+        value:
+          `<:arrow:1442712798969729087> Like and comment on posts\n` +
+          `<:arrow:1442712798969729087> View comments on posts\n` +
+          `<:arrow:1442712798969729087> View counts added for posts and stories`
+      },
+      {
+        name: "Help & Navigation",
+        value:
+          `<:arrow:1442712798969729087> Added /help command with categories\n` +
+          `<:arrow:1442712798969729087> Easy navigation using dropdown menus\n` +
+          `<:arrow:1442712798969729087> Cleaner and more organized commands`
+      },
+      {
+        name: "Moderation Improvements",
+        value:
+          `<:arrow:1442712798969729087> Improved blacklist system\n` +
+          `<:arrow:1442712798969729087> Scan old messages to rebuild blacklist\n` +
+          `<:arrow:1442712798969729087> Sort and search blacklist entries`
+      },
+      {
+        name: "System Improvements",
+        value:
+          `<:arrow:1442712798969729087> Improved bot stability and performance\n` +
+          `<:arrow:1442712798969729087> Fixed interaction errors\n` +
+          `<:arrow:1442712798969729087> Updated bot status display\n` +
+          `<:arrow:1442712798969729087> Reduced duplicate messages`
+      }
+    )
+    .setFooter({
+      text: "NoobV2 • Stay tuned for more updates"
+    });
+
+  await targetChannel.send({ embeds: [embed] });
+
+  return interaction.reply({
+    content: `✅ Update log sent to ${targetChannel}.`,
+    ephemeral: true
+  });
+}
   if (interaction.commandName === "help") {
   const helpEmbed = new EmbedBuilder()
     .setTitle("NoobV2 Help Menu")

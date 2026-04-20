@@ -50,6 +50,14 @@ new SlashCommandBuilder()
         { name: "Level", value: "level" }
       )
   ),
+  new SlashCommandBuilder()
+  .setName("sendupdates")
+  .setDescription("Send the latest bot update log")
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Where to send the update log")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
