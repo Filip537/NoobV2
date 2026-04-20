@@ -80,6 +80,41 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
+ async function scanBlacklistChannel() {
+  const channel = await client.channels.fetch(APPROVED_CHANNEL).catch(() => null);
+  if (!channel) return;
+
+  let messages = await channel.messages.fetch({ limit: 100 });
+  const blacklist = [];
+
+  for (const msg of messages.values()) {
+    const content = msg.content;
+
+    if (!content.includes("GrowID:")) continue;
+
+    const growidMatch = content.match(/GrowID:\s*(.+)/i);
+    const reasonMatch = content.match(/Reason:\s*(.+)/i);
+    const proofMatch = content.match(/Blacklisted & Proof By:\s*(.+)/i);
+
+    if (!growidMatch) continue;
+
+    const growid = growidMatch[1].trim();
+    const reason = reasonMatch ? reasonMatch[1].trim() : "Unknown";
+    const proof = proofMatch ? proofMatch[1].trim() : "Unknown";
+
+    blacklist.push({
+      growid,
+      reason,
+      proof,
+      addedBy: "Scan System",
+      approvedBy: "Scan System",
+      createdAt: msg.createdTimestamp
+    });
+  }
+
+  saveBlacklist(blacklist);
+  console.log(`✅ Scanned ${blacklist.length} blacklist entries`);
+}
 async function cleanupExpiredStories() {
   const stories = loadStories();
   const now = Date.now();
@@ -278,6 +313,7 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+  await scanBlacklistChannel();
   console.log(`Logged in as ${client.user.tag}`);
 
   async function updateStatus() {
