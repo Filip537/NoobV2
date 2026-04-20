@@ -17,6 +17,7 @@ const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
 const profileFeature = require("./feature/profile.js");
 const blacklistFile = "./blacklist.json";
+const socialFeature = require("./feature/social.js");
 const {
   Client,
   GatewayIntentBits,
@@ -342,9 +343,9 @@ client.once("ready", async () => {
     if (!guild) return;
 
 const memberCount = guild.memberCount;
-    client.user.setActivity(`with ${memberCount} members`, {
-      type: 0
-    });
+client.user.setActivity(`Stories Live | ${memberCount} members`, {
+  type: 0
+});
   }
 
   await updateStatus();
@@ -363,6 +364,12 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand() && (
+  interaction.commandName === "postfeed" ||
+  interaction.commandName === "highlights"
+)) {
+  return socialFeature.handleCommand(interaction);
+}
   if (interaction.commandName === "sendinfo") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
@@ -646,18 +653,19 @@ if (interaction.isChatInputCommand() && interaction.commandName === "poststory")
   });
 
   const stories = loadStories();
-  stories.push({
-    storyId,
-    ownerId: interaction.user.id,
-    ownerTag: interaction.user.tag,
-    channelId: STORY_CHANNEL,
-    messageId: sentMessage.id,
-    mediaUrl: media.url,
-    mediaType: contentType,
-    mediaName: media.name || "story",
-    expiresAt,
-    viewers: []
-  });
+ stories.push({
+  storyId,
+  ownerId: interaction.user.id,
+  ownerTag: interaction.user.tag,
+  channelId: STORY_CHANNEL,
+  messageId: sentMessage.id,
+  mediaUrl: media.url,
+  mediaType: contentType,
+  mediaName: media.name || "story",
+  expiresAt,
+  viewers: [],
+  highlights: false 
+});
   saveStories(stories);
 
   if (interaction.channel.id === STORY_CHANNEL) {
@@ -1165,7 +1173,30 @@ if (interaction.commandName === "games") {
 
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+if (interaction.customId.startsWith("comment_modal_")) {
+  const storyId = interaction.customId.replace("comment_modal_", "");
+  const comment = interaction.fields.getTextInputValue("comment_input");
 
+  const stories = loadStories();
+  const story = stories.find(s => s.storyId === storyId);
+
+  if (!story) return;
+
+  story.comments = story.comments || [];
+story.comments.push({
+  userId: interaction.user.id,
+  user: interaction.user.tag,
+  text: comment,
+  createdAt: Date.now()
+});
+
+  saveStories(stories);
+
+  return interaction.reply({
+    content: "Comment added!",
+    ephemeral: true
+  });
+}
   if (interaction.customId === "blist_search_modal") {
   const query = interaction.fields
     .getTextInputValue("blist_search_input")
@@ -1208,14 +1239,78 @@ if (interaction.isModalSubmit()) {
 }
   const handled = await profileFeature.handleModal(interaction);
   if (handled) return;
-
+const handledSocialModal = await socialFeature.handleModal(interaction);
+if (handledSocialModal !== false) return;
   return settings.handleModal(interaction);
 }
 
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("comment_")) {
+  const storyId = interaction.customId.replace("comment_", "");
 
+  const modal = new ModalBuilder()
+    .setCustomId(`comment_modal_${storyId}`)
+    .setTitle("Add Comment");
+
+  const input = new TextInputBuilder()
+    .setCustomId("comment_input")
+    .setLabel("Your comment")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+  return interaction.showModal(modal);
+}
+
+  if (interaction.customId.startsWith("like_")) {
+  const storyId = interaction.customId.replace("like_", "");
+  const stories = loadStories();
+  const story = stories.find(s => s.storyId === storyId);
+
+  if (!story) return;
+
+  story.likes = story.likes || [];
+
+  if (story.likes.includes(interaction.user.id)) {
+    return interaction.reply({
+      content: "❌ You already liked this.",
+      ephemeral: true
+    });
+  }
+
+  story.likes.push(interaction.user.id);
+  saveStories(stories);
+
+  return interaction.reply({
+    content: "❤️ You liked this story!",
+    ephemeral: true
+  });
+}
+if (interaction.customId.startsWith("highlight_")) {
+  const storyId = interaction.customId.replace("highlight_", "");
+  const stories = loadStories();
+  const story = stories.find(s => s.storyId === storyId);
+
+  if (!story) return;
+
+  if (story.ownerId !== interaction.user.id) {
+    return interaction.reply({
+      content: "❌ Only the owner can highlight this story.",
+      ephemeral: true
+    });
+  }
+
+  story.highlights = true;
+  saveStories(stories);
+
+  return interaction.reply({
+    content: "Story added to highlights!",
+    ephemeral: true
+  });
+}
   if (interaction.customId === "blist_search") {
     const modal = new ModalBuilder()
       .setCustomId("blist_search_modal")
@@ -1234,7 +1329,10 @@ if (interaction.isButton()) {
     return interaction.showModal(modal);
   }
 
+  const handledSocialButton = await socialFeature.handleButton(interaction);
+if (handledSocialButton !== false) return;
 const handledProfileButton = await profileFeature.handleButton(interaction, client);
+
 if (handledProfileButton) return;
 
 if (interaction.customId.startsWith("view_note_")) {
@@ -1288,7 +1386,7 @@ if (interaction.customId.startsWith("view_note_")) {
     ephemeral: true
   });
 }
-if (interaction.customId.startsWith("view_story_")) {
+ if (interaction.customId.startsWith("view_story_")) {
   const storyId = interaction.customId.replace("view_story_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -1315,19 +1413,34 @@ if (interaction.customId.startsWith("view_story_")) {
       tag: interaction.user.tag,
       viewedAt: Date.now()
     });
+
+    story.views = (story.views || 0) + 1;
     saveStories(stories);
 
     try {
       const owner = await client.users.fetch(story.ownerId).catch(() => null);
       if (owner) {
-        await owner.send(
-          `👀 **${interaction.user.tag}** viewed your story.`
-        ).catch(() => {});
+        await owner.send(`👀 **${interaction.user.tag}** viewed your story.`).catch(() => {});
       }
     } catch (err) {
       console.log("Failed to DM story owner:", err);
     }
   }
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`like_${storyId}`)
+      .setLabel("Like")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`comment_${storyId}`)
+      .setLabel("Comment")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`highlight_${storyId}`)
+      .setLabel("Highlight")
+      .setStyle(ButtonStyle.Secondary)
+  );
 
   if (story.mediaType.startsWith("image/")) {
     const viewEmbed = new EmbedBuilder()
@@ -1336,15 +1449,20 @@ if (interaction.customId.startsWith("view_story_")) {
         name: `${story.ownerTag}'s Story`
       })
       .setImage(story.mediaUrl)
+      .setFooter({
+        text: `Views: ${story.views || 0} | Likes: ${(story.likes || []).length} | Comments: ${(story.comments || []).length}`
+      });
 
     return interaction.reply({
       embeds: [viewEmbed],
+      components: [row],
       ephemeral: true
     });
   }
 
   return interaction.reply({
-    content: `▶️ Here is the story video:\n${story.mediaUrl}`,
+    content: `Here is the story video:\n${story.mediaUrl}`,
+    components: [row],
     ephemeral: true
   });
 }

@@ -101,6 +101,31 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("postfeed")
+  .setDescription("Post a permanent photo or reel")
+  .addAttachmentOption(option =>
+    option
+      .setName("media")
+      .setDescription("Choose an image or video")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option
+      .setName("caption")
+      .setDescription("Write a caption")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("highlights")
+  .setDescription("View story highlights")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
   .setName("scanblist")
   .setDescription("Scan the approved blacklist channel and rebuild blacklist data"),
   new SlashCommandBuilder()
