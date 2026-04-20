@@ -16,6 +16,7 @@ const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
 const profileFeature = require("./feature/profile.js");
+const blacklistFile = "./blacklist.json";
 const {
   Client,
   GatewayIntentBits,
@@ -69,6 +70,16 @@ function makeStoryId() {
   return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
 }
 
+function loadBlacklist() {
+  if (!fs.existsSync(blacklistFile)) {
+    fs.writeFileSync(blacklistFile, "[]");
+  }
+  return JSON.parse(fs.readFileSync(blacklistFile, "utf8"));
+}
+
+function saveBlacklist(data) {
+  fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
+}
 async function cleanupExpiredStories() {
   const stories = loadStories();
   const now = Date.now();
@@ -359,6 +370,79 @@ if (interaction.isChatInputCommand() && interaction.commandName === "profile") {
 
 if (interaction.isChatInputCommand() && interaction.commandName === "viewprofile") {
   return profileFeature.executeViewProfile(interaction);
+}
+
+if (interaction.commandName === "blist") {
+  const blacklist = loadBlacklist();
+
+  if (blacklist.length === 0) {
+    return interaction.reply({
+      content: "❌ There are no approved blacklist entries yet.",
+      ephemeral: true
+    });
+  }
+
+  const sorted = [...blacklist].sort((a, b) =>
+    a.growid.localeCompare(b.growid)
+  );
+
+  const pageItems = sorted.slice(0, 10);
+
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist List")
+    .setColor("Red")
+    .setDescription(
+      pageItems.map((entry, i) =>
+        `**${i + 1}. ${entry.growid}**\n` +
+        `Reason: ${entry.reason}\n` +
+        `Proof: ${entry.proof}\n` +
+        `Added: <t:${Math.floor(entry.createdAt / 1000)}:R>`
+      ).join("\n\n")
+    )
+    .setFooter({
+      text: `Showing ${pageItems.length} of ${blacklist.length} blacklisted GrowIDs`
+    });
+
+  const sortMenu = new StringSelectMenuBuilder()
+    .setCustomId("blist_sort")
+    .setPlaceholder("Sort blacklist")
+    .addOptions([
+      {
+        label: "A-Z",
+        description: "Sort GrowIDs alphabetically",
+        value: "az"
+      },
+      {
+        label: "Date",
+        description: "Sort by saved date",
+        value: "date"
+      },
+      {
+        label: "Newly Added",
+        description: "Show newest first",
+        value: "new"
+      },
+      {
+        label: "Old Added",
+        description: "Show oldest first",
+        value: "old"
+      }
+    ]);
+
+  const row1 = new ActionRowBuilder().addComponents(sortMenu);
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("blist_search")
+      .setLabel("Search User")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row1, row2],
+    ephemeral: true
+  });
 }
 if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
   const text = interaction.options.getString("text");
@@ -804,6 +888,91 @@ if (interaction.commandName === "games") {
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
 
+  if (interaction.customId === "blist_sort") {
+  const blacklist = loadBlacklist();
+
+  if (blacklist.length === 0) {
+    return interaction.reply({
+      content: "❌ No blacklist entries found.",
+      ephemeral: true
+    });
+  }
+
+  const sortType = interaction.values[0];
+  let sorted = [...blacklist];
+
+  if (sortType === "az") {
+    sorted.sort((a, b) => a.growid.localeCompare(b.growid));
+  } else if (sortType === "date") {
+    sorted.sort((a, b) => b.createdAt - a.createdAt);
+  } else if (sortType === "new") {
+    sorted.sort((a, b) => b.createdAt - a.createdAt);
+  } else if (sortType === "old") {
+    sorted.sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  const pageItems = sorted.slice(0, 10);
+
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist List")
+    .setColor("Red")
+    .setDescription(
+      pageItems.map((entry, i) =>
+        `**${i + 1}. ${entry.growid}**\n` +
+        `Reason: ${entry.reason}\n` +
+        `Proof: ${entry.proof}\n` +
+        `Added: <t:${Math.floor(entry.createdAt / 1000)}:R>`
+      ).join("\n\n")
+    )
+    .setFooter({
+      text: `Showing ${pageItems.length} of ${blacklist.length} blacklisted GrowIDs`
+    });
+
+  const sortMenu = new StringSelectMenuBuilder()
+    .setCustomId("blist_sort")
+    .setPlaceholder("Sort blacklist")
+    .addOptions([
+      {
+        label: "A-Z",
+        description: "Sort GrowIDs alphabetically",
+        value: "az",
+        default: sortType === "az"
+      },
+      {
+        label: "Date",
+        description: "Sort by saved date",
+        value: "date",
+        default: sortType === "date"
+      },
+      {
+        label: "Newly Added",
+        description: "Show newest first",
+        value: "new",
+        default: sortType === "new"
+      },
+      {
+        label: "Old Added",
+        description: "Show oldest first",
+        value: "old",
+        default: sortType === "old"
+      }
+    ]);
+
+  const row1 = new ActionRowBuilder().addComponents(sortMenu);
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("blist_search")
+      .setLabel("Search User")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return interaction.update({
+    embeds: [embed],
+    components: [row1, row2]
+  });
+}
+
   if (interaction.customId === "server_info_menu") {
   const value = interaction.values[0];
 
@@ -920,17 +1089,79 @@ if (interaction.commandName === "games") {
 
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+
+  if (interaction.customId === "blist_search_modal") {
+  const query = interaction.fields
+    .getTextInputValue("blist_search_input")
+    .trim()
+    .toLowerCase();
+
+  const blacklist = loadBlacklist();
+  const results = blacklist.filter(entry =>
+    entry.growid.toLowerCase().includes(query)
+  );
+
+  if (results.length === 0) {
+    return interaction.reply({
+      content: `❌ No blacklisted GrowID found for **${query}**.`,
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist Search Result")
+    .setColor("Red")
+    .setDescription(
+      results.slice(0, 10).map((entry, i) =>
+        `**${i + 1}. ${entry.growid}**\n` +
+        `Reason: ${entry.reason}\n` +
+        `Proof: ${entry.proof}\n` +
+        `Added By: ${entry.addedBy}\n` +
+        `Approved By: ${entry.approvedBy}\n` +
+        `Added: <t:${Math.floor(entry.createdAt / 1000)}:R>`
+      ).join("\n\n")
+    )
+    .setFooter({
+      text: `Found ${results.length} result(s)`
+    });
+
+  return interaction.reply({
+    embeds: [embed],
+    ephemeral: true
+  });
+}
   const handled = await profileFeature.handleModal(interaction);
   if (handled) return;
 
   return settings.handleModal(interaction);
 }
 
+
   // ================= BUTTON =================
 if (interaction.isButton()) {
-    const handledProfileButton = await profileFeature.handleButton(interaction, client);
-  if (handledProfileButton) return;
-  if (interaction.customId.startsWith("view_note_")) {
+
+  if (interaction.customId === "blist_search") {
+    const modal = new ModalBuilder()
+      .setCustomId("blist_search_modal")
+      .setTitle("Search Blacklist");
+
+    const input = new TextInputBuilder()
+      .setCustomId("blist_search_input")
+      .setLabel("Enter GrowID")
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder("Type the GrowID to search")
+      .setRequired(true);
+
+    const row = new ActionRowBuilder().addComponents(input);
+    modal.addComponents(row);
+
+    return interaction.showModal(modal);
+  }
+
+const handledProfileButton = await profileFeature.handleButton(interaction, client);
+if (handledProfileButton) return;
+
+if (interaction.customId.startsWith("view_note_")) {
   const storyId = interaction.customId.replace("view_note_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -1090,29 +1321,49 @@ if (
     const reason = fields.find(f => f.name === "Reason").value;
     const proof = fields.find(f => f.name === "Proof By").value;
 
-    if (interaction.customId.startsWith("approve_")) {
+if (interaction.customId.startsWith("approve_")) {
 
-      const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
+  const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
-      let message = `**GrowID**: ${growid}
+  let message = `**GrowID**: ${growid}
 **Reason**: ${reason}
 **Blacklisted & Proof By**: ${proof}`;
 
-      const imageUrl = interaction.message.embeds[0].image?.url;
-      if (imageUrl) message += `\n${imageUrl}`;
+  const imageUrl = interaction.message.embeds[0].image?.url;
+  if (imageUrl) message += `\n${imageUrl}`;
 
-      await finalChannel.send({ content: message });
+  await finalChannel.send({ content: message });
 
-      embed.setColor("Green").setFooter({ text: "Approved" });
+  // save approved blacklist permanently
+  const blacklist = loadBlacklist();
 
-    } else {
-      embed.setColor("Red").setFooter({ text: "Not Approved" });
-    }
+  const alreadyExists = blacklist.some(
+    entry => entry.growid.toLowerCase() === growid.toLowerCase()
+  );
 
-    return interaction.update({
-      embeds: [embed],
-      components: []
+  if (!alreadyExists) {
+    blacklist.push({
+      growid,
+      reason,
+      proof,
+      addedBy: `<@${ownerId}>`,
+      approvedBy: `<@${interaction.user.id}>`,
+      imageUrl: imageUrl || null,
+      createdAt: Date.now()
     });
+
+    saveBlacklist(blacklist);
+  }
+
+  embed.setColor("Green").setFooter({ text: "Approved" });
+
+} else {
+  embed.setColor("Red").setFooter({ text: "Not Approved" });
+}
+return interaction.update({
+  embeds: [embed],
+  components: []
+});
   }
 
   // ===== SUDOKU BUTTONS =====

@@ -90,6 +90,9 @@ new SlashCommandBuilder()
   .setName("wordbanlist")
   .setDescription("View blacklisted words"),
   new SlashCommandBuilder()
+  .setName("blist")
+  .setDescription("View all approved blacklisted GrowIDs"),
+  new SlashCommandBuilder()
   .setName("editwordban")
   .setDescription("Remove a word from blacklist")
   .addStringOption(option =>
