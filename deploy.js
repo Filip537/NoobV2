@@ -62,17 +62,6 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 new SlashCommandBuilder()
-  .setName("buy")
-  .setDescription("Buy items")
-  .addStringOption(option =>
-    option.setName("item")
-      .setDescription("Choose item to buy")
-      .setRequired(true)
-      .addChoices(
-        { name: "Riding Hot Chocolate", value: "hotchoco" }
-      )
-  ),
-new SlashCommandBuilder()
   .setName("ticketpanel")
   .setDescription("Send ticket panel")
   .addChannelOption(option =>
@@ -83,9 +72,7 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
   .setName("settings")
   .setDescription("Open server settings panel"),
-new SlashCommandBuilder()
-  .setName("myset")
-  .setDescription("View your equipped set"),
+
 new SlashCommandBuilder()
   .setName("wordbanlist")
   .setDescription("View blacklisted words"),
@@ -115,7 +102,9 @@ new SlashCommandBuilder()
       .setDescription("Write a caption")
       .setRequired(false)
   ),
-
+new SlashCommandBuilder()
+  .setName("help")
+  .setDescription("Show all bot commands"),
 new SlashCommandBuilder()
   .setName("highlights")
   .setDescription("View story highlights")

@@ -364,6 +364,56 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "help") {
+  const helpEmbed = new EmbedBuilder()
+    .setTitle("NoobV2 Help Menu")
+    .setColor("Blue")
+    .setDescription(
+      "Please use the dropdown menu below to view all available bot commands by category."
+    )
+    .setFooter({
+      text: "NoobV2 Command Help Panel"
+    });
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("help_menu")
+    .setPlaceholder("Select a command category")
+    .addOptions(
+      {
+        label: "Profile Commands",
+        description: "Profile, stories, posts, highlights",
+        value: "help_profile"
+      },
+      {
+        label: "Moderation Commands",
+        description: "Blacklist and word moderation",
+        value: "help_moderation"
+      },
+      {
+        label: "Fun Commands",
+        description: "Games, quotes, dice, WYR",
+        value: "help_fun"
+      },
+      {
+        label: "Utility Commands",
+        description: "General utility and info commands",
+        value: "help_utility"
+      },
+      {
+        label: "Admin Commands",
+        description: "Admin-only setup and management",
+        value: "help_admin"
+      }
+    );
+
+  const row = new ActionRowBuilder().addComponents(menu);
+
+  return interaction.reply({
+    embeds: [helpEmbed],
+    components: [row],
+    ephemeral: true
+  });
+}
   if (interaction.isChatInputCommand() && (
   interaction.commandName === "postfeed" ||
   interaction.commandName === "highlights"
@@ -971,7 +1021,100 @@ if (interaction.commandName === "games") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
+if (interaction.customId === "help_menu") {
+  const value = interaction.values[0];
 
+  if (value === "help_profile") {
+    const embed = new EmbedBuilder()
+      .setTitle("Profile Commands")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **/createprofile** — Create your profile\n` +
+        `<:arrow:1442712798969729087> **/profile** — View your own profile\n` +
+        `<:arrow:1442712798969729087> **/viewprofile** — View another user's profile\n` +
+        `<:arrow:1442712798969729087> **/poststory** — Post a story for 24 hours\n` +
+        `<:arrow:1442712798969729087> **/postnote** — Post a note for 24 hours\n` +
+        `<:arrow:1442712798969729087> **/postfeed** — Post a permanent photo or reel\n` +
+        `<:arrow:1442712798969729087> **/highlights** — View story highlights`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "help_moderation") {
+    const embed = new EmbedBuilder()
+      .setTitle("Moderation Commands")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **/addblist** — Submit a blacklist request\n` +
+        `<:arrow:1442712798969729087> **/blist** — View approved blacklist entries\n` +
+        `<:arrow:1442712798969729087> **/scanblist** — Rebuild blacklist data from channel\n` +
+        `<:arrow:1442712798969729087> **/wordban** — Add a banned word\n` +
+        `<:arrow:1442712798969729087> **/editwordban** — Remove a banned word\n` +
+        `<:arrow:1442712798969729087> **/wordbanlist** — View banned words`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "help_fun") {
+    const embed = new EmbedBuilder()
+      .setTitle("Fun Commands")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **/wouldyourather** — Play Would You Rather\n` +
+        `<:arrow:1442712798969729087> **/testdice** — Roll a dice\n` +
+        `<:arrow:1442712798969729087> **/quote** — Get a random quote\n` +
+        `<:arrow:1442712798969729087> **/games** — Open the mini games menu`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "help_utility") {
+    const embed = new EmbedBuilder()
+      .setTitle("Utility Commands")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **/leaderboard** — View leaderboard rankings\n` +
+        `<:arrow:1442712798969729087> **/help** — View all commands`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  if (value === "help_admin") {
+    const embed = new EmbedBuilder()
+      .setTitle("Admin Commands")
+      .setColor("Blue")
+      .setDescription(
+        `<:arrow:1442712798969729087> **/settings** — Open the settings panel\n` +
+        `<:arrow:1442712798969729087> **/ticketpanel** — Send the ticket panel\n` +
+        `<:arrow:1442712798969729087> **/sendinfo** — Send the server info panel\n` +
+        `<:arrow:1442712798969729087> **/testbday** — Test birthday message\n` +
+        `<:arrow:1442712798969729087> **/addbirthday** — Save your birthday\n` +
+        `<:arrow:1442712798969729087> **/editbday** — Edit your birthday\n` +
+        `<:arrow:1442712798969729087> **/bdaylist** — View saved birthdays`
+      );
+
+    return interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+}
   if (interaction.customId === "blist_sort") {
   const blacklist = loadBlacklist();
 
