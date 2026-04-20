@@ -411,7 +411,6 @@ client.on("interactionCreate", async (interaction) => {
   return interaction.reply({
     embeds: [helpEmbed],
     components: [row],
-    ephemeral: true
   });
 }
   if (interaction.isChatInputCommand() && (
@@ -1038,10 +1037,10 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/highlights** — View story highlights`
       );
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+return interaction.reply({
+  embeds: [helpEmbed],
+  components: [row]
+});
   }
 
   if (value === "help_moderation") {
@@ -1057,10 +1056,10 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/wordbanlist** — View banned words`
       );
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+return interaction.reply({
+  embeds: [helpEmbed],
+  components: [row]
+});
   }
 
   if (value === "help_fun") {
@@ -1074,10 +1073,10 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/games** — Open the mini games menu`
       );
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+return interaction.reply({
+  embeds: [helpEmbed],
+  components: [row]
+});
   }
 
   if (value === "help_utility") {
@@ -1089,10 +1088,10 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/help** — View all commands`
       );
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+return interaction.reply({
+  embeds: [helpEmbed],
+  components: [row]
+});
   }
 
   if (value === "help_admin") {
@@ -1109,10 +1108,10 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/bdaylist** — View saved birthdays`
       );
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+return interaction.reply({
+  embeds: [helpEmbed],
+  components: [row]
+});
   }
 }
   if (interaction.customId === "blist_sort") {
