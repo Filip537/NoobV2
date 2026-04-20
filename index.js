@@ -1037,9 +1037,9 @@ if (interaction.customId === "help_menu") {
         `<:arrow:1442712798969729087> **/highlights** — View story highlights`
       );
 
-return interaction.reply({
-  embeds: [helpEmbed],
-  components: [row]
+return interaction.update({
+  embeds: [embed],
+  components: [interaction.message.components[0]]
 });
   }
 
@@ -1056,9 +1056,9 @@ return interaction.reply({
         `<:arrow:1442712798969729087> **/wordbanlist** — View banned words`
       );
 
-return interaction.reply({
-  embeds: [helpEmbed],
-  components: [row]
+return interaction.update({
+  embeds: [embed],
+  components: [interaction.message.components[0]]
 });
   }
 
@@ -1073,9 +1073,9 @@ return interaction.reply({
         `<:arrow:1442712798969729087> **/games** — Open the mini games menu`
       );
 
-return interaction.reply({
-  embeds: [helpEmbed],
-  components: [row]
+return interaction.update({
+  embeds: [embed],
+  components: [interaction.message.components[0]]
 });
   }
 
@@ -1088,9 +1088,9 @@ return interaction.reply({
         `<:arrow:1442712798969729087> **/help** — View all commands`
       );
 
-return interaction.reply({
-  embeds: [helpEmbed],
-  components: [row]
+return interaction.update({
+  embeds: [embed],
+  components: [interaction.message.components[0]]
 });
   }
 
@@ -1108,9 +1108,9 @@ return interaction.reply({
         `<:arrow:1442712798969729087> **/bdaylist** — View saved birthdays`
       );
 
-return interaction.reply({
-  embeds: [helpEmbed],
-  components: [row]
+return interaction.update({
+  embeds: [embed],
+  components: [interaction.message.components[0]]
 });
   }
 }
