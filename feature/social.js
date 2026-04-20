@@ -8,7 +8,6 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  SlashCommandBuilder,
 } = require("discord.js");
 
 const STORY_FILE = "./stories.json";
@@ -43,6 +42,39 @@ function makeId(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 999999)}`;
 }
 
+function getUserPosts(userId) {
+  return loadPosts()
+    .filter((post) => post.ownerId === userId)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+function getUserStories(userId) {
+  return loadStories()
+    .filter((story) => story.ownerId === userId)
+    .sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
+}
+
+function getUserHighlights(userId) {
+  return loadStories()
+    .filter((story) => story.ownerId === userId && story.highlights === true)
+    .sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
+}
+
+function getUserSocialStats(userId) {
+  const posts = getUserPosts(userId);
+  const stories = getUserStories(userId);
+  const highlights = stories.filter((story) => story.highlights === true);
+
+  return {
+    postsCount: posts.length,
+    storiesCount: stories.length,
+    highlightsCount: highlights.length,
+    posts,
+    stories,
+    highlights
+  };
+}
+
 function buildPostViewEmbed(post) {
   const embed = new EmbedBuilder()
     .setColor("Purple")
@@ -54,8 +86,15 @@ function buildPostViewEmbed(post) {
       text: `Views: ${post.views || 0} | Likes: ${(post.likes || []).length} | Comments: ${(post.comments || []).length}`
     });
 
-  if (post.mediaType?.startsWith("image/")) {
+  if ((post.mediaType || "").startsWith("image/")) {
     embed.setImage(post.mediaUrl);
+  }
+
+  if ((post.mediaType || "").startsWith("video/")) {
+    embed.addFields({
+      name: "Reel",
+      value: `[Open Reel](${post.mediaUrl})`
+    });
   }
 
   return embed;
@@ -72,10 +111,50 @@ function buildPostButtons(postId) {
       .setLabel("Comment")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
+      .setCustomId(`post_comments_${postId}`)
+      .setLabel("View Comments")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
       .setCustomId(`post_view_${postId}`)
       .setLabel("Open")
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Success)
   );
+}
+
+function buildCommentListEmbed(post) {
+  const comments = post.comments || [];
+
+  return new EmbedBuilder()
+    .setColor("Purple")
+    .setTitle("Post Comments")
+    .setDescription(
+      comments.length
+        ? comments.slice(0, 15).map((comment, index) => {
+            return `**${index + 1}. ${comment.user || "Unknown"}**\n${comment.text || "No comment text"}`;
+          }).join("\n\n")
+        : "No comments yet."
+    )
+    .setFooter({
+      text: `Showing ${Math.min(comments.length, 15)} of ${comments.length} comments`
+    });
+}
+
+function buildHighlightsEmbed(user, highlights) {
+  return new EmbedBuilder()
+    .setColor("Purple")
+    .setTitle(`${user.username}'s Highlights`)
+    .setDescription(
+      highlights.slice(0, 10).map((story, index) => {
+        const type =
+          story.mediaType === "note"
+            ? "Note"
+            : (story.mediaType || "").startsWith("video/")
+            ? "Video"
+            : "Image";
+
+        return `**${index + 1}.** ${type}\nViews: ${story.views || 0} | Likes: ${(story.likes || []).length} | Comments: ${(story.comments || []).length}`;
+      }).join("\n\n")
+    );
 }
 
 async function handleCommand(interaction) {
@@ -84,17 +163,26 @@ async function handleCommand(interaction) {
     const caption = interaction.options.getString("caption") || "";
 
     if (!media) {
-      return interaction.reply({ content: "❌ Upload an image or video.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Upload an image or video.",
+        ephemeral: true
+      });
     }
 
     const contentType = media.contentType || "";
     if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
-      return interaction.reply({ content: "❌ Only image or video files are allowed.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Only image or video files are allowed.",
+        ephemeral: true
+      });
     }
 
     const channel = await interaction.client.channels.fetch(STORY_CHANNEL).catch(() => null);
     if (!channel) {
-      return interaction.reply({ content: "❌ Feed channel not found.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Feed channel not found.",
+        ephemeral: true
+      });
     }
 
     const postId = makeId("post");
@@ -116,10 +204,8 @@ async function handleCommand(interaction) {
     posts.push(postData);
     savePosts(posts);
 
-    const embed = buildPostViewEmbed(postData);
-
     const sent = await channel.send({
-      embeds: [embed],
+      embeds: [buildPostViewEmbed(postData)],
       components: [buildPostButtons(postId)]
     });
 
@@ -134,34 +220,22 @@ async function handleCommand(interaction) {
 
   if (interaction.commandName === "highlights") {
     const user = interaction.options.getUser("user") || interaction.user;
-    const stories = loadStories();
+    const highlights = getUserHighlights(user.id);
 
-    const highlighted = stories
-      .filter(s => s.ownerId === user.id && s.highlights === true)
-      .sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
-
-    if (!highlighted.length) {
+    if (!highlights.length) {
       return interaction.reply({
         content: `❌ ${user.id === interaction.user.id ? "You do" : "That user does"} not have any highlighted stories yet.`,
         ephemeral: true
       });
     }
 
-    const lines = highlighted.slice(0, 10).map((s, i) => {
-      const type = s.mediaType?.startsWith("video/") ? "Video" : s.mediaType === "note" ? "Note" : "Image";
-      return `**${i + 1}.** ${type} highlight • <t:${Math.floor((s.expiresAt || Date.now()) / 1000)}:R>`;
-    });
-
-    const embed = new EmbedBuilder()
-      .setColor("Purple")
-      .setTitle(`${user.username}'s Highlights`)
-      .setDescription(lines.join("\n"));
-
     return interaction.reply({
-      embeds: [embed],
+      embeds: [buildHighlightsEmbed(user, highlights)],
       ephemeral: true
     });
   }
+
+  return false;
 }
 
 async function handleButton(interaction) {
@@ -169,24 +243,34 @@ async function handleButton(interaction) {
 
   if (interaction.customId.startsWith("post_like_")) {
     const postId = interaction.customId.replace("post_like_", "");
-    const post = posts.find(p => p.postId === postId);
+    const post = posts.find((p) => p.postId === postId);
 
     if (!post) {
-      return interaction.reply({ content: "❌ Post not found.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Post not found.",
+        ephemeral: true
+      });
     }
 
-    post.likes = post.likes || [];
+    post.likes ||= [];
+
     if (post.likes.includes(interaction.user.id)) {
-      return interaction.reply({ content: "❌ You already liked this post.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ You already liked this post.",
+        ephemeral: true
+      });
     }
 
     post.likes.push(interaction.user.id);
     savePosts(posts);
 
-    return interaction.reply({ content: "❤️ You liked this post!", ephemeral: true });
+    return interaction.reply({
+      content: "❤️ You liked this post!",
+      ephemeral: true
+    });
   }
 
-  if (interaction.customId.startsWith("post_comment_")) {
+  if (interaction.customId.startsWith("post_comment_") && !interaction.customId.startsWith("post_comments_")) {
     const postId = interaction.customId.replace("post_comment_", "");
 
     const modal = new ModalBuilder()
@@ -197,32 +281,62 @@ async function handleButton(interaction) {
       .setCustomId("post_comment_input")
       .setLabel("Your comment")
       .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true);
+      .setRequired(true)
+      .setMaxLength(500);
 
     modal.addComponents(new ActionRowBuilder().addComponents(input));
     return interaction.showModal(modal);
   }
 
-  if (interaction.customId.startsWith("post_view_")) {
-    const postId = interaction.customId.replace("post_view_", "");
-    const post = posts.find(p => p.postId === postId);
+  if (interaction.customId.startsWith("post_comments_")) {
+    const postId = interaction.customId.replace("post_comments_", "");
+    const post = posts.find((p) => p.postId === postId);
 
     if (!post) {
-      return interaction.reply({ content: "❌ Post not found.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Post not found.",
+        ephemeral: true
+      });
     }
 
-    post.views = (post.views || 0) + 1;
-    savePosts(posts);
-
-    if (post.mediaType?.startsWith("image/")) {
+    if (!(post.comments || []).length) {
       return interaction.reply({
-        embeds: [buildPostViewEmbed(post)],
+        content: "❌ No comments on this post yet.",
         ephemeral: true
       });
     }
 
     return interaction.reply({
-      content: `Reel:\n${post.mediaUrl}`,
+      embeds: [buildCommentListEmbed(post)],
+      ephemeral: true
+    });
+  }
+
+  if (interaction.customId.startsWith("post_view_")) {
+    const postId = interaction.customId.replace("post_view_", "");
+    const post = posts.find((p) => p.postId === postId);
+
+    if (!post) {
+      return interaction.reply({
+        content: "❌ Post not found.",
+        ephemeral: true
+      });
+    }
+
+    post.views = (post.views || 0) + 1;
+    savePosts(posts);
+
+    if ((post.mediaType || "").startsWith("image/")) {
+      return interaction.reply({
+        embeds: [buildPostViewEmbed(post)],
+        components: [buildPostButtons(postId)],
+        ephemeral: true
+      });
+    }
+
+    return interaction.reply({
+      embeds: [buildPostViewEmbed(post)],
+      components: [buildPostButtons(postId)],
       ephemeral: true
     });
   }
@@ -233,16 +347,26 @@ async function handleButton(interaction) {
 async function handleModal(interaction) {
   if (interaction.customId.startsWith("post_comment_modal_")) {
     const postId = interaction.customId.replace("post_comment_modal_", "");
-    const comment = interaction.fields.getTextInputValue("post_comment_input");
+    const comment = interaction.fields.getTextInputValue("post_comment_input").trim();
 
     const posts = loadPosts();
-    const post = posts.find(p => p.postId === postId);
+    const post = posts.find((p) => p.postId === postId);
 
     if (!post) {
-      return interaction.reply({ content: "❌ Post not found.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Post not found.",
+        ephemeral: true
+      });
     }
 
-    post.comments = post.comments || [];
+    if (!comment) {
+      return interaction.reply({
+        content: "❌ Comment cannot be empty.",
+        ephemeral: true
+      });
+    }
+
+    post.comments ||= [];
     post.comments.push({
       userId: interaction.user.id,
       user: interaction.user.tag,
@@ -264,5 +388,13 @@ async function handleModal(interaction) {
 module.exports = {
   handleCommand,
   handleButton,
-  handleModal
+  handleModal,
+  loadPosts,
+  savePosts,
+  loadStories,
+  saveStories,
+  getUserPosts,
+  getUserStories,
+  getUserHighlights,
+  getUserSocialStats
 };

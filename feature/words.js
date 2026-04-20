@@ -34,7 +34,7 @@ function containsBadWord(content) {
 
   const messageWords = content
     .toLowerCase()
-    .split(/\s+/) // split by spaces
+    .split(/\s+/) 
 
   return words.find(w => messageWords.includes(w));
 }
