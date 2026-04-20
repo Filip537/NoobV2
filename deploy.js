@@ -101,6 +101,9 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("scanblist")
+  .setDescription("Scan the approved blacklist channel and rebuild blacklist data"),
+  new SlashCommandBuilder()
   .setName("poststory")
   .setDescription("Post a story that disappears after 24 hours")
   .addAttachmentOption(option =>

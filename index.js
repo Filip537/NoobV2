@@ -80,40 +80,61 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
- async function scanBlacklistChannel() {
+async function scanBlacklistChannel() {
   const channel = await client.channels.fetch(APPROVED_CHANNEL).catch(() => null);
-  if (!channel) return;
+  if (!channel) return { scanned: 0 };
 
-  let messages = await channel.messages.fetch({ limit: 100 });
-  const blacklist = [];
+  const blacklistMap = new Map();
+  let lastId;
+  let totalScannedMessages = 0;
 
-  for (const msg of messages.values()) {
-    const content = msg.content;
+  while (true) {
+    const options = { limit: 100 };
+    if (lastId) options.before = lastId;
 
-    if (!content.includes("GrowID:")) continue;
+    const messages = await channel.messages.fetch(options);
+    if (!messages.size) break;
 
-    const growidMatch = content.match(/GrowID:\s*(.+)/i);
-    const reasonMatch = content.match(/Reason:\s*(.+)/i);
-    const proofMatch = content.match(/Blacklisted & Proof By:\s*(.+)/i);
+    totalScannedMessages += messages.size;
 
-    if (!growidMatch) continue;
+    for (const msg of messages.values()) {
+      const content = msg.content || "";
 
-    const growid = growidMatch[1].trim();
-    const reason = reasonMatch ? reasonMatch[1].trim() : "Unknown";
-    const proof = proofMatch ? proofMatch[1].trim() : "Unknown";
+      if (!content.includes("GrowID:")) continue;
 
-    blacklist.push({
-      growid,
-      reason,
-      proof,
-      addedBy: "Scan System",
-      approvedBy: "Scan System",
-      createdAt: msg.createdTimestamp
-    });
+      const growidMatch = content.match(/GrowID:\s*(.+)/i);
+      const reasonMatch = content.match(/Reason:\s*(.+)/i);
+      const proofMatch = content.match(/Blacklisted & Proof By:\s*(.+)/i);
+
+      if (!growidMatch) continue;
+
+      const growid = growidMatch[1].trim();
+      const reason = reasonMatch ? reasonMatch[1].trim() : "Unknown";
+      const proof = proofMatch ? proofMatch[1].trim() : "Unknown";
+
+      blacklistMap.set(growid.toLowerCase(), {
+        growid,
+        reason,
+        proof,
+        addedBy: "Scan System",
+        approvedBy: "Scan System",
+        createdAt: msg.createdTimestamp
+      });
+    }
+
+    lastId = messages.last().id;
+
+    if (messages.size < 100) break;
   }
 
+  const blacklist = Array.from(blacklistMap.values()).sort((a, b) => b.createdAt - a.createdAt);
   saveBlacklist(blacklist);
-  console.log(`✅ Scanned ${blacklist.length} blacklist entries`);
+
+  console.log(`✅ Scanned ${totalScannedMessages} messages and saved ${blacklist.length} blacklist entries`);
+  return {
+    scanned: totalScannedMessages,
+    saved: blacklist.length
+  };
 }
 async function cleanupExpiredStories() {
   const stories = loadStories();
@@ -408,6 +429,25 @@ if (interaction.isChatInputCommand() && interaction.commandName === "viewprofile
   return profileFeature.executeViewProfile(interaction);
 }
 
+if (interaction.commandName === "scanblist") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ No permission.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.reply({
+    content: "Scanning blacklist channel... this may take a while.",
+    ephemeral: true
+  });
+
+  const result = await scanBlacklistChannel();
+
+  return interaction.editReply({
+    content: `✅ Scan complete.\nMessages scanned: ${result.scanned}\nBlacklist entries saved: ${result.saved}`
+  });
+}
 if (interaction.commandName === "blist") {
   const blacklist = loadBlacklist();
 
