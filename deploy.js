@@ -58,6 +58,19 @@ new SlashCommandBuilder()
       .setDescription("Where to send the update log")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("dms")
+  .setDescription("Send a direct message to a user")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to DM")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("message")
+      .setDescription("Message to send")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
