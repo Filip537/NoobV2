@@ -1090,6 +1090,48 @@ if (interaction.commandName === "addblist") {
   });
 }
 
+// ================= REPORT PLAYER (BETA) =================
+if (interaction.commandName === "report") {
+
+  const growid = interaction.options.getString("growid");
+  const reason = interaction.options.getString("reason");
+  const proof = interaction.options.getAttachment("proof");
+
+  const channel = await client.channels.fetch(PENDING_CHANNEL);
+
+  const embed = new EmbedBuilder()
+    .setTitle("Player Reported (BETA)")
+    .setDescription(`Report submitted by ${interaction.user}`)
+    .addFields(
+      { name: "GrowID", value: growid, inline: true },
+      { name: "Reason", value: reason, inline: true },
+      { name: "Status", value: "Pending Review", inline: true }
+    )
+    .setColor("Purple");
+
+  if (proof) embed.setImage(proof.url);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`report_blacklist_${interaction.user.id}`)
+      .setLabel("Blacklist")
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`report_deny_${interaction.user.id}`)
+      .setLabel("Not Approve")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: "✅ Your report has been submitted (BETA).",
+    ephemeral: true
+  });
+}
 // ================= ADD BIRTHDAY =================
 if (interaction.commandName === "addbirthday") {
 
@@ -1844,6 +1886,57 @@ if (
   }
 
   // ===== BLACKLIST APPROVE / DENY =====
+  // ===== REPORT SYSTEM =====
+if (interaction.customId.startsWith("report_blacklist_") || interaction.customId.startsWith("report_deny_")) {
+
+  const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+  const fields = embed.data.fields;
+
+  const growid = fields.find(f => f.name === "GrowID").value;
+  const reason = fields.find(f => f.name === "Reason").value;
+
+  if (interaction.customId.startsWith("report_blacklist_")) {
+
+    const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
+
+    let message = `**GrowID**: ${growid}
+**Reason**: ${reason}
+**Blacklisted & Proof By**: Report System`;
+
+    const imageUrl = interaction.message.embeds[0].image?.url;
+    if (imageUrl) message += `\n${imageUrl}`;
+
+    await finalChannel.send({ content: message });
+
+    // SAVE TO JSON
+    const blacklist = loadBlacklist();
+
+    const exists = blacklist.some(e => e.growid.toLowerCase() === growid.toLowerCase());
+
+    if (!exists) {
+      blacklist.push({
+        growid,
+        reason,
+        proof: "Report System",
+        addedBy: "Report",
+        approvedBy: `<@${interaction.user.id}>`,
+        createdAt: Date.now()
+      });
+
+      saveBlacklist(blacklist);
+    }
+
+    embed.setColor("Green").setFooter({ text: "Blacklisted via Report" });
+
+  } else {
+    embed.setColor("Red").setFooter({ text: "Report Denied" });
+  }
+
+  return interaction.update({
+    embeds: [embed],
+    components: []
+  });
+}
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
     const ownerId = interaction.customId.split("_")[1];

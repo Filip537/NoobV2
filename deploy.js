@@ -71,6 +71,24 @@ new SlashCommandBuilder()
       .setDescription("Message to send")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("report")
+  .setDescription("Report a player (Beta)")
+  .addStringOption(o =>
+    o.setName("growid")
+      .setDescription("GrowID")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("reason")
+      .setDescription("Reason")
+      .setRequired(true)
+  )
+  .addAttachmentOption(o =>
+    o.setName("proof")
+      .setDescription("Upload proof (optional)")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
