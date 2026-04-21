@@ -364,6 +364,63 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "announcement") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const title = interaction.options.getString("title");
+  const message = interaction.options.getString("message");
+  const useEmbed = interaction.options.getBoolean("embed");
+  const targetChannel = interaction.options.getChannel("channel");
+  const thumbnail = interaction.options.getString("thumbnail");
+  const footer = interaction.options.getString("footer");
+
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    return interaction.reply({
+      content: "❌ Please choose a valid text channel.",
+      ephemeral: true
+    });
+  }
+
+  try {
+    if (useEmbed) {
+      const embed = new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(message)
+        .setColor("Purple")
+        .setTimestamp();
+
+      if (thumbnail) embed.setThumbnail(thumbnail);
+      if (footer) embed.setFooter({ text: footer });
+
+      await targetChannel.send({ embeds: [embed] });
+    } else {
+      let content = `## ${title}\n${message}`;
+
+      if (footer) {
+        content += `\n\n${footer}`;
+      }
+
+      await targetChannel.send({ content });
+    }
+
+    return interaction.reply({
+      content: `✅ Announcement sent to ${targetChannel}.`,
+      ephemeral: true
+    });
+  } catch (err) {
+    console.log("Announcement send failed:", err);
+
+    return interaction.reply({
+      content: "❌ Failed to send announcement.",
+      ephemeral: true
+    });
+  }
+}
   if (interaction.commandName === "dms") {
   const targetUser = interaction.options.getUser("user");
   const message = interaction.options.getString("message");

@@ -89,6 +89,39 @@ new SlashCommandBuilder()
       .setDescription("Upload proof (optional)")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("announcement")
+  .setDescription("Send an announcement")
+  .addStringOption(option =>
+    option.setName("title")
+      .setDescription("Announcement title")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("message")
+      .setDescription("Announcement message")
+      .setRequired(true)
+  )
+  .addBooleanOption(option =>
+    option.setName("embed")
+      .setDescription("Send as embed?")
+      .setRequired(true)
+  )
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Channel to send the announcement to")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("thumbnail")
+      .setDescription("Thumbnail image URL (optional)")
+      .setRequired(false)
+  )
+  .addStringOption(option =>
+    option.setName("footer")
+      .setDescription("Footer text (optional)")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
