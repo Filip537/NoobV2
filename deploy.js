@@ -154,6 +154,19 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("mathquestions")
+  .setDescription("Solve a math question based on difficulty")
+  .addStringOption(option =>
+    option.setName("level")
+      .setDescription("Select difficulty")
+      .setRequired(true)
+      .addChoices(
+        { name: "Easy", value: "easy" },
+        { name: "Medium", value: "medium" },
+        { name: "Hard", value: "hard" }
+      )
+  ),
+  new SlashCommandBuilder()
   .setName("trivia")
   .setDescription("Answer a random trivia question"),
 new SlashCommandBuilder()

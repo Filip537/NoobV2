@@ -364,6 +364,204 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "mathquestions") {
+
+  const level = interaction.options.getString("level");
+
+  const easyQuestions = [
+    ["What is 1 + 1?", ["2", "1", "3", "4"], 0],
+    ["What is 2 + 3?", ["5", "4", "6", "3"], 0],
+    ["What is 4 + 1?", ["5", "6", "4", "3"], 0],
+    ["What is 5 - 2?", ["3", "2", "4", "5"], 0],
+    ["What is 3 + 3?", ["6", "5", "7", "4"], 0],
+    ["What is 7 - 1?", ["6", "5", "7", "4"], 0],
+    ["What is 2 + 2?", ["4", "3", "5", "2"], 0],
+    ["What is 9 - 4?", ["5", "6", "4", "3"], 0],
+    ["What is 6 + 1?", ["7", "6", "8", "5"], 0],
+    ["What is 8 - 3?", ["5", "4", "6", "7"], 0],
+    ["What is 0 + 5?", ["5", "0", "4", "6"], 0],
+    ["What is 10 - 5?", ["5", "4", "6", "3"], 0],
+    ["What is 3 + 4?", ["7", "6", "8", "5"], 0],
+    ["What is 6 - 2?", ["4", "3", "5", "6"], 0],
+    ["What is 1 + 7?", ["8", "7", "9", "6"], 0],
+    ["What is 5 + 5?", ["10", "9", "11", "8"], 0],
+    ["What is 8 - 1?", ["7", "6", "8", "5"], 0],
+    ["What is 2 + 5?", ["7", "6", "8", "5"], 0],
+    ["What is 9 - 2?", ["7", "8", "6", "5"], 0],
+    ["What is 4 + 4?", ["8", "7", "9", "6"], 0],
+    ["What is 7 - 3?", ["4", "3", "5", "6"], 0],
+    ["What is 1 + 9?", ["10", "9", "8", "11"], 0],
+    ["What is 6 + 2?", ["8", "7", "9", "6"], 0],
+    ["What is 5 - 1?", ["4", "5", "3", "2"], 0],
+    ["What is 3 + 5?", ["8", "7", "9", "6"], 0],
+    ["What is 10 - 2?", ["8", "7", "9", "6"], 0],
+    ["What is 2 + 6?", ["8", "7", "9", "6"], 0],
+    ["What is 7 + 1?", ["8", "7", "9", "6"], 0],
+    ["What is 8 - 2?", ["6", "5", "7", "4"], 0],
+    ["What is 4 + 5?", ["9", "8", "10", "7"], 0],
+    ["What is 9 - 1?", ["8", "7", "9", "6"], 0],
+    ["What is 3 + 6?", ["9", "8", "10", "7"], 0],
+    ["What is 6 - 1?", ["5", "4", "6", "3"], 0],
+    ["What is 2 + 7?", ["9", "8", "10", "7"], 0],
+    ["What is 10 - 3?", ["7", "6", "8", "5"], 0],
+    ["What is 5 + 2?", ["7", "6", "8", "5"], 0],
+    ["What is 7 - 2?", ["5", "4", "6", "3"], 0],
+    ["What is 4 + 3?", ["7", "6", "8", "5"], 0],
+    ["What is 9 - 3?", ["6", "5", "7", "4"], 0],
+    ["What is 1 + 8?", ["9", "8", "10", "7"], 0],
+    ["What is 6 + 3?", ["9", "8", "10", "7"], 0],
+    ["What is 8 - 4?", ["4", "3", "5", "6"], 0],
+    ["What is 2 + 8?", ["10", "9", "11", "8"], 0],
+    ["What is 10 - 1?", ["9", "8", "10", "7"], 0],
+    ["What is 5 + 3?", ["8", "7", "9", "6"], 0],
+    ["What is 7 + 2?", ["9", "8", "10", "7"], 0],
+    ["What is 9 - 5?", ["4", "3", "5", "6"], 0],
+    ["What is 3 + 7?", ["10", "9", "11", "8"], 0],
+    ["What is 6 + 4?", ["10", "9", "11", "8"], 0],
+    ["What is 8 - 5?", ["3", "2", "4", "5"], 0]
+  ];
+
+  const mediumQuestions = [
+    ["Solve for x: x + 3 = 7", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 2x = 10", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x - 4 = 2", ["6", "5", "7", "4"], 0],
+    ["Solve for x: 3x = 12", ["4", "3", "5", "6"], 0],
+    ["Solve for x: x + 5 = 11", ["6", "5", "7", "4"], 0],
+    ["Solve for x: 4x = 20", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x - 2 = 6", ["8", "7", "9", "6"], 0],
+    ["Solve for x: 5x = 25", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x + 6 = 10", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 2x + 1 = 9", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 3x + 2 = 11", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 2x - 3 = 7", ["5", "4", "6", "3"], 0],
+    ["Solve for x: 4x + 1 = 13", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 5x - 5 = 20", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x/2 = 4", ["8", "6", "4", "10"], 0],
+    ["Solve for x: x/3 = 3", ["9", "6", "12", "3"], 0],
+    ["Solve for x: x + 8 = 15", ["7", "6", "8", "5"], 0],
+    ["Solve for x: 6x = 18", ["3", "2", "4", "5"], 0],
+    ["Solve for x: x - 7 = 1", ["8", "7", "9", "6"], 0],
+    ["Solve for x: 2x + 4 = 12", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 3x - 3 = 6", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 4x - 4 = 12", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 5x + 5 = 30", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x/4 = 2", ["8", "6", "4", "10"], 0],
+    ["Solve for x: x + 9 = 14", ["5", "4", "6", "3"], 0],
+    ["Solve for x: 7x = 21", ["3", "2", "4", "5"], 0],
+    ["Solve for x: x - 5 = 5", ["10", "9", "8", "11"], 0],
+    ["Solve for x: 2x - 2 = 8", ["5", "4", "6", "3"], 0],
+    ["Solve for x: 3x + 1 = 10", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 4x + 4 = 20", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 5x - 10 = 15", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x/5 = 3", ["15", "10", "20", "5"], 0],
+    ["Solve for x: x + 2 = 13", ["11", "10", "12", "9"], 0],
+    ["Solve for x: 8x = 32", ["4", "3", "5", "6"], 0],
+    ["Solve for x: x - 6 = 4", ["10", "9", "11", "8"], 0],
+    ["Solve for x: 2x + 6 = 14", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 3x - 6 = 3", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 4x - 8 = 8", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 6x + 0 = 24", ["4", "3", "5", "6"], 0],
+    ["Solve for x: x/2 + 1 = 5", ["8", "6", "10", "4"], 0],
+    ["Solve for x: x + 4 = 9", ["5", "4", "6", "3"], 0],
+    ["Solve for x: 9x = 27", ["3", "2", "4", "5"], 0],
+    ["Solve for x: x - 8 = 2", ["10", "9", "11", "8"], 0],
+    ["Solve for x: 2x + 2 = 10", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 3x + 3 = 12", ["3", "2", "4", "5"], 0],
+    ["Solve for x: 4x + 0 = 16", ["4", "3", "5", "6"], 0],
+    ["Solve for x: 5x + 10 = 35", ["5", "4", "6", "3"], 0],
+    ["Solve for x: x/3 + 1 = 4", ["9", "6", "12", "3"], 0],
+    ["Solve for x: x + 7 = 16", ["9", "8", "10", "7"], 0],
+    ["Solve for x: 10x = 50", ["5", "4", "6", "3"], 0]
+  ];
+
+  const hardQuestions = [
+    ["What is the integral of x^2?", ["x^3/3 + C", "2x + C", "x^2/2 + C", "x^4/4 + C"], 0],
+    ["What is the integral of x^3?", ["x^4/4 + C", "3x^2 + C", "x^3/3 + C", "x^5/5 + C"], 0],
+    ["What is the derivative of sin(x)?", ["cos(x)", "-cos(x)", "sin(x)", "-sin(x)"], 0],
+    ["What is the derivative of cos(x)?", ["-sin(x)", "sin(x)", "cos(x)", "-cos(x)"], 0],
+    ["What is the integral of 2x?", ["x^2 + C", "2x^2 + C", "x + C", "x^3 + C"], 0],
+    ["What is the integral of 3x^2?", ["x^3 + C", "3x^3 + C", "x^2 + C", "6x + C"], 0],
+    ["What is the derivative of x^4?", ["4x^3", "x^3", "4x", "x^5"], 0],
+    ["What is the integral of 1/x?", ["ln|x| + C", "1/x^2 + C", "x + C", "e^x + C"], 0],
+    ["What is the derivative of e^x?", ["e^x", "xe^(x-1)", "1", "ln(x)"], 0],
+    ["What is the integral of e^x?", ["e^x + C", "xe^x + C", "1/e^x + C", "ln(x) + C"], 0],
+    ["What is the derivative of ln(x)?", ["1/x", "ln(x)", "x", "e^x"], 0],
+    ["What is the integral of cos(x)?", ["sin(x) + C", "-sin(x) + C", "cos(x) + C", "-cos(x) + C"], 0],
+    ["What is the integral of sin(x)?", ["-cos(x) + C", "cos(x) + C", "sin(x) + C", "-sin(x) + C"], 0],
+    ["What is the derivative of x^5?", ["5x^4", "x^4", "5x", "x^6"], 0],
+    ["What is the integral of x?", ["x^2/2 + C", "2x + C", "x + C", "x^3/3 + C"], 0],
+    ["What is the derivative of tan(x)?", ["sec^2(x)", "tan(x)", "cot(x)", "csc^2(x)"], 0],
+    ["What is the derivative of sec(x)?", ["sec(x)tan(x)", "sec^2(x)", "tan(x)", "csc(x)cot(x)"], 0],
+    ["What is the derivative of x^(-1)?", ["-1/x^2", "1/x", "x^-2", "-x"], 0],
+    ["What is the integral of x^4?", ["x^5/5 + C", "4x^3 + C", "x^4/4 + C", "x^6/6 + C"], 0],
+    ["What is the derivative of x^(1/2)?", ["1/(2sqrt(x))", "sqrt(x)/2", "2sqrt(x)", "1/x"], 0],
+    ["What is the integral of 4x^3?", ["x^4 + C", "4x^4 + C", "x^3 + C", "12x^2 + C"], 0],
+    ["What is the derivative of 7x?", ["7", "x", "7x^2", "1"], 0],
+    ["What is the integral of 7?", ["7x + C", "x^7 + C", "7 + C", "1 + C"], 0],
+    ["What is the derivative of x^6?", ["6x^5", "x^5", "6x", "x^7"], 0],
+    ["What is the integral of 5x^4?", ["x^5 + C", "5x^5 + C", "x^4 + C", "20x^3 + C"], 0],
+    ["What is the derivative of 1/x?", ["-1/x^2", "1/x^2", "ln(x)", "x"], 0],
+    ["What is the derivative of sqrt(x)?", ["1/(2sqrt(x))", "2sqrt(x)", "sqrt(x)", "1/x"], 0],
+    ["What is the integral of sec^2(x)?", ["tan(x) + C", "sec(x) + C", "cot(x) + C", "sin(x) + C"], 0],
+    ["What is the derivative of cot(x)?", ["-csc^2(x)", "sec^2(x)", "csc^2(x)", "-sec^2(x)"], 0],
+    ["What is the derivative of csc(x)?", ["-csc(x)cot(x)", "csc(x)cot(x)", "-sec(x)tan(x)", "sec(x)tan(x)"], 0],
+    ["What is the integral of 6x^5?", ["x^6 + C", "6x^6 + C", "x^5 + C", "30x^4 + C"], 0],
+    ["What is the derivative of x^7?", ["7x^6", "x^6", "7x", "x^8"], 0],
+    ["What is the derivative of 9?", ["0", "9", "1", "x"], 0],
+    ["What is the integral of 0?", ["C", "0", "x", "1"], 0],
+    ["What is the derivative of x^8?", ["8x^7", "x^7", "8x", "x^9"], 0],
+    ["What is the integral of 8x^7?", ["x^8 + C", "8x^8 + C", "x^7 + C", "56x^6 + C"], 0],
+    ["What is the derivative of x^9?", ["9x^8", "x^8", "9x", "x^10"], 0],
+    ["What is the derivative of x^10?", ["10x^9", "x^9", "10x", "x^11"], 0],
+    ["What is the integral of x^5?", ["x^6/6 + C", "5x^4 + C", "x^5/5 + C", "x^7/7 + C"], 0],
+    ["What is the derivative of 3x^3?", ["9x^2", "3x^2", "x^3", "6x"], 0],
+    ["What is the integral of 9x^8?", ["x^9 + C", "9x^9 + C", "x^8 + C", "72x^7 + C"], 0],
+    ["What is the derivative of 2x^2?", ["4x", "2x", "x^2", "2"], 0],
+    ["What is the derivative of 4x^4?", ["16x^3", "4x^3", "8x", "x^4"], 0],
+    ["What is the integral of 10x^9?", ["x^10 + C", "10x^10 + C", "x^9 + C", "90x^8 + C"], 0],
+    ["What is the derivative of 5x^5?", ["25x^4", "5x^4", "10x", "x^5"], 0],
+    ["What is the derivative of 6x^6?", ["36x^5", "6x^5", "12x", "x^6"], 0],
+    ["What is the integral of 12x^11?", ["x^12 + C", "12x^12 + C", "x^11 + C", "144x^10 + C"], 0],
+    ["What is the derivative of ln|x|?", ["1/x", "ln(x)", "x", "e^x"], 0],
+    ["What is the integral of 1?", ["x + C", "1 + C", "0", "x^2 + C"], 0],
+    ["What is the derivative of x^3/3?", ["x^2", "x", "3x^2", "x^3"], 0]
+  ];
+
+  let data;
+
+  if (level === "easy") {
+    data = easyQuestions[Math.floor(Math.random() * easyQuestions.length)];
+  } else if (level === "medium") {
+    data = mediumQuestions[Math.floor(Math.random() * mediumQuestions.length)];
+  } else {
+    data = hardQuestions[Math.floor(Math.random() * hardQuestions.length)];
+  }
+
+  const [question, options, answerIndex] = data;
+  const letters = ["A", "B", "C", "D"];
+
+  const embed = new EmbedBuilder()
+    .setTitle("Math Question")
+    .setColor("Purple")
+    .setDescription(
+      `Level: ${level}\n\n${question}\n\n` +
+      options.map((opt, i) => `${letters[i]}. ${opt}`).join("\n")
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    options.map((_, i) =>
+      new ButtonBuilder()
+        .setCustomId(`math_${i}_${answerIndex}`)
+        .setLabel(letters[i])
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  await interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
   if (interaction.commandName === "trivia") {
 
   const categories = ["life", "math", "science", "grammar", "geography"];
@@ -1928,6 +2126,19 @@ if (handledSocialModal !== false) return;
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("math_")) {
+
+  const [, chosen, correct] = interaction.customId.split("_");
+
+  const isCorrect = chosen === correct;
+
+  return interaction.reply({
+    content: isCorrect
+      ? "Correct answer."
+      : `Wrong answer. Correct answer is ${["A","B","C","D"][correct]}.`,
+    ephemeral: true
+  });
+}
   if (interaction.customId.startsWith("trivia_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
