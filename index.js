@@ -364,6 +364,135 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "trivia") {
+
+  const categories = ["life", "math", "science", "grammar", "geography"];
+
+  function generateQuestion() {
+    const category = categories[Math.floor(Math.random() * categories.length)];
+
+    let question = "";
+    let options = [];
+    let answerIndex = 0;
+
+    if (category === "math") {
+      const a = Math.floor(Math.random() * 20) + 1;
+      const b = Math.floor(Math.random() * 20) + 1;
+
+      question = `What is ${a} + ${b}?`;
+      const correct = a + b;
+
+      options = [
+        correct,
+        correct + Math.floor(Math.random() * 5) + 1,
+        correct - (Math.floor(Math.random() * 5) + 1),
+        correct + 2
+      ].map(x => String(x));
+
+      answerIndex = 0;
+    }
+
+    else if (category === "science") {
+      const q = [
+        ["What planet is known as the Red Planet?", ["Mars", "Earth", "Venus", "Jupiter"], 0],
+        ["What gas do plants absorb?", ["Carbon Dioxide", "Oxygen", "Nitrogen", "Hydrogen"], 0],
+        ["What is H2O?", ["Water", "Oxygen", "Hydrogen", "Salt"], 0],
+        ["What force keeps us on Earth?", ["Gravity", "Magnetism", "Energy", "Light"], 0]
+      ];
+      const pick = q[Math.floor(Math.random() * q.length)];
+      question = pick[0];
+      options = pick[1];
+      answerIndex = pick[2];
+    }
+
+    else if (category === "grammar") {
+      const q = [
+        ["Which is correct?", ["Their going home", "They're going home", "There going home", "Theyre going home"], 1],
+        ["Which is a noun?", ["Run", "Happy", "Dog", "Quickly"], 2],
+        ["Which is past tense?", ["Go", "Gone", "Went", "Going"], 2],
+
+        // SAT-style grammar
+        ["Choose the grammatically correct sentence.", ["Each of the students have a pencil.", "Each of the students has a pencil.", "Each of the students were given a pencil.", "Each of the students are given a pencil."], 1],
+        ["Choose the best revision: 'The book, along with the notes, were placed on the desk.'", ["The book, along with the notes, was placed on the desk.", "The book, along with the notes, were being placed on the desk.", "The book, along with the notes, have been placed on the desk.", "The book, along with the notes, are placed on the desk."], 0],
+        ["Which sentence is punctuated correctly?", ["After the show we went home, and slept.", "After the show, we went home and slept.", "After the show we, went home and slept.", "After the show we went, home and slept."], 1],
+        ["Choose the correct sentence.", ["Neither the teacher nor the students was ready.", "Neither the teacher nor the students were ready.", "Neither the teacher nor the students is ready.", "Neither the teacher nor the students be ready."], 1],
+        ["Which sentence uses the apostrophe correctly?", ["The dogs bone was buried.", "The dog's bone was buried.", "The dogs' bone was buried for one dog.", "The dog's' bone was buried."], 1],
+        ["Choose the sentence with the clearest structure.", ["Running through the park, the rain started falling.", "Running through the park, she noticed the rain start falling.", "The rain started falling, running through the park.", "Through the park running, the rain started falling."], 1],
+        ["Which option best completes the sentence? 'If I _____ more time, I would study abroad.'", ["have", "had", "has", "having"], 1],
+        ["Choose the best transition word: 'The data was incomplete; _____, the report was delayed.'", ["however", "therefore", "meanwhile", "for example"], 1],
+        ["Which sentence avoids a comma splice?", ["She was tired, she kept working.", "She was tired, but she kept working.", "She was tired, she however kept working.", "She was tired, kept working."], 1],
+        ["Choose the correct version.", ["Its a beautiful day.", "It's a beautiful day.", "Its' a beautiful day.", "It is' a beautiful day."], 1],
+
+        // IELTS-style grammar
+        ["Choose the correct sentence for formal writing.", ["There are many people think that online learning is useful.", "There are many people who think that online learning is useful.", "There is many people who think that online learning is useful.", "There are many people which think that online learning is useful."], 1],
+        ["Which sentence is best for IELTS writing?", ["In my opinion, governments should invest more in public transport.", "I think governments should invest more in public transport cause it is good.", "Governments should invest more in public transport and stuff.", "In my opinion governments should invest more in public transport because good."], 0],
+        ["Choose the correct form.", ["People is becoming more dependent on technology.", "People are becoming more dependent on technology.", "People becoming more dependent on technology.", "People has become more dependent on technology."], 1],
+        ["Which sentence has correct article use?", ["The education is important for success.", "Education is important for success.", "An education is important for the success in general.", "The education are important for success."], 1],
+        ["Choose the best sentence.", ["One of the main problem is pollution.", "One of the main problems is pollution.", "One of the main problems are pollution.", "One of the main problem are pollution."], 1],
+        ["Which sentence is grammatically correct?", ["Nowadays, the number of cars are increasing rapidly.", "Nowadays, the number of cars is increasing rapidly.", "Nowadays, the number of cars increase rapidly.", "Nowadays, the number of cars have increased rapidly."], 1],
+        ["Choose the correct linking phrase.", ["On the other hand, studying abroad can be expensive.", "In other hand, studying abroad can be expensive.", "At the other hand, studying abroad can be expensive.", "By the other hand, studying abroad can be expensive."], 0],
+        ["Which sentence is best?", ["Many students find difficult to manage their time.", "Many students find it difficult to manage their time.", "Many students find difficult managing their time.", "Many students finds it difficult to manage their time."], 1],
+        ["Choose the correct sentence.", ["This essay will discuss about the advantages of exercise.", "This essay will discuss the advantages of exercise.", "This essay will discusses the advantages of exercise.", "This essay discuss the advantages of exercise."], 1],
+        ["Which sentence uses plural nouns correctly?", ["The government should provide more facility for young people.", "The government should provide more facilities for young people.", "The government should provides more facilities for young people.", "The government should provide more facilitys for young people."], 1]
+      ];
+      const pick = q[Math.floor(Math.random() * q.length)];
+      question = pick[0];
+      options = pick[1];
+      answerIndex = pick[2];
+    }
+
+    else if (category === "geography") {
+      const q = [
+        ["Capital of France?", ["Paris", "Rome", "London", "Berlin"], 0],
+        ["Which continent is Australia in?", ["Australia", "Asia", "Europe", "Africa"], 0],
+        ["Largest ocean?", ["Pacific", "Atlantic", "Indian", "Arctic"], 0]
+      ];
+      const pick = q[Math.floor(Math.random() * q.length)];
+      question = pick[0];
+      options = pick[1];
+      answerIndex = pick[2];
+    }
+
+    else {
+      const q = [
+        ["What is important in life?", ["Happiness", "Money", "Luck", "Nothing"], 0],
+        ["Best habit?", ["Consistency", "Sleep late", "Ignore work", "Procrastinate"], 0],
+        ["Key to success?", ["Hard work", "Luck", "Nothing", "Sleep"], 0]
+      ];
+      const pick = q[Math.floor(Math.random() * q.length)];
+      question = pick[0];
+      options = pick[1];
+      answerIndex = pick[2];
+    }
+
+    return { question, options, answerIndex, category };
+  }
+
+  const data = generateQuestion();
+  const letters = ["A", "B", "C", "D"];
+
+  const embed = new EmbedBuilder()
+    .setTitle("Trivia Question")
+    .setColor("Purple")
+    .setDescription(
+      `Category: ${data.category}\n\n${data.question}\n\n` +
+      data.options.map((opt, i) => `${letters[i]}. ${opt}`).join("\n")
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    data.options.map((_, i) =>
+      new ButtonBuilder()
+        .setCustomId(`trivia_${i}_${data.answerIndex}`)
+        .setLabel(letters[i])
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  await interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
   if (interaction.commandName === "fortuneteller") {
 
   const fortunes = [
@@ -1799,6 +1928,19 @@ if (handledSocialModal !== false) return;
 
   // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("trivia_")) {
+
+  const [, chosen, correct] = interaction.customId.split("_");
+
+  const isCorrect = chosen === correct;
+
+  return interaction.reply({
+    content: isCorrect
+      ? `Correct answer.`
+      : `Wrong answer. The correct answer was option ${["A","B","C","D"][correct]}.`,
+    ephemeral: true
+  });
+}
   if (interaction.customId.startsWith("comment_")) {
   const storyId = interaction.customId.replace("comment_", "");
 

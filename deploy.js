@@ -153,6 +153,9 @@ new SlashCommandBuilder()
       .setDescription("Word to blacklist")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("trivia")
+  .setDescription("Answer a random trivia question"),
 new SlashCommandBuilder()
   .setName("ticketpanel")
   .setDescription("Send ticket panel")
