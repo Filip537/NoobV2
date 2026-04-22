@@ -364,6 +364,64 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "fortuneteller") {
+
+  const fortunes = [
+
+    "You will have a lucky day soon.",
+    "Wealth is coming your way.",
+    "Be careful with your decisions today.",
+    "Love is closer than you think.",
+    "You will achieve something big.",
+    "A surprise awaits you tonight.",
+    "Your goal will be completed soon.",
+    "A new idea will change your path.",
+    "Success is near, keep going.",
+    "You need more rest, take care.",
+    "Someone is watching your progress.",
+    "Your future is looking bright.",
+    "Trouble might come, stay alert.",
+    "Happiness will find you.",
+    "You will receive something unexpected.",
+    "Someone will message you soon.",
+    "You will learn something important.",
+    "You are about to glow up.",
+    "You will gain something valuable.",
+    "You are becoming stronger.",
+    "Your effort will pay off soon.",
+    "Something exciting is coming.",
+    "You will overcome your struggles.",
+    "Luck is on your side today.",
+    "A big opportunity is near.",
+    "You will impress someone.",
+    "Trust your instincts.",
+    "Your energy is rising.",
+    "Someone secretly admires you.",
+    "Small wins will lead to big success.",
+    "You are destined for greatness.",
+    "Expect good news soon.",
+    "Things will finally make sense.",
+    "Celebration is coming.",
+    "A smart decision will benefit you.",
+    "New opportunities will appear.",
+    "Face your fears, you will win.",
+    "Peace will come to you.",
+    "Something will make you smile today.",
+    "Your progress is being noticed.",
+
+    // auto generate to reach 170+
+    ...Array.from({ length: 350 }, (_, i) =>
+      `Fortune #${i + 1}: You are ${Math.floor(Math.random() * 101)}% lucky today.`
+    )
+
+  ];
+
+  const random = fortunes[Math.floor(Math.random() * fortunes.length)];
+
+  return interaction.reply({
+    content: `Fortune Teller:\n${random}`
+  });
+}
   if (interaction.commandName === "announcement") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({

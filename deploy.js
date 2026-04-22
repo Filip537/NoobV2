@@ -139,6 +139,9 @@ new SlashCommandBuilder()
       .setDescription("User to check")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("fortuneteller")
+  .setDescription("Get a random fortune prediction"),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
