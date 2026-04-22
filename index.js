@@ -523,6 +523,49 @@ if (interaction.commandName === "sendupdates") {
     ephemeral: true
   });
 }
+if (interaction.commandName === "howgay") {
+  const target = interaction.options.getUser("user") || interaction.user;
+  const percent = Math.floor(Math.random() * 101);
+
+  const messages = [
+    `${target} is **${percent}% gay** today 🌈`,
+    `Gay meter result for ${target}: **${percent}%** 🌈`,
+    `${target}, you are **${percent}% gay** 😳`,
+    `The rainbow scanner says ${target} is **${percent}% gay** 🌈`,
+    `${target} unlocked **${percent}% gayness** ✨`,
+    `Certified result: ${target} is **${percent}% gay** 🏳️‍🌈`,
+    `${target} has reached **${percent}% gay** power 🌈`,
+    `Breaking news: ${target} is **${percent}% gay** 😎`
+  ];
+
+  const message = messages[Math.floor(Math.random() * messages.length)];
+
+  return interaction.reply({
+    content: message
+  });
+}
+
+if (interaction.commandName === "howpro") {
+  const target = interaction.options.getUser("user") || interaction.user;
+  const percent = Math.floor(Math.random() * 101);
+
+  const messages = [
+    `${target} is **${percent}% pro** today 😎`,
+    `Pro meter result for ${target}: **${percent}%** 🔥`,
+    `${target}, you are **${percent}% pro** 💯`,
+    `The skill scanner says ${target} is **${percent}% pro** 🎯`,
+    `${target} unlocked **${percent}% pro power** ⚡`,
+    `Certified result: ${target} is **${percent}% pro** 🏆`,
+    `${target} has reached **${percent}% pro level** 🚀`,
+    `Breaking news: ${target} is **${percent}% pro** 😎`
+  ];
+
+  const message = messages[Math.floor(Math.random() * messages.length)];
+
+  return interaction.reply({
+    content: message
+  });
+}
   if (interaction.commandName === "help") {
   const helpEmbed = new EmbedBuilder()
     .setTitle("NoobV2 Help Menu")
@@ -1377,6 +1420,8 @@ return interaction.update({
         `<:arrow:1442712798969729087> **/wouldyourather** — Play Would You Rather\n` +
         `<:arrow:1442712798969729087> **/testdice** — Roll a dice\n` +
         `<:arrow:1442712798969729087> **/quote** — Get a random quote\n` +
+        `<:arrow:1442712798969729087> **/howgay** — Check how gay someone is\n` +
+`<:arrow:1442712798969729087> **/howpro** — Check how pro someone is\n` +
         `<:arrow:1442712798969729087> **/games** — Open the mini games menu`
       );
 

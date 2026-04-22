@@ -122,6 +122,23 @@ new SlashCommandBuilder()
       .setDescription("Footer text (optional)")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("howgay")
+  .setDescription("See how gay someone is")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to check")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("howpro")
+  .setDescription("See how pro someone is")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to check")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("profile")
   .setDescription("View your profile"),
