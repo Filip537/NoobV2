@@ -910,8 +910,7 @@ if (interaction.commandName === "sendupdates") {
 }
 if (interaction.commandName === "howgay") {
   const target = interaction.options.getUser("user") || interaction.user;
-  const percent = Math.floor(Math.random() * 101);
-
+const percent = Math.floor(Math.random() * 200) + 1;
   const messages = [
     `${target} is **${percent}% gay** today 🌈`,
     `Gay meter result for ${target}: **${percent}%** 🌈`,
@@ -932,8 +931,7 @@ if (interaction.commandName === "howgay") {
 
 if (interaction.commandName === "howpro") {
   const target = interaction.options.getUser("user") || interaction.user;
-  const percent = Math.floor(Math.random() * 101);
-
+const percent = Math.floor(Math.random() * 200) + 1;
   const messages = [
     `${target} is **${percent}% pro** today 😎`,
     `Pro meter result for ${target}: **${percent}%** 🔥`,
