@@ -1709,18 +1709,17 @@ if (interaction.commandName === "games") {
         `<:arrow:1442712798969729087> Click a button below to get or remove a Devilish color role.`
       );
 
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("role_1496850177246363759").setLabel("Black").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("role_1496845745947410593").setLabel("Blue").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("role_1498474880105054218").setLabel("Pink").setStyle(ButtonStyle.Danger)
-    );
+const row1 = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId("role_1496850177246363759").setLabel("Black").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1496845745947410593").setLabel("Blue").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1498474880105054218").setLabel("Pink").setStyle(ButtonStyle.Secondary)
+);
 
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("role_1496847529013285115").setLabel("Purple").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("role_1490469087380508803").setLabel("Red").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId("role_1496898950714757180").setLabel("White").setStyle(ButtonStyle.Secondary)
-    );
-
+const row2 = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId("role_1496847529013285115").setLabel("Purple").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1490469087380508803").setLabel("Red").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1496898950714757180").setLabel("White").setStyle(ButtonStyle.Secondary)
+);
     return interaction.reply({
       embeds: [embed],
       components: [row1, row2],
@@ -1734,18 +1733,18 @@ if (interaction.commandName === "games") {
       .setColor("Blue")
       .setDescription("Click a button below to get or remove a color role.");
 
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("role_1491016531176456272").setLabel("Red").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId("role_1491016623375781959").setLabel("Blue").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("role_1491016679776456714").setLabel("Yellow").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("role_1491016736244367391").setLabel("Green").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId("role_1491016798802546718").setLabel("Purple").setStyle(ButtonStyle.Primary)
-    );
+const row1 = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId("role_1491016531176456272").setLabel("Red").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1491016623375781959").setLabel("Blue").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1491016679776456714").setLabel("Yellow").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1491016736244367391").setLabel("Green").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1491016798802546718").setLabel("Purple").setStyle(ButtonStyle.Secondary)
+);
 
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("role_1498483649367248947").setLabel("Pink").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId("role_1498483827029573792").setLabel("Gold").setStyle(ButtonStyle.Secondary)
-    );
+const row2 = new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId("role_1498483649367248947").setLabel("Pink").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1498483827029573792").setLabel("Gold").setStyle(ButtonStyle.Secondary)
+);
 
     return interaction.reply({
       embeds: [embed],
