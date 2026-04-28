@@ -1798,7 +1798,7 @@ const row1 = new ActionRowBuilder().addComponents(
 
 const row2 = new ActionRowBuilder().addComponents(
   new ButtonBuilder().setCustomId("role_1496847529013285115").setLabel("Purple").setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId("role_1490469087380508803").setLabel("Red").setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId("role_1498477615789510728").setLabel("Red").setStyle(ButtonStyle.Secondary),
   new ButtonBuilder().setCustomId("role_1496898950714757180").setLabel("White").setStyle(ButtonStyle.Secondary)
 );
     return interaction.reply({
@@ -2371,7 +2371,7 @@ if (interaction.customId.startsWith("role_")) {
     "1496845745947410593",
     "1498474880105054218",
     "1496847529013285115",
-    "1490469087380508803",
+    "1498477615789510728",
     "1496898950714757180"
   ];
 
