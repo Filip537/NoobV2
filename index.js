@@ -378,8 +378,7 @@ client.on("interactionCreate", async (interaction) => {
     new ButtonBuilder()
       .setLabel("Play now!")
       .setStyle(ButtonStyle.Link)
-      .setURL(`https://yourwebsite.com/sudoku?user=${interaction.user.id}&channel=${interaction.channel.id}`)
-  );
+.setURL(`https://YOUR-RAILWAY-URL.up.railway.app/?user=${interaction.user.id}&channel=${interaction.channel.id}`)  );
 
   return interaction.reply({
     embeds: [embed],
@@ -3005,3 +3004,5 @@ if (badWord) {
   level.handleMessage(message);
 });
 client.login(process.env.TOKEN);
+
+module.exports = client;

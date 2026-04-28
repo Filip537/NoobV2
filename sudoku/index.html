@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NoobV2 Sudoku</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">NoobV2 Mini Game</p>
+        <h1>Sudoku</h1>
+        <p id="info">Choose a mode and complete the board.</p>
+      </div>
+      <div class="timer-card">
+        <span>Time</span>
+        <strong id="timer">0m 0s</strong>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <button class="mode active" data-mode="normal">Random</button>
+      <button class="mode" data-mode="daily">Daily</button>
+
+      <select id="difficulty">
+<option value="easy">Easy</option>
+<option value="medium">Medium</option>
+      </select>
+
+      <button id="newGame">New</button>
+    </section>
+
+    <section class="stats">
+      <div>
+        <span>Difficulty</span>
+        <strong id="difficultyText">Easy</strong>
+      </div>
+      <div>
+        <span>Mistakes</span>
+        <strong id="mistakesText">0</strong>
+      </div>
+      <div>
+        <span>Mode</span>
+        <strong id="modeText">Random</strong>
+      </div>
+    </section>
+
+    <div id="board"></div>
+
+    <div class="numbers">
+      <button>1</button><button>2</button><button>3</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button>
+    </div>
+
+    <div class="actions">
+      <button id="erase">Erase</button>
+      <button id="submit">Submit Result</button>
+    </div>
+
+    <p id="status"></p>
+  </main>
+
+  <script src="puzzles.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
