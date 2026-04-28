@@ -37,17 +37,7 @@ function getDailyIndex(length) {
 }
 
 function pickPuzzle() {
-  const list = PUZZLES[difficulty] || PUZZLES.easy;
-
-  if (!list || list.length === 0) {
-    return PUZZLES.easy[0];
-  }
-
-  if (mode === "daily") {
-    return list[getDailyIndex(list.length)];
-  }
-
-  return list[Math.floor(Math.random() * list.length)];
+  return generateSudoku(difficulty);
 }
 
 function startGame() {
@@ -175,6 +165,89 @@ function formatTime(ms) {
   return `${min}m ${left}s`;
 }
 
+function createResultImage(time) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 1050;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 42px Arial";
+  ctx.fillText("Sudoku Game Result", 50, 70);
+
+  ctx.font = "26px Arial";
+  ctx.fillText(`Player: ${userId || "Unknown"}`, 50, 125);
+  ctx.fillText(`Difficulty: ${difficulty}`, 50, 165);
+  ctx.fillText(`Mode: ${mode === "daily" ? "Daily" : "Random"}`, 50, 205);
+  ctx.fillText(`Time: ${time}`, 50, 245);
+  ctx.fillText(`Mistakes: ${mistakes}`, 50, 285);
+
+  ctx.font = "bold 30px Arial";
+  ctx.fillText(getWordleResult(), 50, 335);
+
+  const startX = 90;
+  const startY = 390;
+  const size = 75;
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const x = startX + c * size;
+      const y = startY + r * size;
+
+      const value = board[r][c];
+      const isFixed = puzzle[r][c] !== 0;
+
+      ctx.fillStyle = isFixed ? "#dbeafe" : "#ffffff";
+
+      if (value !== solution[r][c]) {
+        ctx.fillStyle = "#fca5a5";
+      }
+
+      ctx.fillRect(x, y, size, size);
+
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, size, size);
+
+      if (value !== 0) {
+        ctx.fillStyle = "#111827";
+        ctx.font = isFixed ? "bold 34px Arial" : "34px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(value, x + size / 2, y + size / 2);
+      }
+    }
+  }
+
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 5;
+
+  for (let i = 0; i <= 9; i++) {
+    if (i % 3 === 0) {
+      ctx.beginPath();
+      ctx.moveTo(startX + i * size, startY);
+      ctx.lineTo(startX + i * size, startY + 9 * size);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY + i * size);
+      ctx.lineTo(startX + 9 * size, startY + i * size);
+      ctx.stroke();
+    }
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#d1d5db";
+  ctx.font = "22px Arial";
+  ctx.fillText("Red cells = mistakes left on the board", 90, 1000);
+
+  return canvas.toDataURL("image/png");
+}
 function getWordleResult() {
   if (mistakes === 0) return "🟩🟩🟩🟩🟩 Perfect!";
   if (mistakes <= 2) return "🟩🟩🟩🟨⬛ Great!";
@@ -196,8 +269,9 @@ document.getElementById("submit").onclick = async () => {
   const time = formatTime(Date.now() - startTime);
   submitted = true;
   statusText.textContent = "Submitting result...";
-
+const boardImage = createResultImage(time);
   const res = await fetch("/api/sudoku-result", {
+    
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -208,7 +282,8 @@ body: JSON.stringify({
   mistakes,
   difficulty,
   mode,
-  result: getWordleResult()
+  result: getWordleResult(),
+  boardImage
 })
   });
 
