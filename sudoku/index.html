@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NoobV2 Sudoku</title>
+  <title>NoobV2 Mini Games</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <section class="hero">
       <div>
-        <p class="eyebrow">NoobV2 Mini Game</p>
-        <h1>Sudoku</h1>
-        <p id="info">Choose a mode and complete the board.</p>
+        <p class="eyebrow">NoobV2 Mini Games</p>
+        <h1 id="title">Choose a minigame</h1>
+        <p id="info">Pick a game, choose difficulty, and complete it to send your result.</p>
       </div>
       <div class="timer-card">
         <span>Time</span>
@@ -20,46 +20,66 @@
       </div>
     </section>
 
-    <section class="toolbar">
-      <button class="mode active" data-mode="normal">Random</button>
-      <button class="mode" data-mode="daily">Daily</button>
-
-      <select id="difficulty">
-<option value="easy">Easy</option>
-<option value="medium">Medium</option>
-<option value="hard">Hard</option>
-      </select>
-
-      <button id="newGame">New</button>
+    <section id="home" class="game-grid">
+      <button class="game-card" data-game="sudoku">
+        <strong>Sudoku</strong>
+        <span>Complete the board</span>
+      </button>
+      <button class="game-card" data-game="hangman">
+        <strong>Hangman</strong>
+        <span>Guess the hard word</span>
+      </button>
+      <button class="game-card" data-game="crossword">
+        <strong>Crossword</strong>
+        <span>Find 10 hidden words</span>
+      </button>
     </section>
 
-    <section class="stats">
-      <div>
-        <span>Difficulty</span>
-        <strong id="difficultyText">Easy</strong>
+    <section id="gameArea" class="hidden">
+      <section class="toolbar">
+        <button id="backHome">Home</button>
+        <select id="difficulty">
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+        <button id="newGame">New Game</button>
+      </section>
+
+      <section class="stats">
+        <div><span>Game</span><strong id="gameText">-</strong></div>
+        <div><span>Difficulty</span><strong id="difficultyText">Easy</strong></div>
+        <div><span>Mistakes</span><strong id="mistakesText">0</strong></div>
+      </section>
+
+      <div id="sudokuUI" class="game-ui hidden">
+        <div id="board"></div>
+        <div class="numbers">
+          <button>1</button><button>2</button><button>3</button>
+          <button>4</button><button>5</button><button>6</button>
+          <button>7</button><button>8</button><button>9</button>
+        </div>
+        <div class="actions">
+          <button id="erase">Erase</button>
+          <button id="submitSudoku">Submit Result</button>
+        </div>
       </div>
-      <div>
-        <span>Mistakes</span>
-        <strong id="mistakesText">0</strong>
+
+      <div id="hangmanUI" class="game-ui hidden">
+        <div id="hangmanWord" class="hangman-word"></div>
+        <p id="hangmanHint" class="hint"></p>
+        <div id="hangmanLetters" class="letters"></div>
       </div>
-      <div>
-        <span>Mode</span>
-        <strong id="modeText">Random</strong>
+
+      <div id="crosswordUI" class="game-ui hidden">
+        <div id="crosswordGrid" class="word-grid"></div>
+        <h3>Find these 10 words</h3>
+        <div id="wordList" class="word-list"></div>
+        <div class="actions single">
+          <button id="submitCrossword">Check Crossword</button>
+        </div>
       </div>
     </section>
-
-    <div id="board"></div>
-
-    <div class="numbers">
-      <button>1</button><button>2</button><button>3</button>
-      <button>4</button><button>5</button><button>6</button>
-      <button>7</button><button>8</button><button>9</button>
-    </div>
-
-    <div class="actions">
-      <button id="erase">Erase</button>
-      <button id="submit">Submit Result</button>
-    </div>
 
     <p id="status"></p>
   </main>

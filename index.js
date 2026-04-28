@@ -384,6 +384,24 @@ client.on("interactionCreate", async (interaction) => {
     components: [row]
   });
 }
+if (interaction.commandName === "playminigames") {
+  const embed = new EmbedBuilder()
+    .setTitle("Mini Games")
+    .setDescription("Choose a mini game to play on the website.")
+    .setColor("Blue");
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel("Play Mini Games")
+      .setStyle(ButtonStyle.Link)
+      .setURL(`https://noobv2-production.up.railway.app/?user=${interaction.user.id}`)
+  );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
 if (interaction.commandName === "sayas") {
   const ALLOWED_ROLE_ID = "1495044283294552165";
 

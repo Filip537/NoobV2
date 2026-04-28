@@ -189,6 +189,9 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("playminigames")
+  .setDescription("Open the mini games portal"),
+  new SlashCommandBuilder()
   .setName("playsudoku")
   .setDescription("Play Sudoku"),
   new SlashCommandBuilder()
