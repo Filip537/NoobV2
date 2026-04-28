@@ -1987,36 +1987,35 @@ return interaction.update({
 
   if (value === "server_roles") {
   const embed = new EmbedBuilder()
-    .setTitle("<:letter:1449506870040723718> Server Roles Information")
-    .setColor("Blue")
-    .setDescription(
-      `<:arrow:1442712798969729087> <@&1455416432752988305> - Special Bot Role\n` +
-      `<:arrow:1442712798969729087> <@&1446474214755270667> - NoobV2 Owner\n` +
-      `<:arrow:1442712798969729087> <@&1449413701756256308> - NoobV2 Co-Owner\n` +
-      `<:arrow:1442712798969729087> <@&1470190619212386329> - NoobV2 Original Admins\n` +
-      `<:arrow:1442712798969729087> <@&1411991650573484073> - NoobV2 Admins\n` +
-      `<:arrow:1442712798969729087> <@&1483338429675868203> - Ticket Supports\n` +
-      `<:arrow:1442712798969729087> <@&1483241188868882657> - Server Guardians → Helps with blacklisting and managing the server\n` +
-      `<:arrow:1442712798969729087> <@&1476701600406835241> - NoobV2 New/Training Admins\n` +
-      `<:arrow:1442712798969729087> <@&1412474556077051965> - NoobV2 Members\n\n` +
+.setTitle("<:Announcement:1324498827918708746> Server Roles Information")
+.setColor("Blue")
+.setDescription(
+  `<:arrow:1442712798969729087> <@&1455416432752988305> - Special Bot Role\n` +
+  `<:arrow:1442712798969729087> <@&1446474214755270667> - NoobV2 Owner\n` +
+  `<:arrow:1442712798969729087> <@&1449413701756256308> - NoobV2 Co-Owner\n` +
+  `<:arrow:1442712798969729087> <@&1470190619212386329> - NoobV2 Original Admins\n` +
+  `<:arrow:1442712798969729087> <@&1411991650573484073> - NoobV2 Admins\n` +
+  `<:arrow:1442712798969729087> <@&1483338429675868203> - Ticket Supports\n` +
+  `<:arrow:1442712798969729087> <@&1483241188868882657> - Server Guardians → Helps with blacklisting and managing the server\n` +
+  `<:arrow:1442712798969729087> <@&1476701600406835241> - NoobV2 New/Training Admins\n` +
+  `<:arrow:1442712798969729087> <@&1412474556077051965> - NoobV2 Members\n\n` +
 
-      `## <:bluegemlock2:1449506301297164409> Role Tiers\n` +
-      `<:arrow:1442712798969729087> <@&1449569489338499182> - Players who have sponsored more than 20 Diamond Locks\n` +
-      `<:arrow:1442712798969729087> <@&1449569268315459724> - Players who have sponsored more than 75 Diamond Locks\n` +
-      `<:arrow:1442712798969729087> <@&1449569557445345301> - Players who have sponsored more than 1.5 Blue Gem Locks\n` +
-      `<:arrow:1442712798969729087> <@&1449569731680931941> - Players who have sponsored more than 25 Blue Gem Locks\n` +
-      `<:arrow:1442712798969729087> <@&1449569838778548224> - Players who have sponsored more than 50 Blue Gem Locks\n` +
-      `<:arrow:1442712798969729087> <@&1460469091201449994> - Players who have sponsored more than 100 Blue Gem Locks\n` +
-      `<:arrow:1442712798969729087> <@&1480855881741631621> - Players who have sponsored more than 180 Blue Gem Locks\n` +
-      `<:arrow:1442712798969729087> <@&1496425822645649498> - Players who have sponsored more than 500+ Blue Gem Locks\n\n` +
+  `## <:emoji_19:1422900861541289984> Role Tiers\n` +
+  `<:arrow:1442712798969729087> <@&1449569489338499182> - Players who have sponsored more than 20 Diamond Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569268315459724> - Players who have sponsored more than 75 Diamond Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569557445345301> - Players who have sponsored more than 1.5 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569731680931941> - Players who have sponsored more than 25 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569838778548224> - Players who have sponsored more than 50 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1460469091201449994> - Players who have sponsored more than 100 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1480855881741631621> - Players who have sponsored more than 180 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1496425822645649498> - Players who have sponsored more than 500+ Blue Gem Locks\n\n` +
 
-      `## <:bhammer:1493606035326500874> Punishment Roles\n` +
-      `<:arrow:1442712798969729087> <@&1447558455299674112>, <@&1447587914165784749>, <@&1461732151728013397>, <@&1477293102946455622>, <@&1452551233935114354>\n\n` +
+  `## <:bhammer:1493606035326500874> Punishment Roles\n` +
+  `<:arrow:1442712798969729087> <@&1447558455299674112>, <@&1447587914165784749>, <@&1461732151728013397>, <@&1477293102946455622>, <@&1452551233935114354>\n\n` +
 
-      `## <:bulletin:1447778065512923217> Extra Note\n` +
-      `Please note that some roles are hidden for now and will be added to <#1413404813512671285> soon.`
-    );
-
+  `## <:bulletin:1447778065512923217> Extra Note\n` +
+  `Please note that some roles are hidden for now and will be added to <#1413404813512671285> soon.`
+);
   return interaction.reply({
     embeds: [embed],
     ephemeral: true,
