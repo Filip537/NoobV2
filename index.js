@@ -379,8 +379,16 @@ if (interaction.commandName === "sayas") {
   }
 
   const targetUser = interaction.options.getUser("user");
-  const message = interaction.options.getString("message");
+  const messageInput = interaction.options.getString("message");
+  const commandInput = interaction.options.getString("command");
   const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
+
+  if (!messageInput && !commandInput) {
+    return interaction.reply({
+      content: "❌ Please enter a message or choose a command.",
+      ephemeral: true
+    });
+  }
 
   if (!targetChannel || !targetChannel.isTextBased()) {
     return interaction.reply({
@@ -393,13 +401,41 @@ if (interaction.commandName === "sayas") {
     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
     const displayName = member?.displayName || targetUser.username;
 
+    let finalMessage = messageInput;
+
+    if (commandInput === "howgay") {
+      const percent = Math.floor(Math.random() * 200) + 1;
+      const messages = [
+        `${targetUser} is **${percent}% gay** today 🌈`,
+        `Gay meter result for ${targetUser}: **${percent}%** 🌈`,
+        `${targetUser}, you are **${percent}% gay** 😳`,
+        `The rainbow scanner says ${targetUser} is **${percent}% gay** 🌈`,
+        `${targetUser} unlocked **${percent}% gayness** ✨`
+      ];
+
+      finalMessage = messages[Math.floor(Math.random() * messages.length)];
+    }
+
+    if (commandInput === "howpro") {
+      const percent = Math.floor(Math.random() * 200) + 1;
+      const messages = [
+        `${targetUser} is **${percent}% pro** today 😎`,
+        `Pro meter result for ${targetUser}: **${percent}%** 🔥`,
+        `${targetUser}, you are **${percent}% pro** 💯`,
+        `The skill scanner says ${targetUser} is **${percent}% pro** 🎯`,
+        `${targetUser} unlocked **${percent}% pro power** ⚡`
+      ];
+
+      finalMessage = messages[Math.floor(Math.random() * messages.length)];
+    }
+
     const webhook = await targetChannel.createWebhook({
       name: displayName,
       avatar: targetUser.displayAvatarURL({ dynamic: true })
     });
 
     await webhook.send({
-      content: message,
+      content: finalMessage,
       allowedMentions: { parse: [] }
     });
 
@@ -413,7 +449,8 @@ if (interaction.commandName === "sayas") {
         `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
         `**Shown As:** ${displayName} (${targetUser.id})\n` +
         `**Channel:** ${targetChannel}\n` +
-        `**Message:** ${message}`
+        `**Mode:** ${commandInput ? `/${commandInput}` : "message"}\n` +
+        `**Message:** ${finalMessage}`
       ).catch(() => {});
     }
 

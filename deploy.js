@@ -163,7 +163,7 @@ new SlashCommandBuilder()
   ),
   new SlashCommandBuilder()
   .setName("sayas")
-  .setDescription("Send a message on behalf of a user")
+  .setDescription("Send a message or command result as a user")
   .addUserOption(option =>
     option.setName("user")
       .setDescription("User to show")
@@ -172,7 +172,16 @@ new SlashCommandBuilder()
   .addStringOption(option =>
     option.setName("message")
       .setDescription("Message to send")
-      .setRequired(true)
+      .setRequired(false)
+  )
+  .addStringOption(option =>
+    option.setName("command")
+      .setDescription("Command to activate")
+      .setRequired(false)
+      .addChoices(
+        { name: "/howgay", value: "howgay" },
+        { name: "/howpro", value: "howpro" }
+      )
   )
   .addChannelOption(option =>
     option.setName("channel")
