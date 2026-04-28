@@ -390,8 +390,11 @@ if (interaction.commandName === "sayas") {
   }
 
   try {
+    const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+    const displayName = member?.displayName || targetUser.username;
+
     const webhook = await targetChannel.createWebhook({
-      name: targetUser.username,
+      name: displayName,
       avatar: targetUser.displayAvatarURL({ dynamic: true })
     });
 
@@ -403,11 +406,12 @@ if (interaction.commandName === "sayas") {
     await webhook.delete().catch(() => {});
 
     const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+
     if (owner) {
       await owner.send(
         `**/sayas Log**\n\n` +
         `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
-        `**Shown As:** ${targetUser.tag} (${targetUser.id})\n` +
+        `**Shown As:** ${displayName} (${targetUser.id})\n` +
         `**Channel:** ${targetChannel}\n` +
         `**Message:** ${message}`
       ).catch(() => {});
