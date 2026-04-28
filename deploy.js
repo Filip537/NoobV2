@@ -189,6 +189,9 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("playsudoku")
+  .setDescription("Play Sudoku"),
+  new SlashCommandBuilder()
   .setName("mathquestions")
   .setDescription("Solve a math question based on difficulty")
   .addStringOption(option =>

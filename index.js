@@ -368,6 +368,24 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "playsudoku") {
+  const embed = new EmbedBuilder()
+    .setTitle("Sudoku")
+    .setDescription(`${interaction.user} is playing Sudoku`)
+    .setColor("Blue");
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel("Play now!")
+      .setStyle(ButtonStyle.Link)
+      .setURL(`https://yourwebsite.com/sudoku?user=${interaction.user.id}&channel=${interaction.channel.id}`)
+  );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
 if (interaction.commandName === "sayas") {
   const ALLOWED_ROLE_ID = "1495044283294552165";
 
