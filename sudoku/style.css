@@ -224,3 +224,35 @@ select {
     font-size: 17px;
   }
 }
+
+.hidden {
+  display: none !important;
+}
+
+.game-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.game-card {
+  width: 100%;
+  text-align: left;
+  padding: 18px;
+  border-radius: 20px;
+  background: #252d44;
+}
+
+.game-card strong {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.game-card span {
+  color: #cbd5e1;
+}
+
+#gameArea {
+  margin-top: 20px;
+}
