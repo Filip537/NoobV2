@@ -162,6 +162,24 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("sayas")
+  .setDescription("Send a message on behalf of a user")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to show")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("message")
+      .setDescription("Message to send")
+      .setRequired(true)
+  )
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Channel to send the message")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
   .setName("mathquestions")
   .setDescription("Solve a math question based on difficulty")
   .addStringOption(option =>

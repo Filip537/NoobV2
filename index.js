@@ -368,6 +368,56 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+if (interaction.commandName === "sayas") {
+  const ALLOWED_ROLE_ID = "1495044283294552165";
+
+  if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {
+    return interaction.reply({
+      content: "❌ You don’t have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  const targetUser = interaction.options.getUser("user");
+  const message = interaction.options.getString("message");
+  const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
+
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    return interaction.reply({
+      content: "❌ Please choose a valid text channel.",
+      ephemeral: true
+    });
+  }
+
+  try {
+    const webhook = await targetChannel.createWebhook({
+      name: targetUser.username,
+      avatar: targetUser.displayAvatarURL({ dynamic: true })
+    });
+
+    await webhook.send({
+      content:
+        `*(sent via bot on behalf of ${targetUser})*\n\n` +
+        `${message}`,
+      allowedMentions: { parse: [] }
+    });
+
+    await webhook.delete().catch(() => {});
+
+    return interaction.reply({
+      content: "✅ Message sent.",
+      ephemeral: true
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    return interaction.reply({
+      content: "❌ Failed. Check bot permissions (Manage Webhooks).",
+      ephemeral: true
+    });
+  }
+}
   if (interaction.commandName === "sendroleselector") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
