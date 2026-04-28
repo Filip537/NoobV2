@@ -17,7 +17,8 @@ app.listen(PORT, () => {
 });
 
 app.post("/api/sudoku-result", async (req, res) => {
-const { userId, channelId, time, mistakes, difficulty, mode, result } = req.body;
+const { userId, time, mistakes, difficulty, mode, result } = req.body;
+const channelId = "1485089713265049620";
   try {
     const client = require("./index.js");
     const channel = await client.channels.fetch(channelId);

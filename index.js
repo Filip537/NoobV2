@@ -378,8 +378,7 @@ client.on("interactionCreate", async (interaction) => {
     new ButtonBuilder()
       .setLabel("Play now!")
       .setStyle(ButtonStyle.Link)
-.setURL(`https://YOUR-RAILWAY-URL.up.railway.app/?user=${interaction.user.id}&channel=${interaction.channel.id}`)  );
-
+.setURL(`https://noobv2-production.up.railway.app/?user=${interaction.user.id}`) );
   return interaction.reply({
     embeds: [embed],
     components: [row]

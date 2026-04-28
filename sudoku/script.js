@@ -1,6 +1,5 @@
 const params = new URLSearchParams(window.location.search);
 const userId = params.get("user");
-const channelId = params.get("channel");
 
 let difficulty = "easy";
 let mode = "normal";
@@ -203,15 +202,14 @@ document.getElementById("submit").onclick = async () => {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      userId,
-      channelId,
-      time,
-      mistakes,
-      difficulty,
-      mode,
-      result: getWordleResult()
-    })
+body: JSON.stringify({
+  userId,
+  time,
+  mistakes,
+  difficulty,
+  mode,
+  result: getWordleResult()
+})
   });
 
   statusText.textContent = res.ok
