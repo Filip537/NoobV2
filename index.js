@@ -347,8 +347,8 @@ client.once("ready", async () => {
     if (!guild) return;
 
 const memberCount = guild.memberCount;
-client.user.setActivity(`Stories Live | ${memberCount} members`, {
-  type: 0
+client.user.setActivity(`with ${memberCount} members`, {
+  type: 0 
 });
   }
 
