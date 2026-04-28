@@ -364,6 +364,52 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "sendroleselector") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ No permission.",
+      ephemeral: true
+    });
+  }
+
+  const targetChannel = interaction.options.getChannel("channel");
+
+  const embed = new EmbedBuilder()
+    .setTitle("Role Selector")
+    .setColor("Purple")
+    .setDescription("Please use the dropdown menu below to select a role category.");
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("role_selector_menu")
+    .setPlaceholder("Select a role category")
+    .addOptions(
+      {
+        label: "Devilish Color",
+        description: "Choose a Devilish color role",
+        value: "devilish_color"
+      },
+      {
+        label: "Color Roles",
+        description: "Choose a normal color role",
+        value: "color_roles"
+      },
+      {
+        label: "Remove Roles",
+        description: "Remove selected color roles",
+        value: "remove_color_roles"
+      }
+    );
+
+  await targetChannel.send({
+    embeds: [embed],
+    components: [new ActionRowBuilder().addComponents(menu)]
+  });
+
+  return interaction.reply({
+    content: `✅ Role selector sent to ${targetChannel}.`,
+    ephemeral: true
+  });
+}
   if (interaction.commandName === "mathquestions") {
 
   const level = interaction.options.getString("level");
@@ -1652,6 +1698,69 @@ if (interaction.commandName === "games") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
+  if (interaction.customId === "role_selector_menu") {
+  const value = interaction.values[0];
+
+  if (value === "devilish_color") {
+    const embed = new EmbedBuilder()
+      .setTitle("Devilish Color Roles")
+      .setColor("DarkButNotBlack")
+      .setDescription(
+        `<:arrow:1442712798969729087> Click a button below to get or remove a Devilish color role.`
+      );
+
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("role_1496850177246363759").setLabel("Black").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("role_1496845745947410593").setLabel("Blue").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("role_1498474880105054218").setLabel("Pink").setStyle(ButtonStyle.Danger)
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("role_1496847529013285115").setLabel("Purple").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("role_1490469087380508803").setLabel("Red").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("role_1496898950714757180").setLabel("White").setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      embeds: [embed],
+      components: [row1, row2],
+      ephemeral: true
+    });
+  }
+
+  if (value === "color_roles") {
+    const embed = new EmbedBuilder()
+      .setTitle("Color Roles")
+      .setColor("Blue")
+      .setDescription("Click a button below to get or remove a color role.");
+
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("role_1491016531176456272").setLabel("Red").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("role_1491016623375781959").setLabel("Blue").setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId("role_1491016679776456714").setLabel("Yellow").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("role_1491016736244367391").setLabel("Green").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("role_1491016798802546718").setLabel("Purple").setStyle(ButtonStyle.Primary)
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("role_1498483649367248947").setLabel("Pink").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId("role_1498483827029573792").setLabel("Gold").setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      embeds: [embed],
+      components: [row1, row2],
+      ephemeral: true
+    });
+  }
+
+  if (value === "remove_color_roles") {
+    return interaction.reply({
+      content: "Click the same role again to remove it.",
+      ephemeral: true
+    });
+  }
+}
   if (interaction.customId === "updates_menu") {
   const value = interaction.values[0];
 
@@ -2164,9 +2273,69 @@ if (handledSocialModal !== false) return;
   return settings.handleModal(interaction);
 }
 
+if (interaction.customId.startsWith("role_")) {
+  const roleId = interaction.customId.replace("role_", "");
 
+  const colorRoleIds = [
+    "1491016531176456272", // Red
+    "1491016623375781959", // Blue
+    "1491016679776456714", // Yellow
+    "1491016736244367391", // Green
+    "1491016798802546718", // Purple
+    "1498483649367248947", // Pink
+    "1498483827029573792"  // Gold
+  ];
+
+  const devilishRoleIds = [
+    "1496850177246363759",
+    "1496845745947410593",
+    "1498474880105054218",
+    "1496847529013285115",
+    "1490469087380508803",
+    "1496898950714757180"
+  ];
+
+  const role = interaction.guild.roles.cache.get(roleId);
+
+  if (!role) {
+    return interaction.reply({
+      content: "❌ Role not found.",
+      ephemeral: true
+    });
+  }
+
+  const isColorRole = colorRoleIds.includes(roleId);
+  const isDevilishRole = devilishRoleIds.includes(roleId);
+
+  if (interaction.member.roles.cache.has(roleId)) {
+    await interaction.member.roles.remove(roleId);
+
+    return interaction.reply({
+      content: `✅ Removed ${role.name}.`,
+      ephemeral: true
+    });
+  }
+
+  if (isColorRole) {
+    const rolesToRemove = colorRoleIds.filter(id => id !== roleId);
+    await interaction.member.roles.remove(rolesToRemove).catch(() => {});
+  }
+
+  if (isDevilishRole) {
+    const rolesToRemove = devilishRoleIds.filter(id => id !== roleId);
+    await interaction.member.roles.remove(rolesToRemove).catch(() => {});
+  }
+
+  await interaction.member.roles.add(roleId);
+
+  return interaction.reply({
+    content: `✅ Added ${role.name}. Only one color role can be active at a time.`,
+    ephemeral: true
+  });
+}
   // ================= BUTTON =================
 if (interaction.isButton()) {
+
   if (interaction.customId.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");

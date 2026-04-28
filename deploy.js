@@ -154,6 +154,14 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("sendroleselector")
+  .setDescription("Send the role selector panel")
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Channel to send the role selector panel")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("mathquestions")
   .setDescription("Solve a math question based on difficulty")
   .addStringOption(option =>
