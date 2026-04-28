@@ -396,13 +396,22 @@ if (interaction.commandName === "sayas") {
     });
 
     await webhook.send({
-      content:
-        `*(sent via bot on behalf of ${targetUser})*\n\n` +
-        `${message}`,
+      content: message,
       allowedMentions: { parse: [] }
     });
 
     await webhook.delete().catch(() => {});
+
+    const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+    if (owner) {
+      await owner.send(
+        `**/sayas Log**\n\n` +
+        `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
+        `**Shown As:** ${targetUser.tag} (${targetUser.id})\n` +
+        `**Channel:** ${targetChannel}\n` +
+        `**Message:** ${message}`
+      ).catch(() => {});
+    }
 
     return interaction.reply({
       content: "✅ Message sent.",
@@ -410,10 +419,10 @@ if (interaction.commandName === "sayas") {
     });
 
   } catch (err) {
-    console.log(err);
+    console.log("Sayas failed:", err);
 
     return interaction.reply({
-      content: "❌ Failed. Check bot permissions (Manage Webhooks).",
+      content: "❌ Failed. Make sure the bot has Manage Webhooks permission.",
       ephemeral: true
     });
   }
