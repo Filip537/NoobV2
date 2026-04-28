@@ -1,135 +1,194 @@
 const params = new URLSearchParams(window.location.search);
 const userId = params.get("user");
+const selectedGame = params.get("game");
 
-let currentGame = null;
 let difficulty = "easy";
-let startTime = Date.now();
-let submitted = false;
+let currentGame = null;
 let mistakes = 0;
+let submitted = false;
+let startTime = Date.now();
 
 let puzzle = [];
 let solution = [];
 let board = [];
 let selected = null;
 
-let hangmanWord = "";
+let hangmanAnswer = "";
 let hangmanHint = "";
-let guessedLetters = [];
-let wrongGuesses = 0;
+let guessedLetters = new Set();
+let wrongLetters = [];
 
 let crosswordWords = [];
 let foundWords = new Set();
 
-const home = document.getElementById("home");
-const gameArea = document.getElementById("gameArea");
-const title = document.getElementById("title");
-const info = document.getElementById("info");
-const statusText = document.getElementById("status");
-const timerText = document.getElementById("timer");
-const difficultySelect = document.getElementById("difficulty");
-const gameText = document.getElementById("gameText");
-const difficultyText = document.getElementById("difficultyText");
-const mistakesText = document.getElementById("mistakesText");
+const homePage = document.getElementById("homePage");
+const gamePage = document.getElementById("gamePage");
 
 const sudokuUI = document.getElementById("sudokuUI");
 const hangmanUI = document.getElementById("hangmanUI");
 const crosswordUI = document.getElementById("crosswordUI");
-const boardDiv = document.getElementById("board");
+
+const title = document.getElementById("title");
+const info = document.getElementById("info");
+const timerText = document.getElementById("timer");
+const statusText = document.getElementById("status");
+const mistakesText = document.getElementById("mistakesText");
+const difficultyText = document.getElementById("difficultyText");
+const gameText = document.getElementById("gameText");
+const difficultySelect = document.getElementById("difficulty");
+
+document.getElementById("sudokuLink").href = `?game=sudoku&user=${userId || ""}`;
+document.getElementById("hangmanLink").href = `?game=hangman&user=${userId || ""}`;
+document.getElementById("crosswordLink").href = `?game=crossword&user=${userId || ""}`;
+
+document.getElementById("homeBtn").onclick = () => {
+  window.location.href = `/?user=${userId || ""}`;
+};
+
+document.getElementById("newGame").onclick = () => {
+  startSelectedGame();
+};
+
+difficultySelect.onchange = () => {
+  difficulty = difficultySelect.value;
+  startSelectedGame();
+};
+
+function showHome() {
+  homePage.classList.remove("hidden");
+  gamePage.classList.add("hidden");
+
+  title.textContent = "Choose a minigame";
+  info.textContent = "Pick one game to play.";
+}
+
+function showGamePage() {
+  homePage.classList.add("hidden");
+  gamePage.classList.remove("hidden");
+}
+
+function hideAllGames() {
+  sudokuUI.classList.add("hidden");
+  hangmanUI.classList.add("hidden");
+  crosswordUI.classList.add("hidden");
+}
+
+function resetBase(game) {
+  currentGame = game;
+  mistakes = 0;
+  submitted = false;
+  startTime = Date.now();
+  statusText.textContent = "";
+  mistakesText.textContent = "0";
+  difficultyText.textContent = difficulty[0].toUpperCase() + difficulty.slice(1);
+  gameText.textContent = game[0].toUpperCase() + game.slice(1);
+  hideAllGames();
+  showGamePage();
+}
 
 function cloneGrid(grid) {
   return grid.map(row => [...row]);
 }
 
-function formatTime(ms) {
-  const sec = Math.floor(ms / 1000);
-  const min = Math.floor(sec / 60);
-  return `${min}m ${sec % 60}s`;
+function startSelectedGame() {
+  if (selectedGame === "sudoku") startSudoku();
+  else if (selectedGame === "hangman") startHangman();
+  else if (selectedGame === "crossword") startCrossword();
+  else showHome();
 }
 
-function showOnly(ui) {
-  sudokuUI.classList.add("hidden");
-  hangmanUI.classList.add("hidden");
-  crosswordUI.classList.add("hidden");
-  ui.classList.remove("hidden");
-}
-
-function resetGameBase(gameName) {
-  startTime = Date.now();
-  submitted = false;
-  mistakes = 0;
-  statusText.textContent = "";
-  currentGame = gameName;
-  gameText.textContent = gameName[0].toUpperCase() + gameName.slice(1);
-  difficultyText.textContent = difficulty[0].toUpperCase() + difficulty.slice(1);
-  mistakesText.textContent = "0";
-  home.classList.add("hidden");
-  gameArea.classList.remove("hidden");
-}
-
-async function sendResult(payload) {
-  if (submitted) return;
-  submitted = true;
-
-  statusText.textContent = "Sending result to Discord...";
-
-  const res = await fetch("/api/minigame-result", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      game: currentGame,
-      difficulty,
-      time: formatTime(Date.now() - startTime),
-      mistakes,
-      ...payload
-    })
-  });
-
-  statusText.textContent = res.ok
-    ? "Result sent to Discord!"
-    : "Failed to send result.";
-}
+/* ================= SUDOKU ================= */
 
 function startSudoku() {
-  resetGameBase("sudoku");
-  showOnly(sudokuUI);
+  resetBase("sudoku");
+  sudokuUI.classList.remove("hidden");
+
   title.textContent = "Sudoku";
-  info.textContent = "Complete the Sudoku board, then submit your result.";
+  info.textContent = "Complete the board and submit your result.";
 
   const picked = generateSudoku(difficulty);
   puzzle = cloneGrid(picked.puzzle);
   solution = cloneGrid(picked.solution);
   board = cloneGrid(puzzle);
   selected = null;
-  renderSudoku();
+
+  renderBoard();
 }
 
-function renderSudoku() {
+function renderBoard() {
+  const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
+
   const selectedValue = selected ? board[selected.r][selected.c] : 0;
 
   for (let r = 0; r < 9; r++) {
     for (let c = 0; c < 9; c++) {
       const cell = document.createElement("button");
       const value = board[r][c];
+
       cell.className = "cell";
       cell.textContent = value === 0 ? "" : value;
 
       if (puzzle[r][c] !== 0) cell.classList.add("fixed");
       if (selected && selected.r === r && selected.c === c) cell.classList.add("selected");
-      if (selectedValue !== 0 && value === selectedValue && !(selected && selected.r === r && selected.c === c)) cell.classList.add("same");
+      if (selectedValue !== 0 && value === selectedValue && !(selected && selected.r === r && selected.c === c)) {
+        cell.classList.add("same");
+      }
       if (value !== 0 && value !== solution[r][c]) cell.classList.add("wrong");
 
       cell.onclick = () => {
         if (puzzle[r][c] !== 0 || submitted) return;
         selected = { r, c };
-        renderSudoku();
+        renderBoard();
       };
 
       boardDiv.appendChild(cell);
     }
   }
 }
+
+document.querySelectorAll(".numbers button").forEach(btn => {
+  btn.onclick = () => {
+    if (!selected || submitted || currentGame !== "sudoku") return;
+
+    const num = Number(btn.textContent);
+    const { r, c } = selected;
+
+    if (board[r][c] !== num && num !== solution[r][c]) {
+      mistakes++;
+      mistakesText.textContent = mistakes;
+    }
+
+    board[r][c] = num;
+    renderBoard();
+
+    if (isSudokuCompleted()) {
+      statusText.textContent = "Board completed! Submit your result.";
+    }
+  };
+});
+
+document.getElementById("erase").onclick = () => {
+  if (!selected || submitted) return;
+  const { r, c } = selected;
+  if (puzzle[r][c] !== 0) return;
+
+  board[r][c] = 0;
+  renderBoard();
+};
+
+document.getElementById("submitSudoku").onclick = () => {
+  if (!isSudokuCompleted()) {
+    statusText.textContent = "Sudoku is not completed correctly yet.";
+    return;
+  }
+
+  sendResult({
+    game: "sudoku",
+    result: "Completed",
+    extra: "Sudoku board completed."
+  });
+};
 
 function isSudokuCompleted() {
   for (let r = 0; r < 9; r++) {
@@ -140,79 +199,98 @@ function isSudokuCompleted() {
   return true;
 }
 
-function sudokuResultText() {
-  if (mistakes === 0) return "🟩🟩🟩🟩🟩 Perfect!";
-  if (mistakes <= 2) return "🟩🟩🟩🟨⬛ Great!";
-  if (mistakes <= 5) return "🟩🟩🟨⬛⬛ Completed!";
-  return "🟨🟨⬛⬛⬛ Completed!";
-}
+/* ================= HANGMAN ================= */
 
 function startHangman() {
-  resetGameBase("hangman");
-  showOnly(hangmanUI);
+  resetBase("hangman");
+  hangmanUI.classList.remove("hidden");
+
   title.textContent = "Hangman";
-  info.textContent = "Guess the word. Result sends automatically when you win or lose.";
+  info.textContent = "Guess the word before too many mistakes.";
 
   const list = HANGMAN_WORDS[difficulty] || HANGMAN_WORDS.hard;
-  const picked = list[Math.floor(Math.random() * list.length)];
-  hangmanWord = picked.word.toUpperCase();
-  hangmanHint = picked.hint;
-  guessedLetters = [];
-  wrongGuesses = 0;
+  const pick = list[Math.floor(Math.random() * list.length)];
+
+  hangmanAnswer = pick.word.toUpperCase();
+  hangmanHint = pick.hint;
+  guessedLetters = new Set();
+  wrongLetters = [];
+
   renderHangman();
 }
 
 function renderHangman() {
-  document.getElementById("hangmanWord").textContent = hangmanWord
+  document.getElementById("hangmanWord").textContent = hangmanAnswer
     .split("")
-    .map(ch => guessedLetters.includes(ch) ? ch : "_")
+    .map(letter => guessedLetters.has(letter) ? letter : "_")
     .join(" ");
 
-  document.getElementById("hangmanHint").textContent = `Hint: ${hangmanHint} | Wrong guesses: ${wrongGuesses}/7`;
-  mistakes = wrongGuesses;
-  mistakesText.textContent = mistakes;
+  document.getElementById("hangmanHint").textContent = `Hint: ${hangmanHint}`;
+  document.getElementById("wrongLetters").textContent = `Wrong: ${wrongLetters.join(", ") || "None"}`;
 
-  const lettersDiv = document.getElementById("hangmanLetters");
-  lettersDiv.innerHTML = "";
+  const buttons = document.getElementById("letterButtons");
+  buttons.innerHTML = "";
 
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter => {
     const btn = document.createElement("button");
     btn.textContent = letter;
-    btn.disabled = guessedLetters.includes(letter) || submitted;
-    btn.onclick = () => guessHangman(letter);
-    lettersDiv.appendChild(btn);
+    btn.disabled = guessedLetters.has(letter) || wrongLetters.includes(letter) || submitted;
+
+    btn.onclick = () => guessLetter(letter);
+
+    buttons.appendChild(btn);
   });
 }
 
-function guessHangman(letter) {
+function guessLetter(letter) {
   if (submitted) return;
-  guessedLetters.push(letter);
-  if (!hangmanWord.includes(letter)) wrongGuesses++;
+
+  if (hangmanAnswer.includes(letter)) {
+    guessedLetters.add(letter);
+  } else {
+    wrongLetters.push(letter);
+    mistakes++;
+    mistakesText.textContent = mistakes;
+  }
+
   renderHangman();
 
-  const won = hangmanWord.split("").every(ch => guessedLetters.includes(ch));
-  const lost = wrongGuesses >= 7;
+  const won = hangmanAnswer.split("").every(letter => guessedLetters.has(letter));
+  const lost = mistakes >= 7;
 
-  if (won || lost) {
+  if (won) {
     sendResult({
-      result: won ? "Won" : "Lost",
-      word: hangmanWord,
-      extra: won ? "The word was guessed correctly." : "The player ran out of guesses."
+      game: "hangman",
+      result: "Won",
+      word: hangmanAnswer,
+      extra: `Guessed the word with ${mistakes} mistakes.`
+    });
+  }
+
+  if (lost) {
+    sendResult({
+      game: "hangman",
+      result: "Lost",
+      word: hangmanAnswer,
+      extra: `Failed to guess the word.`
     });
   }
 }
 
+/* ================= CROSSWORD / WORD SEARCH ================= */
+
 function startCrossword() {
-  resetGameBase("crossword");
-  showOnly(crosswordUI);
+  resetBase("crossword");
+  crosswordUI.classList.remove("hidden");
+
   title.textContent = "Crossword";
-  info.textContent = "Find 10 hidden words. Tick all words to auto-send result.";
+  info.textContent = "Find 10 hidden words.";
 
   const list = CROSSWORD_WORDS[difficulty] || CROSSWORD_WORDS.hard;
   const pickedWords = [...list]
     .sort(() => Math.random() - 0.5)
     .slice(0, 10)
-    .map(w => w.toUpperCase());
+    .map(word => word.toUpperCase());
 
   foundWords = new Set();
   crosswordWords = buildWordSearchGrid(pickedWords);
@@ -222,16 +300,18 @@ function startCrossword() {
 function buildWordSearchGrid(words) {
   const size = 18;
   const grid = Array.from({ length: size }, () => Array(size).fill(""));
-  const directions = [[1,0], [0,1], [1,1]];
+  const directions = [[1, 0], [0, 1], [1, 1]];
   const placedWords = [];
 
   function canPlace(word, r, c, dr, dc) {
     for (let i = 0; i < word.length; i++) {
       const nr = r + dr * i;
       const nc = c + dc * i;
+
       if (nr < 0 || nr >= size || nc < 0 || nc >= size) return false;
       if (grid[nr][nc] && grid[nr][nc] !== word[i]) return false;
     }
+
     return true;
   }
 
@@ -248,9 +328,8 @@ function buildWordSearchGrid(words) {
       }
 
       placedWords.push(word);
-      return true;
+      return;
     }
-    return false;
   }
 
   words.forEach(place);
@@ -297,10 +376,12 @@ function renderWordList() {
     };
 
     label.appendChild(input);
-    label.append(word);
+    label.append(" " + word);
     wordList.appendChild(label);
   });
 }
+
+document.getElementById("checkCrossword").onclick = submitCrossword;
 
 function submitCrossword() {
   if (submitted) return;
@@ -311,82 +392,58 @@ function submitCrossword() {
   }
 
   sendResult({
+    game: "crossword",
     result: "Completed",
     word: crosswordWords.join(", "),
     extra: `Found all ${crosswordWords.length} words.`
   });
 }
 
+/* ================= RESULT ================= */
 
-document.querySelectorAll(".game-card").forEach(btn => {
-  btn.onclick = () => {
-    const game = btn.dataset.game;
-    if (game === "sudoku") startSudoku();
-    if (game === "hangman") startHangman();
-    if (game === "crossword") startCrossword();
-  };
-});
+async function sendResult(data) {
+  if (submitted) return;
 
-document.getElementById("backHome").onclick = () => {
-  currentGame = null;
-  home.classList.remove("hidden");
-  gameArea.classList.add("hidden");
-  title.textContent = "Choose a minigame";
-  info.textContent = "Pick a game, choose difficulty, and complete it to send your result.";
-  statusText.textContent = "";
-};
+  submitted = true;
+  statusText.textContent = "Submitting result...";
 
-document.getElementById("newGame").onclick = () => {
-  if (currentGame === "sudoku") startSudoku();
-  if (currentGame === "hangman") startHangman();
-  if (currentGame === "crossword") startCrossword();
-};
+  const time = formatTime(Date.now() - startTime);
 
-difficultySelect.onchange = () => {
-  difficulty = difficultySelect.value;
-  if (currentGame === "sudoku") startSudoku();
-  if (currentGame === "hangman") startHangman();
-  if (currentGame === "crossword") startCrossword();
-};
+  try {
+    const res = await fetch("/api/minigame-result", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        game: data.game || currentGame,
+        difficulty,
+        time,
+        mistakes,
+        result: data.result,
+        word: data.word || "",
+        extra: data.extra || ""
+      })
+    });
 
-document.querySelectorAll(".numbers button").forEach(btn => {
-  btn.onclick = () => {
-    if (!selected || submitted || currentGame !== "sudoku") return;
-    const num = Number(btn.textContent);
-    const { r, c } = selected;
-
-    if (board[r][c] !== num && num !== solution[r][c]) {
-      mistakes++;
-      mistakesText.textContent = mistakes;
-      statusText.textContent = `Wrong number. Mistakes: ${mistakes}`;
-    } else {
-      statusText.textContent = "";
-    }
-
-    board[r][c] = num;
-    renderSudoku();
-    if (isSudokuCompleted()) statusText.textContent = "Board completed! Submit your result.";
-  };
-});
-
-document.getElementById("erase").onclick = () => {
-  if (!selected || submitted || currentGame !== "sudoku") return;
-  const { r, c } = selected;
-  if (puzzle[r][c] !== 0) return;
-  board[r][c] = 0;
-  renderSudoku();
-};
-
-document.getElementById("submitSudoku").onclick = () => {
-  if (!isSudokuCompleted()) {
-    statusText.textContent = "Sudoku is not completed correctly yet.";
-    return;
+    statusText.textContent = res.ok
+      ? "Result sent to Discord!"
+      : "Failed to send result.";
+  } catch (err) {
+    statusText.textContent = "Failed to send result.";
   }
-  sendResult({ result: sudokuResultText(), extra: "Sudoku board completed correctly." });
-};
+}
 
-document.getElementById("submitCrossword").onclick = submitCrossword;
+function formatTime(ms) {
+  const sec = Math.floor(ms / 1000);
+  const min = Math.floor(sec / 60);
+  const left = sec % 60;
+  return `${min}m ${left}s`;
+}
 
 setInterval(() => {
   timerText.textContent = formatTime(Date.now() - startTime);
 }, 1000);
+
+startSelectedGame();

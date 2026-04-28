@@ -16,16 +16,19 @@ body {
 }
 
 .app {
-  width: min(430px, 100%);
-  background: rgba(17, 24, 39, 0.88);
+  width: min(460px, 100%);
+  background: rgba(17, 24, 39, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 26px;
   padding: 20px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px);
 }
 
-.hero {
+.hidden {
+  display: none !important;
+}
+
+.top {
   display: flex;
   justify-content: space-between;
   gap: 14px;
@@ -43,6 +46,7 @@ body {
 h1 {
   margin: 4px 0;
   font-size: 38px;
+  line-height: 1.1;
 }
 
 #info {
@@ -66,35 +70,43 @@ h1 {
   color: #dbeafe;
 }
 
-.timer-card strong {
-  font-size: 17px;
+.game-card {
+  display: block;
+  text-decoration: none;
+  color: white;
+  background: #252d44;
+  border-radius: 20px;
+  padding: 18px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.game-card strong {
+  display: block;
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.game-card span {
+  color: #cbd5e1;
 }
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.1fr 0.8fr;
-  gap: 8px;
-  margin: 18px 0 12px;
+  grid-template-columns: 1fr 1.1fr 1.2fr;
+  gap: 10px;
+  margin: 20px 0 12px;
 }
 
 button,
 select {
   border: none;
   border-radius: 14px;
-  padding: 11px;
+  padding: 12px;
   font-weight: bold;
   color: white;
   background: #252d44;
   cursor: pointer;
-}
-
-button:hover,
-select:hover {
-  filter: brightness(1.13);
-}
-
-.mode.active {
-  background: #5865f2;
 }
 
 select {
@@ -119,10 +131,6 @@ select {
   text-align: center;
 }
 
-.stats strong {
-  font-size: 15px;
-}
-
 #board {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
@@ -145,7 +153,6 @@ select {
 .cell.fixed {
   background: #273043;
   color: #ffffff;
-  cursor: not-allowed;
 }
 
 .cell.selected {
@@ -183,7 +190,6 @@ select {
 .numbers button {
   background: #5865f2;
   border-radius: 12px;
-  font-size: 16px;
 }
 
 .actions {
@@ -196,8 +202,74 @@ select {
   background: #4b5563;
 }
 
-#submit {
+#submitSudoku,
+#checkCrossword {
+  width: 100%;
   background: #16a34a;
+}
+
+.word-box {
+  background: #252d44;
+  border-radius: 20px;
+  padding: 20px;
+  text-align: center;
+}
+
+#hangmanWord {
+  font-size: 34px;
+  letter-spacing: 8px;
+}
+
+#hangmanHint,
+#wrongLetters,
+.small-text {
+  color: #cbd5e1;
+}
+
+.letters {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.letters button {
+  background: #5865f2;
+}
+
+#crosswordGrid {
+  display: grid;
+  gap: 2px;
+  background: #e5e7eb;
+  padding: 6px;
+  border-radius: 14px;
+  overflow: auto;
+}
+
+.word-cell {
+  width: 22px;
+  height: 22px;
+  background: #111827;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#wordList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+#wordList label {
+  background: #252d44;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 13px;
 }
 
 #status {
@@ -217,42 +289,16 @@ select {
   }
 
   .toolbar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
-  .cell {
-    font-size: 17px;
+  .letters {
+    grid-template-columns: repeat(6, 1fr);
   }
-}
 
-.hidden {
-  display: none !important;
-}
-
-.game-grid {
-  display: grid;
-  gap: 14px;
-  margin-top: 22px;
-}
-
-.game-card {
-  width: 100%;
-  text-align: left;
-  padding: 18px;
-  border-radius: 20px;
-  background: #252d44;
-}
-
-.game-card strong {
-  display: block;
-  font-size: 22px;
-  margin-bottom: 6px;
-}
-
-.game-card span {
-  color: #cbd5e1;
-}
-
-#gameArea {
-  margin-top: 20px;
+  .word-cell {
+    width: 19px;
+    height: 19px;
+    font-size: 10px;
+  }
 }
