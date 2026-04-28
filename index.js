@@ -856,7 +856,7 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 }
-  if (interaction.commandName === "dms") {
+if (interaction.commandName === "dms") {
   const targetUser = interaction.options.getUser("user");
   const message = interaction.options.getString("message");
 
@@ -875,12 +875,26 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   try {
+    // send DM to target
     await targetUser.send(message);
+
+    // 🔥 LOG TO OWNER DM
+    const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+
+    if (owner) {
+      await owner.send(
+        `**Bot /dms Log**\n\n` +
+        `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
+        `**Sent To:** ${targetUser.tag} (${targetUser.id})\n` +
+        `**Message:** ${message}`
+      ).catch(() => {});
+    }
 
     return interaction.reply({
       content: `✅ Message sent to ${targetUser.tag}.`,
       ephemeral: true
     });
+
   } catch (err) {
     console.log("DM send failed:", err);
 
