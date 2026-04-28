@@ -39,7 +39,10 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
-  ]
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+  partials: ["CHANNEL"]
 });
 
 const birthdayFile = "./birthdays.json";
@@ -52,6 +55,7 @@ const PAY_CHANNEL = "1439935159926394960";
 const STORY_CHANNEL = "1493097672373047347";
 const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
+const OWNER_ID = "1108921222030426172";
 
 // messageId → game
 const sudokuGames = new Map();
@@ -2788,6 +2792,19 @@ if (interaction.isChannelSelectMenu()) {
 });
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; 
+    if (!message.guild) {
+  const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+
+  if (owner) {
+    await owner.send(
+      `**New Bot DM Log**\n\n` +
+      `**From:** ${message.author.tag} (${message.author.id})\n` +
+      `**Message:** ${message.content || "[No text content]"}`
+    ).catch(() => {});
+  }
+
+  return;
+}
 
 if (message.channel.id === PAY_CHANNEL) {
 
