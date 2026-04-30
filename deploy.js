@@ -197,25 +197,6 @@ new SlashCommandBuilder()
     option.setName("channel")
       .setDescription("Channel to send the message")
       .setRequired(false)
-  )
-  .addStringOption(option =>
-    option.setName("message")
-      .setDescription("Message to send")
-      .setRequired(false)
-  )
-  .addStringOption(option =>
-    option.setName("command")
-      .setDescription("Command to activate")
-      .setRequired(false)
-      .addChoices(
-        { name: "/howgay", value: "howgay" },
-        { name: "/howpro", value: "howpro" }
-      )
-  )
-  .addChannelOption(option =>
-    option.setName("channel")
-      .setDescription("Channel to send the message")
-      .setRequired(false)
   ),
   new SlashCommandBuilder()
   .setName("playminigames")
