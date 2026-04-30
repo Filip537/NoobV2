@@ -58,7 +58,7 @@ new SlashCommandBuilder()
       .setDescription("Where to send the update log")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
+new SlashCommandBuilder()
   .setName("dms")
   .setDescription("Send a direct message to a user")
   .addUserOption(option =>
@@ -69,7 +69,12 @@ new SlashCommandBuilder()
   .addStringOption(option =>
     option.setName("message")
       .setDescription("Message to send")
-      .setRequired(true)
+      .setRequired(false)
+  )
+  .addAttachmentOption(option =>
+    option.setName("file")
+      .setDescription("Attach file/image (optional)")
+      .setRequired(false)
   ),
   new SlashCommandBuilder()
   .setName("report")
@@ -161,13 +166,37 @@ new SlashCommandBuilder()
       .setDescription("Channel to send the role selector panel")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
+new SlashCommandBuilder()
   .setName("sayas")
   .setDescription("Send a message or command result as a user")
   .addUserOption(option =>
     option.setName("user")
       .setDescription("User to show")
       .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("message")
+      .setDescription("Message to send")
+      .setRequired(false)
+  )
+  .addStringOption(option =>
+    option.setName("command")
+      .setDescription("Command to activate")
+      .setRequired(false)
+      .addChoices(
+        { name: "/howgay", value: "howgay" },
+        { name: "/howpro", value: "howpro" }
+      )
+  )
+  .addAttachmentOption(option =>
+    option.setName("file")
+      .setDescription("Attach file/image optional")
+      .setRequired(false)
+  )
+  .addChannelOption(option =>
+    option.setName("channel")
+      .setDescription("Channel to send the message")
+      .setRequired(false)
   )
   .addStringOption(option =>
     option.setName("message")

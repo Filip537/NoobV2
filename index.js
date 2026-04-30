@@ -406,6 +406,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "playminigam
 }
 if (interaction.commandName === "sayas") {
   const ALLOWED_ROLE_ID = "1495044283294552165";
+  const SAYAS_LOG_VIEWER_ID = "1146756192710959155";
 
   if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {
     return interaction.reply({
@@ -417,11 +418,12 @@ if (interaction.commandName === "sayas") {
   const targetUser = interaction.options.getUser("user");
   const messageInput = interaction.options.getString("message");
   const commandInput = interaction.options.getString("command");
+  const file = interaction.options.getAttachment("file");
   const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
 
-  if (!messageInput && !commandInput) {
+  if (!messageInput && !commandInput && !file) {
     return interaction.reply({
-      content: "❌ Please enter a message or choose a command.",
+      content: "❌ Please enter a message, choose a command, or attach a file.",
       ephemeral: true
     });
   }
@@ -437,7 +439,7 @@ if (interaction.commandName === "sayas") {
     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
     const displayName = member?.displayName || targetUser.username;
 
-    let finalMessage = messageInput;
+    let finalMessage = messageInput || "";
 
     if (commandInput === "howgay") {
       const percent = Math.floor(Math.random() * 200) + 1;
@@ -471,23 +473,36 @@ if (interaction.commandName === "sayas") {
     });
 
     await webhook.send({
-      content: finalMessage,
+      content: finalMessage || null,
+      files: file ? [file.url] : [],
       allowedMentions: { parse: [] }
     });
 
     await webhook.delete().catch(() => {});
 
+    const logEmbed = new EmbedBuilder()
+      .setTitle("Sayas Log")
+      .setColor("Purple")
+      .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+      .addFields(
+        { name: "From", value: `${interaction.user}`, inline: true },
+        { name: "To", value: `${targetUser}`, inline: true },
+        { name: "Channel", value: `${targetChannel}`, inline: true },
+        { name: "Mode", value: commandInput ? `/${commandInput}` : "Message", inline: true },
+        { name: "Message", value: finalMessage || "No message", inline: false },
+        { name: "Attachment", value: file ? file.url : "None", inline: false }
+      )
+      .setTimestamp();
+
     const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+    const sayasViewer = await client.users.fetch(SAYAS_LOG_VIEWER_ID).catch(() => null);
 
     if (owner) {
-      await owner.send(
-        `**/sayas Log**\n\n` +
-        `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
-        `**Shown As:** ${displayName} (${targetUser.id})\n` +
-        `**Channel:** ${targetChannel}\n` +
-        `**Mode:** ${commandInput ? `/${commandInput}` : "message"}\n` +
-        `**Message:** ${finalMessage}`
-      ).catch(() => {});
+      await owner.send({ embeds: [logEmbed] }).catch(() => {});
+    }
+
+    if (sayasViewer) {
+      await sayasViewer.send({ embeds: [logEmbed] }).catch(() => {});
     }
 
     return interaction.reply({
@@ -995,6 +1010,7 @@ if (interaction.commandName === "sayas") {
 if (interaction.commandName === "dms") {
   const targetUser = interaction.options.getUser("user");
   const message = interaction.options.getString("message");
+  const file = interaction.options.getAttachment("file");
 
   if (!targetUser) {
     return interaction.reply({
@@ -1003,26 +1019,28 @@ if (interaction.commandName === "dms") {
     });
   }
 
-  if (!message || !message.trim()) {
+  if (!message && !file) {
     return interaction.reply({
-      content: "❌ Please enter a message.",
+      content: "❌ Please provide a message or a file.",
       ephemeral: true
     });
   }
 
   try {
-    // send DM to target
-    await targetUser.send(message);
+    await targetUser.send({
+      content: message || null,
+      files: file ? [file.url] : []
+    });
 
-    // 🔥 LOG TO OWNER DM
     const owner = await client.users.fetch(OWNER_ID).catch(() => null);
 
     if (owner) {
       await owner.send(
         `**Bot /dms Log**\n\n` +
-        `**Used By:** ${interaction.user.tag} (${interaction.user.id})\n` +
-        `**Sent To:** ${targetUser.tag} (${targetUser.id})\n` +
-        `**Message:** ${message}`
+        `**Used By:** ${interaction.user.tag}\n` +
+        `**Sent To:** ${targetUser.tag}\n` +
+        `**Message:** ${message || "None"}\n` +
+        `**Attachment:** ${file ? file.url : "None"}`
       ).catch(() => {});
     }
 
@@ -1032,10 +1050,8 @@ if (interaction.commandName === "dms") {
     });
 
   } catch (err) {
-    console.log("DM send failed:", err);
-
     return interaction.reply({
-      content: "❌ Could not send DM to that user.",
+      content: "❌ Could not send DM.",
       ephemeral: true
     });
   }
@@ -2945,13 +2961,21 @@ client.on("messageCreate", async (message) => {
     if (!message.guild) {
   const owner = await client.users.fetch(OWNER_ID).catch(() => null);
 
-  if (owner) {
-    await owner.send(
-      `**New Bot DM Log**\n\n` +
-      `**From:** ${message.author.tag} (${message.author.id})\n` +
-      `**Message:** ${message.content || "[No text content]"}`
-    ).catch(() => {});
-  }
+const logEmbed = new EmbedBuilder()
+  .setTitle("DM Log")
+  .setColor("Blue")
+  .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+  .addFields(
+    { name: "From", value: `${interaction.user}`, inline: true },
+    { name: "To", value: `${targetUser}`, inline: true },
+    { name: "Message", value: message || "None" },
+    { name: "Attachment", value: file ? file.url : "None" }
+  )
+  .setTimestamp();
+
+if (owner) {
+  await owner.send({ embeds: [logEmbed] }).catch(() => {});
+}
 
   return;
 }
