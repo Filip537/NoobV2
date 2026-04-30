@@ -2958,25 +2958,7 @@ if (interaction.isChannelSelectMenu()) {
 });
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; 
-    if (!message.guild) {
-  const owner = await client.users.fetch(OWNER_ID).catch(() => null);
-
-const logEmbed = new EmbedBuilder()
-  .setTitle("DM Log")
-  .setColor("Blue")
-  .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-  .addFields(
-    { name: "From", value: `${interaction.user}`, inline: true },
-    { name: "To", value: `${targetUser}`, inline: true },
-    { name: "Message", value: message || "None" },
-    { name: "Attachment", value: file ? file.url : "None" }
-  )
-  .setTimestamp();
-
-if (owner) {
-  await owner.send({ embeds: [logEmbed] }).catch(() => {});
-}
-
+if (!message.guild) {
   return;
 }
 
