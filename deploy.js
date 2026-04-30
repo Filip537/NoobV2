@@ -199,12 +199,6 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
-  .setName("playminigames")
-  .setDescription("Open the mini games portal"),
-  new SlashCommandBuilder()
-  .setName("playsudoku")
-  .setDescription("Play Sudoku"),
-  new SlashCommandBuilder()
   .setName("mathquestions")
   .setDescription("Solve a math question based on difficulty")
   .addStringOption(option =>
@@ -315,9 +309,6 @@ new SlashCommandBuilder()
         { name: "Wisdom", value: "wisdom" }
       )
   ),
-new SlashCommandBuilder()
-  .setName("games")
-  .setDescription("Play mini games"),
   new SlashCommandBuilder()
     .setName("editbday")
     .setDescription("Edit your birthday")

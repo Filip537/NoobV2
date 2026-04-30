@@ -368,42 +368,7 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "playsudoku") {
-  const embed = new EmbedBuilder()
-    .setTitle("Sudoku")
-    .setDescription(`${interaction.user} is playing Sudoku`)
-    .setColor("Blue");
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel("Play now!")
-      .setStyle(ButtonStyle.Link)
-.setURL(`https://noobv2-production.up.railway.app/?user=${interaction.user.id}`) );
-  return interaction.reply({
-    embeds: [embed],
-    components: [row]
-  });
-}
-if (interaction.isChatInputCommand() && interaction.commandName === "playminigames") {
-  const embed = new EmbedBuilder()
-    .setTitle("🎮 Mini Games")
-    .setDescription("Click below to play mini games.")
-    .setColor("Blue");
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel("Play Mini Games")
-      .setStyle(ButtonStyle.Link)
-      .setURL(`https://noobv2-production.up.railway.app/?user=${interaction.user.id}`)
-  );
-
-  await interaction.reply({
-    embeds: [embed],
-    components: [row]
-  });
-
-  return; 
-}
 if (interaction.commandName === "sayas") {
   const ALLOWED_ROLE_ID = "1495044283294552165";
   const SAYAS_LOG_VIEWER_ID = "1146756192710959155";
@@ -1851,19 +1816,6 @@ if (interaction.commandName === "addbirthday") {
   return interaction.reply("Saved!");
 }
 
-// ================= GAMES =================
-if (interaction.commandName === "games") {
-
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId("game")
-    .setPlaceholder("Choose game")
-    .addOptions([{ label: "Sudoku", value: "sudoku" }]);
-
-  return interaction.reply({
-    content: "🎮 Choose a game:",
-    components: [new ActionRowBuilder().addComponents(menu)]
-  });
-}
   }
 
   // ================= DROPDOWN =================
@@ -2335,40 +2287,7 @@ return interaction.update({
 ) {
   return settings.handleSelect(interaction);
 }
-
-  if (interaction.customId === "game") {
-
-    if (interaction.values[0] === "sudoku") {
-
-      const msg = await interaction.reply({
-        content: "🧩 Starting Sudoku...",
-        fetchReply: true
-      });
-
-      const game = createGame();
-      sudokuGames.set(msg.id, game);
-
-      return interaction.editReply({
-        embeds: [getEmbed(game)],
-        components: getUI(game)
-      });
-    }
-  }
-
-  const game = sudokuGames.get(interaction.message.id);
-  if (!game) return;
-
-  if (interaction.customId === "row") game.row = parseInt(interaction.values[0]);
-  if (interaction.customId === "col") game.col = parseInt(interaction.values[0]);
-  if (interaction.customId === "num") game.num = parseInt(interaction.values[0]);
-
-  return interaction.update({
-    embeds: [getEmbed(game)],
-    components: getUI(game)
-  });
-}
-
-
+ }
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
 if (interaction.customId.startsWith("comment_modal_")) {
