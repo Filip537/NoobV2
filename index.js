@@ -31,6 +31,18 @@ const {
   TextInputStyle,
 } = require("discord.js");
 
+const aiMemoryFile = "./aiMemory.json";
+
+function loadAiMemory() {
+  if (!fs.existsSync(aiMemoryFile)) {
+    fs.writeFileSync(aiMemoryFile, "{}");
+  }
+  return JSON.parse(fs.readFileSync(aiMemoryFile, "utf8"));
+}
+
+function saveAiMemory(data) {
+  fs.writeFileSync(aiMemoryFile, JSON.stringify(data, null, 2));
+}
 const fs = require("fs");
 const cron = require("node-cron");
 const activeInteractions = new Set();
@@ -45,6 +57,12 @@ const client = new Client({
   partials: ["CHANNEL"]
 });
 
+const OpenAI = require("openai");
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 const birthdayFile = "./birthdays.json";
 const birthdayChannel = "1444902597730504725";
 const adminRole = "1411991650573484073";
@@ -57,6 +75,9 @@ const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
 const OWNER_ID = "1108921222030426172";
 const birthdayRole = "1500307450824232970";
+const AI_CHAT_CHANNEL = "1411995708403486780";
+const BOT_ID = "1444622846729912435";
+const aiCooldown = new Map();
 // messageId → gamehop
 const sudokuGames = new Map();
 
@@ -3151,6 +3172,98 @@ if (!message.guild) {
   return;
 }
 
+if (message.channel.id === AI_CHAT_CHANNEL) {
+  const mentionedBot = message.mentions.users.has(BOT_ID);
+
+  let repliedToBot = false;
+
+  if (message.reference?.messageId) {
+    const repliedMessage = await message.channel.messages
+      .fetch(message.reference.messageId)
+      .catch(() => null);
+
+    if (repliedMessage?.author?.id === BOT_ID) {
+      repliedToBot = true;
+    }
+  }
+
+  if (mentionedBot || repliedToBot) {
+    const now = Date.now();
+    const lastUsed = aiCooldown.get(message.author.id) || 0;
+
+    if (now - lastUsed < 5000) {
+      return message.reply({
+        content: "Please wait a few seconds before asking again.",
+        allowedMentions: { repliedUser: false }
+      });
+    }
+
+    aiCooldown.set(message.author.id, now);
+
+    let userText = message.content
+      .replace(new RegExp(`<@!?${BOT_ID}>`, "g"), "")
+      .trim();
+
+    if (!userText) {
+      return message.reply({
+        content: "Please ask me something.",
+        allowedMentions: { repliedUser: false }
+      });
+    }
+
+    await message.channel.sendTyping().catch(() => {});
+
+    try {
+      const memory = loadAiMemory();
+      const userId = message.author.id;
+
+      if (!memory[userId]) {
+        memory[userId] = [];
+      }
+
+      memory[userId].push({
+        role: "user",
+        content: userText
+      });
+
+      memory[userId] = memory[userId].slice(-30);
+
+      const response = await openai.responses.create({
+        model: process.env.OPENAI_MODEL || "gpt-5.5",
+        instructions:
+          "You are NoobV2 AI Chat. Act like ChatGPT inside Discord. Be friendly, smart, natural, and helpful. Remember the user's previous messages from memory. Use easy words unless the user asks for advanced words.",
+        input: memory[userId]
+      });
+
+      let aiReply = response.output_text || "I could not think of a reply.";
+
+      if (aiReply.length > 1900) {
+        aiReply = aiReply.slice(0, 1900) + "...";
+      }
+
+      memory[userId].push({
+        role: "assistant",
+        content: aiReply
+      });
+
+      memory[userId] = memory[userId].slice(-30);
+      saveAiMemory(memory);
+
+      return message.reply({
+        content: aiReply,
+        allowedMentions: { repliedUser: false }
+      });
+
+    } catch (err) {
+      console.log("AI chat error:", err);
+
+      return message.reply({
+        content: "AI chat is currently not working. Please check the OpenAI API key or model name.",
+        allowedMentions: { repliedUser: false }
+      });
+    }
+  }
+}
 if (message.channel.id === PAY_CHANNEL) {
 
   const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
