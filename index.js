@@ -463,7 +463,9 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
+if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
+  await interaction.deferReply();
+
   const boostIds = [
     "1009567472577429515",
     "987285444754550805",
@@ -473,34 +475,28 @@ client.on("interactionCreate", async (interaction) => {
     "887369211322720297"
   ];
 
-  const members = await interaction.guild.members.fetch();
-
-  const validMembers = members.filter(member =>
+  const members = interaction.guild.members.cache.filter(member =>
     !member.user.bot &&
     member.id !== interaction.user.id
   );
 
   const memberPool = [];
 
-  validMembers.forEach(member => {
+  members.forEach(member => {
     memberPool.push(member);
 
     if (boostIds.includes(member.id)) {
-      memberPool.push(member); // extra chance
-      memberPool.push(member); // extra chance
-      memberPool.push(member); // extra chance
-      memberPool.push(member); // extra chance
-      memberPool.push(member); // extra chance
+      for (let i = 0; i < 5; i++) {
+        memberPool.push(member);
+      }
     }
   });
 
-  const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
-
-  if (!randomMember) {
-    return interaction.reply({
-      content: "❌ I could not find a partner for you."
-    });
+  if (memberPool.length === 0) {
+    return interaction.editReply("❌ I could not find a partner for you.");
   }
+
+  const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
 
   const messages = [
     `Hello ${interaction.user}, your future partner is ${randomMember}. Please enjoy 💖`,
@@ -525,7 +521,7 @@ client.on("interactionCreate", async (interaction) => {
     `${interaction.user}, your partner result is ${randomMember}. Treat them well 😌`
   ];
 
-  return interaction.reply({
+  return interaction.editReply({
     content: messages[Math.floor(Math.random() * messages.length)]
   });
 }
