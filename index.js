@@ -56,8 +56,8 @@ const STORY_CHANNEL = "1493097672373047347";
 const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
 const OWNER_ID = "1108921222030426172";
-
-// messageId → game
+const birthdayRole = "1500307450824232970";
+// messageId → gamehop
 const sudokuGames = new Map();
 
 function loadStories() {
@@ -67,6 +67,16 @@ function loadStories() {
   return JSON.parse(fs.readFileSync(storyFile, "utf8"));
 }
 
+const WORD_BYPASS_ID = "1108921222030426172";
+const wordTimeouts = new Map();
+const protectedTimeouts = new Map();
+
+function getNextWordTimeout(userId) {
+  const current = wordTimeouts.get(userId) || 25;
+  const next = current + 5;
+  wordTimeouts.set(userId, next);
+  return next;
+}
 function saveStories(data) {
   fs.writeFileSync(storyFile, JSON.stringify(data, null, 2));
 }
@@ -219,11 +229,38 @@ async function checkBirthdays() {
       birthday.month === now.month &&
       birthday.lastBirthdaySent !== now.dateKey
     ) {
-      await channel.send({
-        content: `🎉 Happy Birthday <@${userId}>! Hope you have an amazing day!`
-      });
+await channel.send({
+  content: `🎉 Happy Birthday <@${userId}>! Hope you have an amazing day!`
+});
 
-      birthday.lastBirthdaySent = now.dateKey;
+const birthdayUser = await client.users.fetch(userId).catch(() => null);
+
+if (birthdayUser) {
+  await birthdayUser.send({
+    content:
+`🎉 Happy Birthday!
+
+Hello <@${userId}>, today is your birthday!
+
+We hope you have an amazing day. Enjoy your special day 🎂`
+  }).catch(() => {});
+}
+
+const guild = channel.guild;
+const member = await guild.members.fetch(userId).catch(() => null);
+
+if (member) {
+  await member.roles.add(birthdayRole).catch(() => {});
+
+  setTimeout(async () => {
+    const freshMember = await guild.members.fetch(userId).catch(() => null);
+    if (freshMember) {
+      await freshMember.roles.remove(birthdayRole).catch(() => {});
+    }
+  }, 24 * 60 * 60 * 1000);
+}
+
+birthday.lastBirthdaySent = now.dateKey;
     }
   }
 
@@ -426,6 +463,49 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "whosmypartner") {
+  const members = await interaction.guild.members.fetch();
+
+  const validMembers = members.filter(member =>
+    !member.user.bot &&
+    member.id !== interaction.user.id
+  );
+
+  const randomMember = validMembers.random();
+
+  if (!randomMember) {
+    return interaction.reply({
+      content: "❌ I could not find a partner for you."
+    });
+  }
+
+  const messages = [
+    `Hello ${interaction.user}, your future partner is ${randomMember}. Please enjoy 💖`,
+    `${interaction.user}, destiny has chosen ${randomMember} as your future partner 💘`,
+    `Love alert! ${interaction.user}, your future partner is ${randomMember} 💕`,
+    `${interaction.user}, the bot has matched you with ${randomMember}. Please enjoy 😳`,
+    `Congratulations ${interaction.user}! Your future partner is ${randomMember} 🎉`,
+    `${interaction.user}, your perfect match is ${randomMember} 💞`,
+    `The love machine says ${interaction.user} belongs with ${randomMember} 💗`,
+    `${interaction.user}, your future romance starts with ${randomMember} 🌹`,
+    `Breaking news: ${interaction.user}'s future partner is ${randomMember} 💌`,
+    `${interaction.user}, the stars say your partner is ${randomMember} ✨`,
+    `Cupid has spoken! ${interaction.user}, your partner is ${randomMember} 🏹`,
+    `${interaction.user}, your soulmate might be ${randomMember} 😍`,
+    `After deep calculation, ${interaction.user}'s future partner is ${randomMember} 🧮💖`,
+    `${interaction.user}, your love story begins with ${randomMember} 📖💕`,
+    `The server has decided: ${interaction.user} + ${randomMember} = perfect match 💑`,
+    `${interaction.user}, your future partner has been revealed: ${randomMember} 👀`,
+    `No escape now ${interaction.user}, your partner is ${randomMember} 😭💕`,
+    `${interaction.user}, your heart has selected ${randomMember} ❤️`,
+    `Match found! ${interaction.user}, please enjoy your future with ${randomMember} 💍`,
+    `${interaction.user}, your partner result is ${randomMember}. Treat them well 😌`
+  ];
+
+  return interaction.reply({
+    content: messages[Math.floor(Math.random() * messages.length)]
+  });
+}
   if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
   return ticket.ticketMod(interaction);
 }
@@ -3072,51 +3152,65 @@ if (message.channel.id === PAY_CHANNEL) {
 const badWord = words.containsBadWord(message.content);
 
 if (badWord) {
-  await message.delete().catch(() => {});
+  if (message.author.id === WORD_BYPASS_ID) return;
 
-  // ⚠️ Send warning
-  const warnMsg = await message.channel.send({
-    content: `⚠️ ${message.author}, watch your language. You have been muted for 1 minute.`
+  const member = await message.guild.members.fetch(message.author.id).catch(() => null);
+  if (!member) return;
+
+  const seconds = getNextWordTimeout(message.author.id);
+  const duration = seconds * 1000;
+  const until = Date.now() + duration;
+
+  protectedTimeouts.set(message.author.id, {
+    until,
+    duration
   });
 
-  // ⏱️ Timeout
-  try {
-    await message.member.timeout(60 * 1000);
-  } catch (err) {
-    console.log("Timeout failed:", err);
-  }
+  await message.delete().catch(() => {});
 
-  // 📜 LOG (RESTORED)
-  try {
-    const logChannel = await client.channels.fetch("1487613700516085760");
+  await member.timeout(duration, `Blacklisted word used: ${badWord}`).catch(() => {});
 
-    const embed = new EmbedBuilder()
-      .setColor("Red")
-      .setTitle("Blacklisted Word Detected")
-      .setThumbnail(message.author.displayAvatarURL())
-      .addFields(
-        { name: "User", value: `${message.author}`, inline: true },
-        { name: "Channel", value: `${message.channel}`, inline: true },
-        { name: "Action", value: "Muted 1 minute", inline: true },
-        { name: "Message", value: message.content.slice(0, 1000) || "No content" }
-      )
-      .setTimestamp();
-
-    logChannel.send({ embeds: [embed] });
-
-  } catch (err) {
-    console.log("Log failed:", err);
-  }
-
-  // 🧹 Clean warning
-  setTimeout(() => {
-    warnMsg.delete().catch(() => {});
-  }, 5000);
+  await message.channel.send({
+    content: `${message.author}, you used a blacklisted word and have been timed out for **${seconds} seconds**.`
+  }).catch(() => {});
 
   return;
 }
   // level system
   level.handleMessage(message);
+});
+
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  if (newMember.id === WORD_BYPASS_ID) return;
+
+  const protectedData = protectedTimeouts.get(newMember.id);
+  if (!protectedData) return;
+
+  const oldTimeout = oldMember.communicationDisabledUntilTimestamp || 0;
+  const newTimeout = newMember.communicationDisabledUntilTimestamp || 0;
+
+  const stillProtected = Date.now() < protectedData.until;
+  const timeoutRemoved = oldTimeout > Date.now() && (!newTimeout || newTimeout < oldTimeout);
+
+  if (!stillProtected) {
+    protectedTimeouts.delete(newMember.id);
+    return;
+  }
+
+  if (timeoutRemoved) {
+    const doubledDuration = protectedData.duration * 2;
+    const doubledUntil = Date.now() + doubledDuration;
+
+    protectedTimeouts.set(newMember.id, {
+      until: doubledUntil,
+      duration: doubledDuration
+    });
+
+    await newMember.timeout(
+      doubledDuration,
+      "Protected blacklist timeout was removed by an unauthorized user"
+    ).catch(() => {});
+  }
 });
 client.login(process.env.TOKEN);
 

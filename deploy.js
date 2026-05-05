@@ -336,7 +336,9 @@ new SlashCommandBuilder()
       .setDescription("Reason")
       .setRequired(true)
   ),
-
+new SlashCommandBuilder()
+  .setName("whosmypartner")
+  .setDescription("Find your future partner"),
 new SlashCommandBuilder()
   .setName("warn3")
   .setDescription("Warn 3 a user and ban")
