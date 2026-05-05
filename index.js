@@ -463,7 +463,16 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "whosmypartner") {
+  if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
+  const boostIds = [
+    "1009567472577429515",
+    "987285444754550805",
+    "1146756192710959155",
+    "946556932636950528",
+    "1307800986534019207",
+    "887369211322720297"
+  ];
+
   const members = await interaction.guild.members.fetch();
 
   const validMembers = members.filter(member =>
@@ -471,7 +480,21 @@ client.on("interactionCreate", async (interaction) => {
     member.id !== interaction.user.id
   );
 
-  const randomMember = validMembers.random();
+  const memberPool = [];
+
+  validMembers.forEach(member => {
+    memberPool.push(member);
+
+    if (boostIds.includes(member.id)) {
+      memberPool.push(member); // extra chance
+      memberPool.push(member); // extra chance
+      memberPool.push(member); // extra chance
+      memberPool.push(member); // extra chance
+      memberPool.push(member); // extra chance
+    }
+  });
+
+  const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
 
   if (!randomMember) {
     return interaction.reply({
