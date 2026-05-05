@@ -310,6 +310,51 @@ new SlashCommandBuilder()
       )
   ),
   new SlashCommandBuilder()
+  .setName("warn1")
+  .setDescription("Warn 1 a user")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to warn")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("reason")
+      .setDescription("Reason")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("warn2")
+  .setDescription("Warn 2 a user")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to warn")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("reason")
+      .setDescription("Reason")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("warn3")
+  .setDescription("Warn 3 a user and ban")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to warn")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("reason")
+      .setDescription("Reason")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("ticketmod")
+  .setDescription("Send ticket moderation panel"),
+  new SlashCommandBuilder()
     .setName("editbday")
     .setDescription("Edit your birthday")
     .addIntegerOption(o =>

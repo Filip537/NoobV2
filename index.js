@@ -177,6 +177,58 @@ function saveBirthdays(data) {
   fs.writeFileSync(birthdayFile, JSON.stringify(data, null, 2));
 }
 
+function getGMT8DateParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+
+  const data = {};
+  for (const part of parts) {
+    data[part.type] = part.value;
+  }
+
+  return {
+    year: Number(data.year),
+    month: Number(data.month),
+    day: Number(data.day),
+    hour: Number(data.hour),
+    dateKey: `${data.year}-${data.month}-${data.day}`
+  };
+}
+
+async function checkBirthdays() {
+  const now = getGMT8DateParts();
+
+  if (now.hour !== 9) return;
+
+  const birthdays = loadBirthdays();
+  const channel = await client.channels.fetch(birthdayChannel).catch(() => null);
+
+  if (!channel) return;
+
+  for (const userId of Object.keys(birthdays)) {
+    const birthday = birthdays[userId];
+
+    if (
+      birthday.day === now.day &&
+      birthday.month === now.month &&
+      birthday.lastBirthdaySent !== now.dateKey
+    ) {
+      await channel.send({
+        content: `🎉 Happy Birthday <@${userId}>! Hope you have an amazing day!`
+      });
+
+      birthday.lastBirthdaySent = now.dateKey;
+    }
+  }
+
+  saveBirthdays(birthdays);
+}
 function clone(board) {
   return board.map(r => [...r]);
 }
@@ -360,15 +412,67 @@ client.user.setActivity(`with ${memberCount} members`, {
 }
 
 await cleanupExpiredStories();
+await checkBirthdays();
 
-// every 5 minutes
+// every 5 minutes → story cleanup
 cron.schedule("*/5 * * * *", async () => {
   await cleanupExpiredStories();
+});
+
+// every hour → birthday checker
+cron.schedule("0 * * * *", async () => {
+  await checkBirthdays();
 });
 });
 
 client.on("interactionCreate", async (interaction) => {
+if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(interaction.commandName)) {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
 
+  const target = interaction.options.getUser("user");
+  const reason = interaction.options.getString("reason");
+  const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+
+  if (!member) {
+    return interaction.reply({
+      content: "❌ User not found in this server.",
+      ephemeral: true
+    });
+  }
+
+  if (interaction.commandName === "warn1") {
+    await member.roles.add("1447558455299674112").catch(() => {});
+    await member.timeout(60 * 60 * 1000, reason).catch(() => {});
+
+    return interaction.reply({
+      content: `✅ ${target} received **Warn 1**.\nReason: ${reason}\nPunishment: Muted for 1 hour.`
+    });
+  }
+
+  if (interaction.commandName === "warn2") {
+    await member.roles.remove("1412474556077051965").catch(() => {});
+    await member.roles.add("1447587914165784749").catch(() => {});
+    await member.timeout(24 * 60 * 60 * 1000, reason).catch(() => {});
+
+    return interaction.reply({
+      content: `✅ ${target} received **Warn 2**.\nReason: ${reason}\nPunishment: Timeout for 24 hours.`
+    });
+  }
+
+  if (interaction.commandName === "warn3") {
+    await member.roles.add("1447811460863496265").catch(() => {});
+    await member.ban({ reason }).catch(() => {});
+
+    return interaction.reply({
+      content: `✅ ${target} received **Warn 3**.\nReason: ${reason}\nPunishment: Banned from the server.`
+    });
+  }
+}
 if (interaction.commandName === "sayas") {
   const ALLOWED_ROLE_ID = "1495044283294552165";
   const SAYAS_LOG_VIEWER_ID = "1146756192710959155";
@@ -1675,6 +1779,22 @@ if (interaction.commandName === "testbday") {
 
   return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
 }
+
+if (interaction.commandName === "testbday") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  await checkBirthdays();
+
+  return interaction.reply({
+    content: "✅ Birthday check completed.",
+    ephemeral: true
+  });
+}
  if (interaction.commandName === "ticketpanel") {
   return ticket.execute(interaction);
 }
@@ -2424,6 +2544,27 @@ if (interaction.customId.startsWith("role_")) {
   // ================= BUTTON =================
 if (interaction.isButton()) {
 
+  if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
+  return ticket.ticketMod(interaction);
+}
+
+if (
+  interaction.isStringSelectMenu() &&
+  (
+    interaction.customId === "ticket_create_menu" ||
+    interaction.customId === "ticket_mod_menu"
+  )
+) {
+  return ticket.handleSelect(interaction);
+}
+
+if (interaction.isButton() && interaction.customId === "close_ticket") {
+  return ticket.handleButton(interaction);
+}
+
+if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
+  return ticket.handleModal(interaction);
+}
   if (interaction.customId.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
@@ -2683,14 +2824,23 @@ if (
   return settings.handleButton(interaction, client);
 }
 
-  if (
-    interaction.customId === "create_ticket" ||
-    interaction.customId === "close_ticket" ||
-    interaction.customId === "admin_form" ||
-    interaction.customId === "support_form"
-  ) {
-    return ticket.handleButton(interaction);
-  }
+if (
+  interaction.isStringSelectMenu() &&
+  (
+    interaction.customId === "ticket_create_menu" ||
+    interaction.customId === "ticket_mod_menu"
+  )
+) {
+  return ticket.handleSelect(interaction);
+}
+
+if (interaction.isButton() && interaction.customId === "close_ticket") {
+  return ticket.handleButton(interaction);
+}
+
+if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
+  return ticket.handleModal(interaction);
+}
 
   if (interaction.customId.startsWith("wyr_")) {
     return wyr.handleButton(interaction);
