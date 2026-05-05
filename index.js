@@ -426,6 +426,27 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
+  return ticket.ticketMod(interaction);
+}
+
+if (
+  interaction.isStringSelectMenu() &&
+  (
+    interaction.customId === "ticket_create_menu" ||
+    interaction.customId === "ticket_mod_menu"
+  )
+) {
+  return ticket.handleSelect(interaction);
+}
+
+if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
+  return ticket.handleModal(interaction);
+}
+
+if (interaction.isButton() && interaction.customId === "close_ticket") {
+  return ticket.handleButton(interaction);
+}
 if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(interaction.commandName)) {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
@@ -2541,10 +2562,7 @@ if (interaction.customId.startsWith("role_")) {
     ephemeral: true
   });
 }
-  // ================= BUTTON =================
-if (interaction.isButton()) {
-
-  if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
+ if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
   return ticket.ticketMod(interaction);
 }
 
@@ -2558,13 +2576,16 @@ if (
   return ticket.handleSelect(interaction);
 }
 
-if (interaction.isButton() && interaction.customId === "close_ticket") {
-  return ticket.handleButton(interaction);
-}
-
 if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
   return ticket.handleModal(interaction);
 }
+
+// ================= BUTTON =================
+if (interaction.isButton()) {
+
+  if (interaction.customId === "close_ticket") {
+    return ticket.handleButton(interaction);
+  }
   if (interaction.customId.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
