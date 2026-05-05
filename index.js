@@ -57,10 +57,10 @@ const client = new Client({
   partials: ["CHANNEL"]
 });
 
-const OpenAI = require("openai");
+const { GoogleGenAI } = require("@google/genai");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const gemini = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY
 });
 
 const birthdayFile = "./birthdays.json";
@@ -3228,15 +3228,30 @@ if (message.channel.id === AI_CHAT_CHANNEL) {
 
       memory[userId] = memory[userId].slice(-30);
 
-      const response = await openai.responses.create({
-        model: process.env.OPENAI_MODEL || "gpt-5.5",
-        instructions:
-          "You are NoobV2 AI Chat. Act like ChatGPT inside Discord. Be friendly, smart, natural, and helpful. Remember the user's previous messages from memory. Use easy words unless the user asks for advanced words.",
-        input: memory[userId]
-      });
+const prompt =
+  "You are NoobV2 AI Chat. Act like ChatGPT inside Discord. " +
+  "Be friendly, smart, natural, and helpful. Remember the user's previous messages from memory. " +
+  "Use easy words unless the user asks for advanced words.\n\n" +
+  memory[userId]
+    .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n");
 
-      let aiReply = response.output_text || "I could not think of a reply.";
+let response;
 
+for (let attempt = 1; attempt <= 3; attempt++) {
+  try {
+    response = await gemini.models.generateContent({
+      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      contents: prompt
+    });
+    break;
+  } catch (err) {
+    if (attempt === 3) throw err;
+    await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+  }
+}
+
+let aiReply = response.text || "I could not think of a reply.";
       if (aiReply.length > 1900) {
         aiReply = aiReply.slice(0, 1900) + "...";
       }
@@ -3258,8 +3273,7 @@ if (message.channel.id === AI_CHAT_CHANNEL) {
       console.log("AI chat error:", err);
 
       return message.reply({
-        content: "AI chat is currently not working. Please check the OpenAI API key or model name.",
-        allowedMentions: { repliedUser: false }
+content: "AI chat is currently not working. Please check the Gemini API key or model name.",        allowedMentions: { repliedUser: false }
       });
     }
   }
