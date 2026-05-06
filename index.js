@@ -449,6 +449,13 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+  await ticket.refreshAllTicketPanels(client);
+await ticket.cleanupCustomTickets(client);
+
+cron.schedule("*/5 * * * *", async () => {
+  await ticket.refreshAllTicketPanels(client);
+  await ticket.cleanupCustomTickets(client);
+});
   await scanBlacklistChannel();
   console.log(`Logged in as ${client.user.tag}`);
 
@@ -484,6 +491,7 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  
 if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
   await interaction.deferReply();
 
@@ -545,6 +553,9 @@ if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartn
   return interaction.editReply({
     content: messages[Math.floor(Math.random() * messages.length)]
   });
+}
+if (interaction.isChatInputCommand() && interaction.commandName === "customticket") {
+  return ticket.customTicket(interaction);
 }
   if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
   return ticket.ticketMod(interaction);
@@ -2682,30 +2693,11 @@ if (interaction.customId.startsWith("role_")) {
     ephemeral: true
   });
 }
- if (interaction.isChatInputCommand() && interaction.commandName === "ticketmod") {
-  return ticket.ticketMod(interaction);
-}
 
-if (
-  interaction.isStringSelectMenu() &&
-  (
-    interaction.customId === "ticket_create_menu" ||
-    interaction.customId === "ticket_mod_menu"
-  )
-) {
-  return ticket.handleSelect(interaction);
-}
-
-if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
-  return ticket.handleModal(interaction);
-}
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
 
-  if (interaction.customId === "close_ticket") {
-    return ticket.handleButton(interaction);
-  }
   if (interaction.customId.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
@@ -2964,25 +2956,6 @@ if (
 ) {
   return settings.handleButton(interaction, client);
 }
-
-if (
-  interaction.isStringSelectMenu() &&
-  (
-    interaction.customId === "ticket_create_menu" ||
-    interaction.customId === "ticket_mod_menu"
-  )
-) {
-  return ticket.handleSelect(interaction);
-}
-
-if (interaction.isButton() && interaction.customId === "close_ticket") {
-  return ticket.handleButton(interaction);
-}
-
-if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_modal") {
-  return ticket.handleModal(interaction);
-}
-
   if (interaction.customId.startsWith("wyr_")) {
     return wyr.handleButton(interaction);
   }

@@ -11,12 +11,49 @@ const {
   TextInputStyle
 } = require("discord.js");
 
+const fs = require("fs");
+
 const ADMIN_ROLE = "1411991650573484073";
 const SUPPORT_ROLE = "1483338429675868203";
 const LOG_CHANNEL = "1487791856216571915";
 const CATEGORY_ID = "1442702423885086781";
 
-const adminForm = user => 
+const CUSTOM_FILE = "./customTickets.json";
+const PANEL_FILE = "./ticketPanels.json";
+
+function loadCustomTickets() {
+  if (!fs.existsSync(CUSTOM_FILE)) fs.writeFileSync(CUSTOM_FILE, "[]");
+  return JSON.parse(fs.readFileSync(CUSTOM_FILE, "utf8"));
+}
+
+function saveCustomTickets(data) {
+  fs.writeFileSync(CUSTOM_FILE, JSON.stringify(data, null, 2));
+}
+
+function loadPanels() {
+  if (!fs.existsSync(PANEL_FILE)) fs.writeFileSync(PANEL_FILE, "[]");
+  return JSON.parse(fs.readFileSync(PANEL_FILE, "utf8"));
+}
+
+function savePanels(data) {
+  fs.writeFileSync(PANEL_FILE, JSON.stringify(data, null, 2));
+}
+
+function parseDuration(input) {
+  const match = input.toLowerCase().match(/^(\d+)(m|h|d)$/);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  const unit = match[2];
+
+  if (unit === "m") return amount * 60 * 1000;
+  if (unit === "h") return amount * 60 * 60 * 1000;
+  if (unit === "d") return amount * 24 * 60 * 60 * 1000;
+
+  return null;
+}
+
+const adminForm = user =>
 `Hello ${user},
 
 **To apply for an Admin position, you must complete this form. Trolling or submitting joke responses is strictly prohibited, as all applications will be forwarded to the owners and the admin team for review.
@@ -64,21 +101,95 @@ function closeButton() {
   );
 }
 
-async function createTicket(interaction, type) {
+function buildTicketPanel(client) {
+  const customTickets = loadCustomTickets()
+    .filter(t => t.expiresAt > Date.now())
+    .slice(0, 22);
+
+  const embed = new EmbedBuilder()
+    .setColor("Red")
+    .setTitle("Please read before creating the ticket")
+    .setThumbnail(client.user.displayAvatarURL())
+    .setDescription(
+`Creating a ticket without a valid reason may put you one step closer to receiving a permanent timeout or even a ban/blacklist.
+Please be mindful when creating tickets.
+
+Please choose the correct option below.`
+    );
+
+  const options = [
+    {
+      label: "Apply for Admin",
+      description: "Create an admin application ticket",
+      value: "ticket_admin"
+    },
+    {
+      label: "Apply for Support",
+      description: "Create a support application ticket",
+      value: "ticket_support"
+    },
+    {
+      label: "Others",
+      description: "Create a normal ticket",
+      value: "ticket_others"
+    },
+    ...customTickets.map(t => ({
+      label: t.label.slice(0, 100),
+      description: `${t.description} | Ends ${t.durationRaw}`.slice(0, 100),
+      value: `custom_${t.id}`
+    }))
+  ];
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("ticket_create_menu")
+    .setPlaceholder("Select ticket type")
+    .addOptions(options);
+
+  return {
+    embeds: [embed],
+    components: [new ActionRowBuilder().addComponents(menu)]
+  };
+}
+
+async function lockTicketChannel(channel) {
+  const topic = channel.topic || "";
+  const ownerMatch = topic.match(/ticketOwner:(\d+)/);
+  const ownerId = ownerMatch ? ownerMatch[1] : null;
+
+  if (ownerId) {
+    await channel.permissionOverwrites.edit(ownerId, {
+      ViewChannel: true,
+      SendMessages: false,
+      ReadMessageHistory: true
+    }).catch(() => {});
+  }
+
+  await channel.send({
+    content: "🔒 This ticket has expired and has been locked."
+  }).catch(() => {});
+}
+
+async function createTicket(interaction, type, customData = null) {
   const guild = interaction.guild;
   const user = interaction.user;
 
-  const channelName =
-    type === "admin"
+  const channelName = customData
+    ? `${customData.label}-${user.username}`
+    : type === "admin"
       ? `admin-${user.username}`
       : type === "support"
-      ? `support-${user.username}`
-      : `ticket-${user.username}`;
+        ? `support-${user.username}`
+        : `ticket-${user.username}`;
+
+  const expiresAt = customData ? Date.now() + customData.durationMs : null;
 
   const channel = await guild.channels.create({
-    name: channelName.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+    name: channelName.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 90),
     type: ChannelType.GuildText,
     parent: CATEGORY_ID,
+    topic: customData
+      ? `ticketOwner:${user.id} expiresAt:${expiresAt}`
+      : `ticketOwner:${user.id}`,
     permissionOverwrites: [
       {
         id: guild.id,
@@ -89,7 +200,8 @@ async function createTicket(interaction, type) {
         allow: [
           PermissionsBitField.Flags.ViewChannel,
           PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.ReadMessageHistory
+          PermissionsBitField.Flags.ReadMessageHistory,
+          PermissionsBitField.Flags.AttachFiles
         ]
       },
       {
@@ -97,7 +209,8 @@ async function createTicket(interaction, type) {
         allow: [
           PermissionsBitField.Flags.ViewChannel,
           PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.ReadMessageHistory
+          PermissionsBitField.Flags.ReadMessageHistory,
+          PermissionsBitField.Flags.AttachFiles
         ]
       },
       {
@@ -105,7 +218,8 @@ async function createTicket(interaction, type) {
         allow: [
           PermissionsBitField.Flags.ViewChannel,
           PermissionsBitField.Flags.SendMessages,
-          PermissionsBitField.Flags.ReadMessageHistory
+          PermissionsBitField.Flags.ReadMessageHistory,
+          PermissionsBitField.Flags.AttachFiles
         ]
       }
     ]
@@ -132,6 +246,24 @@ async function createTicket(interaction, type) {
     });
   }
 
+  if (customData) {
+    await channel.send({
+      content:
+`Hello ${user},
+
+You opened a **${customData.label}** ticket.
+
+Please answer the questions below in **one message**.
+
+${customData.questions.map(q => `- ${q}`).join("\n")}
+
+${customData.questions.some(q => q.toLowerCase().includes("image")) ? "\nYou may upload the image in this ticket channel." : ""}
+
+This ticket will be locked <t:${Math.floor(expiresAt / 1000)}:R>.`,
+      components: [closeButton()]
+    });
+  }
+
   const logChannel = await guild.channels.fetch(LOG_CHANNEL).catch(() => null);
 
   if (logChannel) {
@@ -142,7 +274,7 @@ async function createTicket(interaction, type) {
           .setTitle("Ticket Created")
           .addFields(
             { name: "User", value: `${user}`, inline: true },
-            { name: "Type", value: type, inline: true },
+            { name: "Type", value: customData ? customData.label : type, inline: true },
             { name: "Channel", value: `${channel}`, inline: true }
           )
           .setTimestamp()
@@ -157,6 +289,53 @@ async function createTicket(interaction, type) {
 }
 
 module.exports = {
+  async customTicket(interaction) {
+    if (!interaction.member.roles.cache.has(ADMIN_ROLE)) {
+      return interaction.reply({
+        content: "❌ Only admins can create custom ticket dropdowns.",
+        ephemeral: true
+      });
+    }
+
+    const label = interaction.options.getString("label");
+    const description = interaction.options.getString("description");
+    const questionsRaw = interaction.options.getString("questions");
+    const durationRaw = interaction.options.getString("duration");
+
+    const durationMs = parseDuration(durationRaw);
+
+    if (!durationMs) {
+      return interaction.reply({
+        content: "❌ Invalid duration. Use `30m`, `12h`, or `4d`.",
+        ephemeral: true
+      });
+    }
+
+    const customTickets = loadCustomTickets();
+
+    const data = {
+      id: Date.now().toString(),
+      label,
+      description,
+      questions: questionsRaw.split("|").map(q => q.trim()).filter(Boolean),
+      durationRaw,
+      durationMs,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + durationMs,
+      createdBy: interaction.user.id
+    };
+
+    customTickets.push(data);
+    saveCustomTickets(customTickets);
+
+    await this.refreshAllTicketPanels(interaction.client);
+
+    return interaction.reply({
+      content: `✅ Custom ticket dropdown created: **${label}**\nThe current ticket panel has been updated.\nThis dropdown will disappear <t:${Math.floor(data.expiresAt / 1000)}:R>.`,
+      ephemeral: true
+    });
+  },
+
   async execute(interaction) {
     if (!interaction.member.roles.cache.has(ADMIN_ROLE)) {
       return interaction.reply({
@@ -167,42 +346,14 @@ module.exports = {
 
     const channel = interaction.options.getChannel("channel");
 
-    const embed = new EmbedBuilder()
-      .setColor("Red")
-      .setTitle("Please read before creating the ticket")
-      .setThumbnail(interaction.client.user.displayAvatarURL())
-      .setDescription(
-`Creating a ticket without a valid reason may put you one step closer to receiving a permanent timeout or even a ban/blacklist.
-Please be mindful when creating tickets.
+    const sent = await channel.send(buildTicketPanel(interaction.client));
 
-Please choose the correct option below.`
-      );
-
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId("ticket_create_menu")
-      .setPlaceholder("Select ticket type")
-      .addOptions(
-        {
-          label: "Apply for Admin",
-          description: "Create an admin application ticket",
-          value: "ticket_admin"
-        },
-        {
-          label: "Apply for Support",
-          description: "Create a support application ticket",
-          value: "ticket_support"
-        },
-        {
-          label: "Others",
-          description: "Create a normal ticket",
-          value: "ticket_others"
-        }
-      );
-
-    await channel.send({
-      embeds: [embed],
-      components: [new ActionRowBuilder().addComponents(menu)]
+    const panels = loadPanels();
+    panels.push({
+      channelId: channel.id,
+      messageId: sent.id
     });
+    savePanels(panels);
 
     return interaction.reply({
       content: `✅ Ticket panel sent in ${channel}`,
@@ -257,6 +408,23 @@ Please choose the correct option below.`
       if (value === "ticket_admin") return createTicket(interaction, "admin");
       if (value === "ticket_support") return createTicket(interaction, "support");
       if (value === "ticket_others") return createTicket(interaction, "others");
+
+      if (value.startsWith("custom_")) {
+        const id = value.replace("custom_", "");
+        const customTickets = loadCustomTickets();
+        const customData = customTickets.find(t => t.id === id);
+
+        if (!customData || customData.expiresAt <= Date.now()) {
+          await this.refreshAllTicketPanels(interaction.client);
+
+          return interaction.reply({
+            content: "❌ This custom ticket dropdown has expired.",
+            ephemeral: true
+          });
+        }
+
+        return createTicket(interaction, "custom", customData);
+      }
     }
 
     if (interaction.customId === "ticket_mod_menu") {
@@ -337,5 +505,55 @@ Please choose the correct option below.`
     return interaction.reply({
       content: `✅ <@${userId}> has been added to this ticket.`
     });
+  },
+
+  async refreshAllTicketPanels(client) {
+    const panels = loadPanels();
+    const kept = [];
+
+    for (const panel of panels) {
+      const channel = await client.channels.fetch(panel.channelId).catch(() => null);
+      if (!channel) continue;
+
+      const message = await channel.messages.fetch(panel.messageId).catch(() => null);
+      if (!message) continue;
+
+      await message.edit(buildTicketPanel(client)).catch(() => {});
+      kept.push(panel);
+    }
+
+    savePanels(kept);
+  },
+
+  async cleanupCustomTickets(client) {
+    const customTickets = loadCustomTickets();
+    const activeTickets = customTickets.filter(t => t.expiresAt > Date.now());
+
+    if (activeTickets.length !== customTickets.length) {
+      saveCustomTickets(activeTickets);
+      await this.refreshAllTicketPanels(client);
+    }
+
+    const guild = await client.guilds.fetch(process.env.GUILD_ID).catch(() => null);
+    if (!guild) return;
+
+    const channels = await guild.channels.fetch().catch(() => null);
+    if (!channels) return;
+
+    for (const channel of channels.values()) {
+      if (!channel || channel.type !== ChannelType.GuildText) continue;
+      if (!channel.topic || !channel.topic.includes("expiresAt:")) continue;
+      if (channel.topic.includes("locked:true")) continue;
+
+      const match = channel.topic.match(/expiresAt:(\d+)/);
+      if (!match) continue;
+
+      const expiresAt = Number(match[1]);
+
+      if (Date.now() >= expiresAt) {
+        await lockTicketChannel(channel);
+        await channel.setTopic(`${channel.topic} locked:true`).catch(() => {});
+      }
+    }
   }
 };

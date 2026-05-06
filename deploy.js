@@ -352,7 +352,29 @@ new SlashCommandBuilder()
       .setDescription("Reason")
       .setRequired(true)
   ),
-
+new SlashCommandBuilder()
+  .setName("customticket")
+  .setDescription("Create a custom ticket dropdown option")
+  .addStringOption(option =>
+    option.setName("label")
+      .setDescription("Dropdown name, example: Submit My Set")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("description")
+      .setDescription("Dropdown description")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("questions")
+      .setDescription("Questions separated by | example: Set name?|Item name?|Upload image")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("duration")
+      .setDescription("How long before it expires, example: 4d, 12h, 30m")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("ticketmod")
   .setDescription("Send ticket moderation panel"),
