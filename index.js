@@ -57,12 +57,6 @@ const client = new Client({
   partials: ["CHANNEL"]
 });
 
-const { GoogleGenAI } = require("@google/genai");
-
-const gemini = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
-
 const birthdayFile = "./birthdays.json";
 const birthdayChannel = "1444902597730504725";
 const adminRole = "1411991650573484073";
@@ -75,7 +69,6 @@ const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
 const OWNER_ID = "1108921222030426172";
 const birthdayRole = "1500307450824232970";
-const AI_CHAT_CHANNEL = "1411995708403486780";
 const BOT_ID = "1444622846729912435";
 const aiCooldown = new Map();
 // messageId → gamehop
@@ -3143,113 +3136,6 @@ client.on("messageCreate", async (message) => {
     if (message.author.bot) return; 
 if (!message.guild) {
   return;
-}
-
-if (message.channel.id === AI_CHAT_CHANNEL) {
-  const mentionedBot = message.mentions.users.has(BOT_ID);
-
-  let repliedToBot = false;
-
-  if (message.reference?.messageId) {
-    const repliedMessage = await message.channel.messages
-      .fetch(message.reference.messageId)
-      .catch(() => null);
-
-    if (repliedMessage?.author?.id === BOT_ID) {
-      repliedToBot = true;
-    }
-  }
-
-  if (mentionedBot || repliedToBot) {
-    const now = Date.now();
-    const lastUsed = aiCooldown.get(message.author.id) || 0;
-
-    if (now - lastUsed < 5000) {
-      return message.reply({
-        content: "Please wait a few seconds before asking again.",
-        allowedMentions: { repliedUser: false }
-      });
-    }
-
-    aiCooldown.set(message.author.id, now);
-
-    let userText = message.content
-      .replace(new RegExp(`<@!?${BOT_ID}>`, "g"), "")
-      .trim();
-
-    if (!userText) {
-      return message.reply({
-        content: "Please ask me something.",
-        allowedMentions: { repliedUser: false }
-      });
-    }
-
-    await message.channel.sendTyping().catch(() => {});
-
-    try {
-      const memory = loadAiMemory();
-      const userId = message.author.id;
-
-      if (!memory[userId]) {
-        memory[userId] = [];
-      }
-
-      memory[userId].push({
-        role: "user",
-        content: userText
-      });
-
-      memory[userId] = memory[userId].slice(-30);
-
-const prompt =
-  "You are NoobV2 AI Chat. Act like ChatGPT inside Discord. " +
-  "Be friendly, smart, natural, and helpful. Remember the user's previous messages from memory. " +
-  "Use easy words unless the user asks for advanced words.\n\n" +
-  memory[userId]
-    .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n");
-
-let response;
-
-for (let attempt = 1; attempt <= 3; attempt++) {
-  try {
-    response = await gemini.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
-      contents: prompt
-    });
-    break;
-  } catch (err) {
-    if (attempt === 3) throw err;
-    await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
-  }
-}
-
-let aiReply = response.text || "I could not think of a reply.";
-      if (aiReply.length > 1900) {
-        aiReply = aiReply.slice(0, 1900) + "...";
-      }
-
-      memory[userId].push({
-        role: "assistant",
-        content: aiReply
-      });
-
-      memory[userId] = memory[userId].slice(-30);
-      saveAiMemory(memory);
-
-      return message.reply({
-        content: aiReply,
-        allowedMentions: { repliedUser: false }
-      });
-
-    } catch (err) {
-      console.log("AI chat error:", err);
-
-      return message.reply({
-content: "AI chat is currently not working. Please check the Gemini API key or model name.",        allowedMentions: { repliedUser: false }
-      });
-    }
-  }
 }
 if (message.channel.id === PAY_CHANNEL) {
 
