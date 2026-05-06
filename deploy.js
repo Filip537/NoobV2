@@ -390,7 +390,18 @@ new SlashCommandBuilder()
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
+new SlashCommandBuilder()
+  .setName("removecustomticket")
+  .setDescription("Remove a custom ticket dropdown option")
+  .addStringOption(option =>
+    option.setName("label")
+      .setDescription("Custom ticket label to remove")
+      .setRequired(true)
+  ),
 
+new SlashCommandBuilder()
+  .setName("refreshticketpanel")
+  .setDescription("Apply updates to the current ticket panel"),
   new SlashCommandBuilder()
     .setName("bdaylist")
     .setDescription("Show birthday list"),

@@ -484,7 +484,13 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  
+  if (interaction.isChatInputCommand() && interaction.commandName === "removecustomticket") {
+  return ticket.removeCustomTicket(interaction);
+}
+
+if (interaction.isChatInputCommand() && interaction.commandName === "refreshticketpanel") {
+  return ticket.refreshTicketPanelCommand(interaction);
+}
 if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
   await interaction.deferReply();
 

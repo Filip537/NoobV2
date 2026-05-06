@@ -289,6 +289,50 @@ This ticket will be locked <t:${Math.floor(expiresAt / 1000)}:R>.`,
 }
 
 module.exports = {
+  async removeCustomTicket(interaction) {
+  if (!interaction.member.roles.cache.has(ADMIN_ROLE)) {
+    return interaction.reply({
+      content: "❌ Only admins can remove custom ticket dropdowns.",
+      ephemeral: true
+    });
+  }
+
+  const label = interaction.options.getString("label").toLowerCase();
+  const customTickets = loadCustomTickets();
+
+  const filtered = customTickets.filter(t => t.label.toLowerCase() !== label);
+
+  if (filtered.length === customTickets.length) {
+    return interaction.reply({
+      content: "❌ No custom ticket found with that label.",
+      ephemeral: true
+    });
+  }
+
+  saveCustomTickets(filtered);
+  await this.refreshAllTicketPanels(interaction.client);
+
+  return interaction.reply({
+    content: "✅ Custom ticket removed and the current ticket panel has been updated.",
+    ephemeral: true
+  });
+},
+
+async refreshTicketPanelCommand(interaction) {
+  if (!interaction.member.roles.cache.has(ADMIN_ROLE)) {
+    return interaction.reply({
+      content: "❌ Only admins can refresh ticket panels.",
+      ephemeral: true
+    });
+  }
+
+  await this.refreshAllTicketPanels(interaction.client);
+
+  return interaction.reply({
+    content: "✅ Current ticket panel has been refreshed.",
+    ephemeral: true
+  });
+},
   async customTicket(interaction) {
     if (!interaction.member.roles.cache.has(ADMIN_ROLE)) {
       return interaction.reply({
