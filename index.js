@@ -1969,6 +1969,28 @@ if (interaction.commandName === "testbday") {
  if (interaction.commandName === "ticketpanel") {
   return ticket.execute(interaction);
 }
+if (interaction.commandName === "howstraight") {
+  const target = interaction.options.getUser("user") || interaction.user;
+
+  const percent = Math.floor(Math.random() * 500) + 1;
+
+  const messages = [
+    `${target} is **${percent}% straight** today 😎`,
+    `Straight meter result for ${target}: **${percent}%** 🔥`,
+    `${target}, you are **${percent}% straight** 💯`,
+    `The scanner says ${target} is **${percent}% straight** 🎯`,
+    `${target} unlocked **${percent}% straight power** ⚡`,
+    `Certified result: ${target} is **${percent}% straight** 🏆`,
+    `${target} has reached **${percent}% straight level** 🚀`,
+    `Breaking news: ${target} is **${percent}% straight** 👀`
+  ];
+
+  const message = messages[Math.floor(Math.random() * messages.length)];
+
+  return interaction.reply({
+    content: message
+  });
+}
 if (interaction.commandName === "wordban") {
 
   if (!interaction.member.roles.cache.has(adminRole)) {

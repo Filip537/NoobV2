@@ -398,7 +398,15 @@ new SlashCommandBuilder()
       .setDescription("Custom ticket label to remove")
       .setRequired(true)
   ),
-
+new SlashCommandBuilder()
+  .setName("howstraight")
+  .setDescription("Check how straight someone is")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("refreshticketpanel")
   .setDescription("Apply updates to the current ticket panel"),
