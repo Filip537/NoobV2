@@ -194,35 +194,53 @@ function loadBirthdays() {
   if (!fs.existsSync(birthdayFile)) {
     fs.writeFileSync(birthdayFile, "{}");
   }
-  return JSON.parse(fs.readFileSync(birthdayFile, "utf8"));
+
+  try {
+    return JSON.parse(fs.readFileSync(birthdayFile, "utf8"));
+  } catch (err) {
+    console.log("Birthday file corrupted, resetting:", err);
+    fs.writeFileSync(birthdayFile, "{}");
+    return {};
+  }
 }
 
 function saveBirthdays(data) {
-  fs.writeFileSync(birthdayFile, JSON.stringify(data, null, 2));
+  fs.writeFileSync(
+    birthdayFile,
+    JSON.stringify(data, null, 2),
+    "utf8"
+  );
 }
 
-function getGMT8DateParts() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Singapore",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false
-  }).formatToParts(new Date());
+function isValidBirthday(day, month, year) {
+  if (!day || !month || !year) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  if (year < 1900 || year > new Date().getFullYear()) return false;
 
-  const data = {};
-  for (const part of parts) {
-    data[part.type] = part.value;
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+async function cleanUnknownBirthdays(guild, birthdays) {
+  let removed = 0;
+
+  for (const userId of Object.keys(birthdays)) {
+    const member = await guild.members.fetch(userId).catch(() => null);
+
+    if (!member || member.user.bot) {
+      delete birthdays[userId];
+      removed++;
+    }
   }
 
-  return {
-    year: Number(data.year),
-    month: Number(data.month),
-    day: Number(data.day),
-    hour: Number(data.hour),
-    dateKey: `${data.year}-${data.month}-${data.day}`
-  };
+  if (removed > 0) saveBirthdays(birthdays);
+
+  return removed;
 }
 
 async function checkBirthdays() {
@@ -233,48 +251,50 @@ async function checkBirthdays() {
   const birthdays = loadBirthdays();
   const channel = await client.channels.fetch(birthdayChannel).catch(() => null);
 
-  if (!channel) return;
+  if (!channel || !channel.guild) return;
+
+  await cleanUnknownBirthdays(channel.guild, birthdays);
 
   for (const userId of Object.keys(birthdays)) {
     const birthday = birthdays[userId];
+
+    if (!birthday || !birthday.day || !birthday.month) continue;
+
+    const member = await channel.guild.members.fetch(userId).catch(() => null);
+
+    if (!member || member.user.bot) {
+      delete birthdays[userId];
+      continue;
+    }
 
     if (
       birthday.day === now.day &&
       birthday.month === now.month &&
       birthday.lastBirthdaySent !== now.dateKey
     ) {
-await channel.send({
-  content: `🎉 Happy Birthday <@${userId}>! Hope you have an amazing day!`
-});
+      await channel.send({
+        content: `🎉 Happy Birthday ${member}! Hope you have an amazing day!`
+      });
 
-const birthdayUser = await client.users.fetch(userId).catch(() => null);
-
-if (birthdayUser) {
-  await birthdayUser.send({
-    content:
+      await member.send({
+        content:
 `🎉 Happy Birthday!
 
-Hello <@${userId}>, today is your birthday!
+Hello ${member}, today is your birthday!
 
 We hope you have an amazing day. Enjoy your special day 🎂`
-  }).catch(() => {});
-}
+      }).catch(() => {});
 
-const guild = channel.guild;
-const member = await guild.members.fetch(userId).catch(() => null);
+      await member.roles.add(birthdayRole).catch(() => {});
 
-if (member) {
-  await member.roles.add(birthdayRole).catch(() => {});
+      setTimeout(async () => {
+        const freshMember = await channel.guild.members.fetch(userId).catch(() => null);
+        if (freshMember) {
+          await freshMember.roles.remove(birthdayRole).catch(() => {});
+        }
+      }, 24 * 60 * 60 * 1000);
 
-  setTimeout(async () => {
-    const freshMember = await guild.members.fetch(userId).catch(() => null);
-    if (freshMember) {
-      await freshMember.roles.remove(birthdayRole).catch(() => {});
-    }
-  }, 24 * 60 * 60 * 1000);
-}
-
-birthday.lastBirthdaySent = now.dateKey;
+      birthday.lastBirthdaySent = now.dateKey;
     }
   }
 
@@ -662,7 +682,7 @@ if (interaction.commandName === "sayas") {
     let finalMessage = messageInput || "";
 
     if (commandInput === "howgay") {
-      const percent = Math.floor(Math.random() * 200) + 1;
+const percent = Math.floor(Math.random() * 500) + 1;
       const messages = [
         `${targetUser} is **${percent}% gay** today 🌈`,
         `Gay meter result for ${targetUser}: **${percent}%** 🌈`,
@@ -675,7 +695,7 @@ if (interaction.commandName === "sayas") {
     }
 
     if (commandInput === "howpro") {
-      const percent = Math.floor(Math.random() * 200) + 1;
+      const percent = Math.floor(Math.random() * 500) + 1;
       const messages = [
         `${targetUser} is **${percent}% pro** today 😎`,
         `Pro meter result for ${targetUser}: **${percent}%** 🔥`,
@@ -1346,7 +1366,7 @@ if (interaction.commandName === "sendupdates") {
 }
 if (interaction.commandName === "howgay") {
   const target = interaction.options.getUser("user") || interaction.user;
-const percent = Math.floor(Math.random() * 200) + 1;
+const percent = Math.floor(Math.random() * 500) + 1;
   const messages = [
     `${target} is **${percent}% gay** today 🌈`,
     `Gay meter result for ${target}: **${percent}%** 🌈`,
@@ -1367,7 +1387,7 @@ const percent = Math.floor(Math.random() * 200) + 1;
 
 if (interaction.commandName === "howpro") {
   const target = interaction.options.getUser("user") || interaction.user;
-const percent = Math.floor(Math.random() * 200) + 1;
+const percent = Math.floor(Math.random() * 500) + 1;
   const messages = [
     `${target} is **${percent}% pro** today 😎`,
     `Pro meter result for ${target}: **${percent}%** 🔥`,
@@ -1783,10 +1803,19 @@ if (interaction.commandName === "editwordban") {
   });
 }
 if (interaction.commandName === "editbday") {
+  const day = interaction.options.getInteger("day");
+  const month = interaction.options.getInteger("month");
+  const year = interaction.options.getInteger("year");
+
+  if (!isValidBirthday(day, month, year)) {
+    return interaction.reply({
+      content: "❌ Invalid birthday date.",
+      ephemeral: true
+    });
+  }
 
   const birthdays = loadBirthdays();
 
-  // ❌ if user has no birthday yet
   if (!birthdays[interaction.user.id]) {
     return interaction.reply({
       content: "❌ You don't have a birthday set. Use /addbirthday first.",
@@ -1794,17 +1823,18 @@ if (interaction.commandName === "editbday") {
     });
   }
 
-  // ✅ update ONLY their own
   birthdays[interaction.user.id] = {
-    day: interaction.options.getInteger("day"),
-    month: interaction.options.getInteger("month"),
-    year: interaction.options.getInteger("year")
+    ...birthdays[interaction.user.id],
+    day,
+    month,
+    year,
+    updatedAt: Date.now()
   };
 
   saveBirthdays(birthdays);
 
   return interaction.reply({
-    content: "✅ Your birthday has been updated.",
+    content: `✅ Your birthday has been updated to **${day}/${month}/${year}**.`,
     ephemeral: true
   });
 }
@@ -1880,27 +1910,33 @@ if (interaction.commandName === "wordbanlist") {
   });
 }
 
-      if (interaction.commandName === "bdaylist") {
-
+ if (interaction.commandName === "bdaylist") {
   const birthdays = loadBirthdays();
 
-  if (Object.keys(birthdays).length === 0) {
-    return interaction.reply("No birthdays saved.");
+  await cleanUnknownBirthdays(interaction.guild, birthdays);
+
+  const entries = [];
+
+  for (const userId of Object.keys(birthdays)) {
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
+    if (!member || member.user.bot) continue;
+
+    const b = birthdays[userId];
+    entries.push(`${member} → ${b.day}/${b.month}/${b.year}`);
   }
 
-  let list = "";
-
-  for (const userId in birthdays) {
-    const b = birthdays[userId];
-    list += `<@${userId}> → ${b.day}/${b.month}/${b.year}\n`;
+  if (entries.length === 0) {
+    return interaction.reply({
+      content: "No birthdays saved.",
+      ephemeral: true
+    });
   }
 
   return interaction.reply({
-    content: `**Birthday List**\n\n${list}`,
-    allowedMentions: { parse: [] } // no ping spam
+    content: `**Birthday List**\n\n${entries.join("\n")}`,
+    allowedMentions: { parse: [] }
   });
 }
-
 if (interaction.commandName === "testbday") {
 
   if (!interaction.member.roles.cache.has(adminRole)) {
@@ -1929,22 +1965,6 @@ if (interaction.commandName === "testbday") {
   }
 
   return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
-}
-
-if (interaction.commandName === "testbday") {
-  if (!interaction.member.permissions.has("Administrator")) {
-    return interaction.reply({
-      content: "❌ Administrator only.",
-      ephemeral: true
-    });
-  }
-
-  await checkBirthdays();
-
-  return interaction.reply({
-    content: "✅ Birthday check completed.",
-    ephemeral: true
-  });
 }
  if (interaction.commandName === "ticketpanel") {
   return ticket.execute(interaction);
@@ -2074,19 +2094,34 @@ if (interaction.commandName === "report") {
 }
 // ================= ADD BIRTHDAY =================
 if (interaction.commandName === "addbirthday") {
+  const day = interaction.options.getInteger("day");
+  const month = interaction.options.getInteger("month");
+  const year = interaction.options.getInteger("year");
+
+  if (!isValidBirthday(day, month, year)) {
+    return interaction.reply({
+      content: "❌ Invalid birthday date.",
+      ephemeral: true
+    });
+  }
 
   const birthdays = loadBirthdays();
 
   birthdays[interaction.user.id] = {
-    day: interaction.options.getInteger("day"),
-    month: interaction.options.getInteger("month"),
-    year: interaction.options.getInteger("year")
+    day,
+    month,
+    year,
+    lastBirthdaySent: birthdays[interaction.user.id]?.lastBirthdaySent || null,
+    updatedAt: Date.now()
   };
 
   saveBirthdays(birthdays);
-  return interaction.reply("Saved!");
-}
 
+  return interaction.reply({
+    content: `✅ Your birthday has been saved: **${day}/${month}/${year}**`,
+    ephemeral: true
+  });
+}
   }
 
   // ================= DROPDOWN =================
