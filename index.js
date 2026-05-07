@@ -75,7 +75,6 @@ function loadRandomMessageUsed() {
 function saveRandomMessageUsed(data) {
   fs.writeFileSync(randomMessageFile, JSON.stringify(data, null, 2));
 }
-
 function getRandomMessages() {
   return [
 
@@ -90,7 +89,7 @@ function getRandomMessages() {
     "Sometimes I walk fast just to look important.",
     "I create fake scenarios before sleeping.",
 
-    "I said I’d sleep early... that was 5 hours ago.",
+    "I said I’d sleep early... that was a lie.",
     "I open the fridge like something new will spawn.",
     "I check my phone every 2 minutes like I’m famous.",
     "I pretend to understand, then panic later.",
@@ -101,7 +100,7 @@ function getRandomMessages() {
     "I practice conversations that will never happen.",
     "I act cool until someone attractive walks by.",
 
-    "I tell myself 'one more game' then the sun comes up.",
+    "I tell myself one more game, then the sun comes up.",
     "I act like I’m okay but my sleep schedule disagrees.",
     "Sometimes I’m the red flag and the victim.",
     "I say I’m productive while lying on my bed.",
@@ -110,10 +109,21 @@ function getRandomMessages() {
     "I create problems in my head for free.",
     "I re-read messages like I’m analyzing crime evidence.",
     "I type fast when I’m angry but never send it.",
-    "I act hard but mosquito bites still scare me.",
+    "I act tough but mosquito bites still scare me.",
 
-    ...Array.from({ length: 300 }, (_, i) =>
-      `I had a main character moment... then reality humbled me. #${i + 1}`
+    ...Array.from({ length: 300 }, () =>
+      [
+        "I had a main character moment, then reality humbled me.",
+        "I entered the room confidently and forgot why I went there.",
+        "I act unbothered, but I notice everything.",
+        "I replay awkward moments like it's Netflix.",
+        "I fell in love with someone who replies with one word.",
+        "I act like I know what I’m doing... I don’t.",
+        "I looked in the mirror and negotiated with myself.",
+        "I said I’d be productive today. That didn’t happen.",
+        "I romanticize my life then remember I’m broke.",
+        "I create fake arguments and somehow still lose."
+      ][Math.floor(Math.random() * 10)]
     )
 
   ];
@@ -2003,60 +2013,78 @@ if (interaction.commandName === "wordbanlist") {
 }
 
  if (interaction.commandName === "bdaylist") {
+  await interaction.deferReply({ ephemeral: true });
+
   const birthdays = loadBirthdays();
-
-  await cleanUnknownBirthdays(interaction.guild, birthdays);
-
   const entries = [];
+  let removed = 0;
 
   for (const userId of Object.keys(birthdays)) {
-    const member = await interaction.guild.members.fetch(userId).catch(() => null);
-    if (!member || member.user.bot) continue;
+    const member =
+      interaction.guild.members.cache.get(userId) ||
+      await interaction.guild.members.fetch(userId).catch(() => null);
+
+    if (!member || member.user.bot) {
+      delete birthdays[userId];
+      removed++;
+      continue;
+    }
 
     const b = birthdays[userId];
     entries.push(`${member} → ${b.day}/${b.month}/${b.year}`);
   }
 
+  if (removed > 0) {
+    saveBirthdays(birthdays);
+  }
+
   if (entries.length === 0) {
+    return interaction.editReply({
+      content: "No birthdays saved."
+    });
+  }
+
+  const chunks = [];
+  let current = "";
+
+  for (const line of entries) {
+    if ((current + line + "\n").length > 1800) {
+      chunks.push(current);
+      current = "";
+    }
+    current += line + "\n";
+  }
+
+  if (current) chunks.push(current);
+
+  await interaction.editReply({
+    content: `**Birthday List**\n\n${chunks[0]}`,
+    allowedMentions: { parse: [] }
+  });
+
+  for (let i = 1; i < chunks.length; i++) {
+    await interaction.followUp({
+      content: chunks[i],
+      ephemeral: true,
+      allowedMentions: { parse: [] }
+    });
+  }
+}
+if (interaction.commandName === "testbday") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
-      content: "No birthdays saved.",
+      content: "❌ Admin only.",
       ephemeral: true
     });
   }
 
-  return interaction.reply({
-    content: `**Birthday List**\n\n${entries.join("\n")}`,
-    allowedMentions: { parse: [] }
+  await interaction.deferReply({ ephemeral: true });
+
+  await checkBirthdays();
+
+  return interaction.editReply({
+    content: "✅ Birthday check completed."
   });
-}
-if (interaction.commandName === "testbday") {
-
-  if (!interaction.member.roles.cache.has(adminRole)) {
-    return interaction.reply({ content: "❌ Admin only.", ephemeral: true });
-  }
-
-  const channel = await client.channels.fetch(birthdayChannel);
-
-  const birthdays = loadBirthdays();
-  const today = new Date();
-
-  let found = false;
-
-  for (const userId in birthdays) {
-    const b = birthdays[userId];
-
-    if (b.day === today.getDate() && b.month === (today.getMonth() + 1)) {
-      found = true;
-
-      channel.send(`🎉 Happy Birthday <@${userId}>! 🎂`);
-    }
-  }
-
-  if (!found) {
-    return interaction.reply("No birthdays today.");
-  }
-
-  return interaction.reply({ content: "✅ Test birthday message sent.", ephemeral: true });
 }
  if (interaction.commandName === "ticketpanel") {
   return ticket.execute(interaction);
