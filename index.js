@@ -77,70 +77,46 @@ function saveRandomMessageUsed(data) {
 }
 
 function getRandomMessages() {
-  const moods = ["Funny", "Sad", "Motivational", "Random", "Chaotic", "Friendly"];
-  const messages = [];
+  return [
 
-  const funny = [
-    "I opened the fridge like food was going to magically appear.",
-    "My brain has too many tabs open.",
-    "I said one more game 3 hours ago.",
-    "I am not lazy, I am on energy-saving mode.",
-    "Life is short, but my loading screen is long.",
-    "I need a refund for today.",
-    "My sleep schedule is fighting me.",
-    "I walked into the room and forgot the quest.",
-    "I am currently buffering.",
-    "My wallet is on survival mode."
+    "Sometimes I act mysterious, but honestly I forgot what I was about to say.",
+    "I tried to look cool today... then I tripped.",
+    "I act confident until someone asks me a simple question.",
+    "I stare at my crush like I’m in a music video.",
+    "I practice fake arguments in the shower.",
+    "I laugh at my own jokes before finishing them.",
+    "I act like I’m busy when I actually have no idea what I’m doing.",
+    "I make eye contact then immediately regret it.",
+    "Sometimes I walk fast just to look important.",
+    "I create fake scenarios before sleeping.",
+
+    "I said I’d sleep early... that was 5 hours ago.",
+    "I open the fridge like something new will spawn.",
+    "I check my phone every 2 minutes like I’m famous.",
+    "I pretend to understand, then panic later.",
+    "I act mature until free food appears.",
+    "I try to be mysterious but end up looking confused.",
+    "I overthink conversations from 3 years ago.",
+    "I smile at texts like an idiot.",
+    "I practice conversations that will never happen.",
+    "I act cool until someone attractive walks by.",
+
+    "I tell myself 'one more game' then the sun comes up.",
+    "I act like I’m okay but my sleep schedule disagrees.",
+    "Sometimes I’m the red flag and the victim.",
+    "I say I’m productive while lying on my bed.",
+    "I’m emotionally attached to people who barely text back.",
+    "I get jealous over imaginary situations.",
+    "I create problems in my head for free.",
+    "I re-read messages like I’m analyzing crime evidence.",
+    "I type fast when I’m angry but never send it.",
+    "I act hard but mosquito bites still scare me.",
+
+    ...Array.from({ length: 300 }, (_, i) =>
+      `I had a main character moment... then reality humbled me. #${i + 1}`
+    )
+
   ];
-
-  const sad = [
-    "Sometimes silence says more than words.",
-    "I smiled, but I was tired inside.",
-    "Some days feel heavier than others.",
-    "Missing someone quietly hurts the most.",
-    "Not every goodbye is loud.",
-    "I wish things felt easier today.",
-    "Some memories stay longer than people.",
-    "I am okay, just not fully okay.",
-    "The hardest battles are invisible.",
-    "Sometimes you just need time."
-  ];
-
-  const motivational = [
-    "Small progress is still progress.",
-    "You are doing better than you think.",
-    "Keep going, even slowly.",
-    "One bad day does not mean a bad life.",
-    "You only fail when you stop trying.",
-    "Your future self will thank you.",
-    "Rest, then continue.",
-    "Every step counts.",
-    "You are stronger than your stress.",
-    "Start small, win big."
-  ];
-
-  const random = [
-    "A potato probably has more peace than me.",
-    "Today feels like a side quest.",
-    "Someone somewhere is losing an argument to a printer.",
-    "The moon is just watching all our drama.",
-    "I trust dogs more than most WiFi connections.",
-    "A banana is just a yellow happiness stick.",
-    "My motivation went offline.",
-    "The floor looks comfortable today.",
-    "I need a snack and emotional support.",
-    "The universe really said random mode."
-  ];
-
-  const base = [...funny, ...sad, ...motivational, ...random];
-
-  for (let i = 0; i < base.length; i++) {
-    for (let j = 1; j <= 10; j++) {
-      messages.push(`${moods[i % moods.length]} Message #${i * 10 + j}: ${base[i]}`);
-    }
-  }
-
-  return messages; // 400 unique messages
 }
 
 const birthdayFile = "./birthdays.json";
