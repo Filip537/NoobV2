@@ -277,11 +277,15 @@ function loadBirthdays() {
 }
 
 function saveBirthdays(data) {
+  const tempFile = birthdayFile + ".tmp";
+
   fs.writeFileSync(
-    birthdayFile,
+    tempFile,
     JSON.stringify(data, null, 2),
     "utf8"
   );
+
+  fs.renameSync(tempFile, birthdayFile);
 }
 
 function isValidBirthday(day, month, year) {
@@ -811,8 +815,7 @@ const percent = Math.floor(Math.random() * 500) + 1;
 
     const webhook = await targetChannel.createWebhook({
       name: displayName,
-      avatar: targetUser.displayAvatarURL({ dynamic: true })
-    });
+avatar: member?.displayAvatarURL({ dynamic: true }) || targetUser.displayAvatarURL({ dynamic: true })    });
 
     await webhook.send({
       content: finalMessage || null,
@@ -2013,8 +2016,6 @@ if (interaction.commandName === "wordbanlist") {
 }
 
  if (interaction.commandName === "bdaylist") {
-  await interaction.deferReply({ ephemeral: true });
-
   const birthdays = loadBirthdays();
   const entries = [];
   let removed = 0;
@@ -2031,7 +2032,9 @@ if (interaction.commandName === "wordbanlist") {
     }
 
     const b = birthdays[userId];
-    entries.push(`${member} → ${b.day}/${b.month}/${b.year}`);
+
+    // shows tag but doesn't ping
+    entries.push(`<@${member.id}> → ${b.day}/${b.month}/${b.year}`);
   }
 
   if (removed > 0) {
@@ -2039,7 +2042,7 @@ if (interaction.commandName === "wordbanlist") {
   }
 
   if (entries.length === 0) {
-    return interaction.editReply({
+    return interaction.reply({
       content: "No birthdays saved."
     });
   }
@@ -2057,15 +2060,14 @@ if (interaction.commandName === "wordbanlist") {
 
   if (current) chunks.push(current);
 
-  await interaction.editReply({
-    content: `**Birthday List**\n\n${chunks[0]}`,
-    allowedMentions: { parse: [] }
+  await interaction.reply({
+    content: `## Birthday List\n\n${chunks[0]}`,
+    allowedMentions: { parse: [] } // shows tag, no ping
   });
 
   for (let i = 1; i < chunks.length; i++) {
     await interaction.followUp({
       content: chunks[i],
-      ephemeral: true,
       allowedMentions: { parse: [] }
     });
   }
