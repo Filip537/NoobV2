@@ -2015,7 +2015,9 @@ if (interaction.commandName === "wordbanlist") {
   });
 }
 
- if (interaction.commandName === "bdaylist") {
+if (interaction.commandName === "bdaylist") {
+  await interaction.deferReply(); // visible to everyone
+
   const birthdays = loadBirthdays();
   const entries = [];
   let removed = 0;
@@ -2032,8 +2034,6 @@ if (interaction.commandName === "wordbanlist") {
     }
 
     const b = birthdays[userId];
-
-    // shows tag but doesn't ping
     entries.push(`<@${member.id}> → ${b.day}/${b.month}/${b.year}`);
   }
 
@@ -2042,7 +2042,7 @@ if (interaction.commandName === "wordbanlist") {
   }
 
   if (entries.length === 0) {
-    return interaction.reply({
+    return interaction.editReply({
       content: "No birthdays saved."
     });
   }
@@ -2055,14 +2055,15 @@ if (interaction.commandName === "wordbanlist") {
       chunks.push(current);
       current = "";
     }
+
     current += line + "\n";
   }
 
   if (current) chunks.push(current);
 
-  await interaction.reply({
+  await interaction.editReply({
     content: `## Birthday List\n\n${chunks[0]}`,
-    allowedMentions: { parse: [] } // shows tag, no ping
+    allowedMentions: { parse: [] }
   });
 
   for (let i = 1; i < chunks.length; i++) {
@@ -2071,6 +2072,8 @@ if (interaction.commandName === "wordbanlist") {
       allowedMentions: { parse: [] }
     });
   }
+
+  return;
 }
 if (interaction.commandName === "testbday") {
   if (!interaction.member.roles.cache.has(adminRole)) {
