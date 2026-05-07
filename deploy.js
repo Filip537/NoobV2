@@ -268,6 +268,9 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("randommessage")
+  .setDescription("Generate a random message."),
+  new SlashCommandBuilder()
   .setName("scanblist")
   .setDescription("Scan the approved blacklist channel and rebuild blacklist data"),
   new SlashCommandBuilder()

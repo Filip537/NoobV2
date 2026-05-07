@@ -57,6 +57,92 @@ const client = new Client({
   partials: ["CHANNEL"]
 });
 
+const randomMessageFile = "./randomMessagesUsed.json";
+
+function loadRandomMessageUsed() {
+  if (!fs.existsSync(randomMessageFile)) {
+    fs.writeFileSync(randomMessageFile, "{}");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(randomMessageFile, "utf8"));
+  } catch {
+    fs.writeFileSync(randomMessageFile, "{}");
+    return {};
+  }
+}
+
+function saveRandomMessageUsed(data) {
+  fs.writeFileSync(randomMessageFile, JSON.stringify(data, null, 2));
+}
+
+function getRandomMessages() {
+  const moods = ["Funny", "Sad", "Motivational", "Random", "Chaotic", "Friendly"];
+  const messages = [];
+
+  const funny = [
+    "I opened the fridge like food was going to magically appear.",
+    "My brain has too many tabs open.",
+    "I said one more game 3 hours ago.",
+    "I am not lazy, I am on energy-saving mode.",
+    "Life is short, but my loading screen is long.",
+    "I need a refund for today.",
+    "My sleep schedule is fighting me.",
+    "I walked into the room and forgot the quest.",
+    "I am currently buffering.",
+    "My wallet is on survival mode."
+  ];
+
+  const sad = [
+    "Sometimes silence says more than words.",
+    "I smiled, but I was tired inside.",
+    "Some days feel heavier than others.",
+    "Missing someone quietly hurts the most.",
+    "Not every goodbye is loud.",
+    "I wish things felt easier today.",
+    "Some memories stay longer than people.",
+    "I am okay, just not fully okay.",
+    "The hardest battles are invisible.",
+    "Sometimes you just need time."
+  ];
+
+  const motivational = [
+    "Small progress is still progress.",
+    "You are doing better than you think.",
+    "Keep going, even slowly.",
+    "One bad day does not mean a bad life.",
+    "You only fail when you stop trying.",
+    "Your future self will thank you.",
+    "Rest, then continue.",
+    "Every step counts.",
+    "You are stronger than your stress.",
+    "Start small, win big."
+  ];
+
+  const random = [
+    "A potato probably has more peace than me.",
+    "Today feels like a side quest.",
+    "Someone somewhere is losing an argument to a printer.",
+    "The moon is just watching all our drama.",
+    "I trust dogs more than most WiFi connections.",
+    "A banana is just a yellow happiness stick.",
+    "My motivation went offline.",
+    "The floor looks comfortable today.",
+    "I need a snack and emotional support.",
+    "The universe really said random mode."
+  ];
+
+  const base = [...funny, ...sad, ...motivational, ...random];
+
+  for (let i = 0; i < base.length; i++) {
+    for (let j = 1; j <= 10; j++) {
+      messages.push(`${moods[i % moods.length]} Message #${i * 10 + j}: ${base[i]}`);
+    }
+  }
+
+  return messages; // 400 unique messages
+}
+
 const birthdayFile = "./birthdays.json";
 const birthdayChannel = "1444902597730504725";
 const adminRole = "1411991650573484073";
@@ -504,6 +590,36 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "randommessage") {
+  const usedData = loadRandomMessageUsed();
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  usedData.used = (usedData.used || []).filter(item => now - item.usedAt < dayMs);
+
+  const allMessages = getRandomMessages();
+  const usedMessages = new Set(usedData.used.map(item => item.message));
+
+  let available = allMessages.filter(msg => !usedMessages.has(msg));
+
+  if (available.length === 0) {
+    usedData.used = [];
+    available = allMessages;
+  }
+
+  const picked = available[Math.floor(Math.random() * available.length)];
+
+  usedData.used.push({
+    message: picked,
+    usedAt: now
+  });
+
+  saveRandomMessageUsed(usedData);
+
+  return interaction.reply({
+    content: picked
+  });
+}
   if (interaction.isChatInputCommand() && interaction.commandName === "removecustomticket") {
   return ticket.removeCustomTicket(interaction);
 }
