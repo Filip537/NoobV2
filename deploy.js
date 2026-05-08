@@ -277,6 +277,19 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("selectteam")
+  .setDescription("Ask a user to join your team")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose your teammate")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("teamlist")
+  .setDescription("Show confirmed event teams"),
+  new SlashCommandBuilder()
   .setName("randommessage")
   .setDescription("Generate a random message."),
   new SlashCommandBuilder()

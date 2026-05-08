@@ -146,6 +146,25 @@ const aiCooldown = new Map();
 // messageId → gamehop
 const sudokuGames = new Map();
 
+const teamsFile = "./teams.json";
+const TEAM_LOG_CHANNEL = "1502320280691806258";
+
+function loadTeams() {
+  if (!fs.existsSync(teamsFile)) {
+    fs.writeFileSync(teamsFile, "[]");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(teamsFile, "utf8"));
+  } catch {
+    fs.writeFileSync(teamsFile, "[]");
+    return [];
+  }
+}
+
+function saveTeams(data) {
+  fs.writeFileSync(teamsFile, JSON.stringify(data, null, 2));
+}
 function loadStories() {
   if (!fs.existsSync(storyFile)) {
     fs.writeFileSync(storyFile, "[]");
@@ -580,6 +599,86 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "selectteam") {
+  const targetUser = interaction.options.getUser("user");
+
+  if (!targetUser) {
+    return interaction.reply({
+      content: "❌ Please choose a user.",
+      ephemeral: true
+    });
+  }
+
+  if (targetUser.bot) {
+    return interaction.reply({
+      content: "❌ You cannot team with a bot.",
+      ephemeral: true
+    });
+  }
+
+  if (targetUser.id === interaction.user.id) {
+    return interaction.reply({
+      content: "❌ You cannot team with yourself.",
+      ephemeral: true
+    });
+  }
+
+  const teams = loadTeams();
+
+  const alreadyInTeam = teams.some(team =>
+    team.members.includes(interaction.user.id) ||
+    team.members.includes(targetUser.id)
+  );
+
+  if (alreadyInTeam) {
+    return interaction.reply({
+      content: "❌ One of you is already in a confirmed team.",
+      ephemeral: true
+    });
+  }
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`team_agree_${interaction.user.id}_${targetUser.id}`)
+      .setLabel("Agree")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`team_decline_${interaction.user.id}_${targetUser.id}`)
+      .setLabel("Not Agree")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return interaction.reply({
+    content: `Hello ${targetUser}, would you like to join a team with ${interaction.user}?`,
+    components: [row],
+    allowedMentions: { users: [targetUser.id, interaction.user.id] }
+  });
+}
+if (interaction.commandName === "teamlist") {
+  const teams = loadTeams();
+
+  if (teams.length === 0) {
+    return interaction.reply({
+      content: "❌ No teams have been confirmed yet.",
+      ephemeral: true
+    });
+  }
+
+  const description = teams.map((team, index) =>
+    `**Team ${index + 1}**\n<@${team.members[0]}> and <@${team.members[1]}>`
+  ).join("\n\n");
+
+  const embed = new EmbedBuilder()
+    .setTitle("Confirmed Team List")
+    .setColor("Green")
+    .setDescription(description)
+    .setFooter({ text: `Total Teams: ${teams.length}` });
+
+  return interaction.reply({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
+}
   if (interaction.commandName === "eventjoin") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
@@ -2921,6 +3020,75 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (
+  interaction.customId.startsWith("team_agree_") ||
+  interaction.customId.startsWith("team_decline_")
+) {
+  const parts = interaction.customId.split("_");
+  const action = parts[1];
+  const requesterId = parts[2];
+  const targetId = parts[3];
+
+  if (interaction.user.id !== targetId) {
+    return interaction.reply({
+      content: "❌ Only the selected user can respond to this team request.",
+      ephemeral: true
+    });
+  }
+
+  if (action === "decline") {
+    await interaction.update({
+      content: `<@${targetId}> declined the team request from <@${requesterId}>.`,
+      components: [],
+      allowedMentions: { parse: [] }
+    });
+
+    return;
+  }
+
+  const teams = loadTeams();
+
+  const alreadyInTeam = teams.some(team =>
+    team.members.includes(requesterId) ||
+    team.members.includes(targetId)
+  );
+
+  if (alreadyInTeam) {
+    return interaction.reply({
+      content: "❌ One of you is already in a confirmed team.",
+      ephemeral: true
+    });
+  }
+
+  const teamNumber = teams.length + 1;
+
+  teams.push({
+    teamNumber,
+    members: [requesterId, targetId],
+    createdAt: Date.now()
+  });
+
+  saveTeams(teams);
+
+  await interaction.update({
+    content: `✅ Team ${teamNumber} confirmed!\n<@${requesterId}> and <@${targetId}>`,
+    components: [],
+    allowedMentions: { parse: [] }
+  });
+
+  const logChannel = await interaction.guild.channels.fetch(TEAM_LOG_CHANNEL).catch(() => null);
+
+  if (logChannel) {
+    await logChannel.send({
+      content:
+`**Team ${teamNumber} Confirmed**
+<@${requesterId}> and <@${targetId}>`,
+      allowedMentions: { parse: [] }
+    });
+  }
+
+  return;
+}
 if (interaction.customId === "event_join_button") {
   const EVENT_ROLE_ID = "1502318129664229578";
 
