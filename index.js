@@ -3564,20 +3564,6 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  if (message.mentions.users.size > 0) {
-    for (const mentionedUser of message.mentions.users.values()) {
-      if (mentionedUser.bot) continue;
-      if (mentionedUser.id === message.author.id) continue;
-
-      await mentionedUser.send({
-        content:
-`You have been tagged in ${message.channel}.
-
-Tagged by: ${message.author}
-Message: ${message.url}`
-      }).catch(() => {});
-    }
-  }
 if (message.channel.id === PAY_CHANNEL) {
 
   const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
