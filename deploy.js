@@ -268,6 +268,15 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("eventjoin")
+  .setDescription("Send the event join panel")
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("Channel to send the event panel")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("randommessage")
   .setDescription("Generate a random message."),
   new SlashCommandBuilder()

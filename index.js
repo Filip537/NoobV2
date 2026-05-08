@@ -580,6 +580,49 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "eventjoin") {
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "❌ No permission.",
+      ephemeral: true
+    });
+  }
+
+  const targetChannel = interaction.options.getChannel("channel");
+
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    return interaction.reply({
+      content: "❌ Please choose a valid text channel.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("Are you willing to join this event?")
+    .setColor("Green")
+    .setDescription(
+      "Join this event for the experience, fun, and a chance to enjoy new activities with other members.\n\n" +
+      "This event is made for players who want to participate, meet others, and be part of something exciting in the server.\n\n" +
+      "Click the **Join Event** button below if you would like to join."
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("event_join_button")
+      .setLabel("Join Event")
+      .setStyle(ButtonStyle.Success)
+  );
+
+  await targetChannel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: `Event join panel sent to ${targetChannel}.`,
+    ephemeral: true
+  });
+}
   if (interaction.commandName === "randommessage") {
   const usedData = loadRandomMessageUsed();
   const now = Date.now();
@@ -2878,7 +2921,32 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+if (interaction.customId === "event_join_button") {
+  const EVENT_ROLE_ID = "1502318129664229578";
 
+  const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+
+  if (!member) {
+    return interaction.reply({
+      content: "❌ Could not find your server profile.",
+      ephemeral: true
+    });
+  }
+
+  if (member.roles.cache.has(EVENT_ROLE_ID)) {
+    return interaction.reply({
+      content: "You have already joined this event.",
+      ephemeral: true
+    });
+  }
+
+  await member.roles.add(EVENT_ROLE_ID).catch(() => null);
+
+  return interaction.reply({
+    content: "You have joined the event!",
+    ephemeral: true
+  });
+}
   if (interaction.customId.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
@@ -3320,11 +3388,28 @@ if (interaction.isChannelSelectMenu()) {
   }
 }
 });
+
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) return; 
-if (!message.guild) {
-  return;
-}
+  if (message.author.bot) return;
+
+  if (!message.guild) {
+    return;
+  }
+
+  if (message.mentions.users.size > 0) {
+    for (const mentionedUser of message.mentions.users.values()) {
+      if (mentionedUser.bot) continue;
+      if (mentionedUser.id === message.author.id) continue;
+
+      await mentionedUser.send({
+        content:
+`You have been tagged in ${message.channel}.
+
+Tagged by: ${message.author}
+Message: ${message.url}`
+      }).catch(() => {});
+    }
+  }
 if (message.channel.id === PAY_CHANNEL) {
 
   const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
