@@ -599,6 +599,55 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "editblist") {
+  const GUARDIAN_ROLE_ID = "1483241188868882657";
+
+  const hasPermission =
+    interaction.member.permissions.has("Administrator") ||
+    interaction.member.roles.cache.has(GUARDIAN_ROLE_ID);
+
+  if (!hasPermission) {
+    return interaction.reply({
+      content: "❌ You do not have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  const messageId = interaction.options.getString("messageid");
+  const growid = interaction.options.getString("growid");
+  const reason = interaction.options.getString("reason");
+
+  try {
+    const message = await interaction.channel.messages.fetch(messageId);
+
+    const oldLines = message.content.split("\n");
+
+    const proofLine =
+      oldLines.find(line =>
+        line.toLowerCase().includes("blacklisted & proof by")
+      ) || `**Blacklisted & Proof By:** ${interaction.user}`;
+
+    const newContent =
+`**GrowID:** ${growid}
+**Reason:** ${reason}
+${proofLine}`;
+
+    await message.edit(newContent);
+
+    return interaction.reply({
+      content: `✅ Blacklist message updated successfully.\n**GrowID:** ${growid}\n**Reason:** ${reason}`,
+      ephemeral: true
+    });
+
+  } catch (err) {
+    console.error("editblist error:", err);
+
+    return interaction.reply({
+      content: "❌ I could not edit that message. Make sure the message ID is correct and the message is in this channel.",
+      ephemeral: true
+    });
+  }
+}
   if (interaction.commandName === "selectteam") {
   const targetUser = interaction.options.getUser("user");
 

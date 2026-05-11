@@ -290,6 +290,24 @@ new SlashCommandBuilder()
   .setName("teamlist")
   .setDescription("Show confirmed event teams"),
   new SlashCommandBuilder()
+  .setName("editblist")
+  .setDescription("Edit an existing blacklist message")
+  .addStringOption(option =>
+    option.setName("messageid")
+      .setDescription("Message ID of the blacklist message")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("growid")
+      .setDescription("New GrowID")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("reason")
+      .setDescription("New reason")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("randommessage")
   .setDescription("Generate a random message."),
   new SlashCommandBuilder()
