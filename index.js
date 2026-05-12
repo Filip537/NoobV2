@@ -103,14 +103,16 @@ const fs = require("fs");
 const cron = require("node-cron");
 const activeInteractions = new Set();
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-  partials: ["CHANNEL"]
+intents: [
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMembers,
+  GatewayIntentBits.GuildModeration,
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.GuildMessageReactions,
+  GatewayIntentBits.DirectMessages,
+  GatewayIntentBits.MessageContent,
+],
+partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
 
 const randomMessageFile = "./randomMessagesUsed.json";
@@ -198,6 +200,10 @@ const NOTE_CHANNEL = "1493571345491955853";
 const OWNER_ID = "1108921222030426172";
 const birthdayRole = "1500307450824232970";
 const BOT_ID = "1444622846729912435";
+const ROLE_LOG_CHANNEL = "1503741904636874756";
+const MESSAGE_LOG_CHANNEL = "1503741879282307072";
+const NICK_LOG_CHANNEL = "1503742032034795720";
+const SUGGESTION_CHANNEL = "1439670516490436710";
 const aiCooldown = new Map();
 // messageId → gamehop
 const sudokuGames = new Map();
@@ -655,6 +661,40 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "suggestion") {
+  const title = interaction.options.getString("title");
+  const feature = interaction.options.getString("feature");
+
+  const channel = await client.channels.fetch(SUGGESTION_CHANNEL).catch(() => null);
+
+  if (!channel) {
+    return interaction.reply({
+      content: "❌ Suggestion channel not found.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(`Suggestion: ${title}`)
+    .setColor("Yellow")
+    .setDescription(feature)
+    .addFields({
+      name: "Suggested By",
+      value: `${interaction.user}`,
+      inline: true
+    })
+    .setTimestamp();
+
+  await channel.send({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
+
+  return interaction.reply({
+    content: "✅ Your suggestion has been sent.",
+    ephemeral: true
+  });
+}
   if (interaction.commandName === "addauction") {
   const item = interaction.options.getString("item");
   const startBid = interaction.options.getInteger("startbid");
@@ -4036,6 +4076,123 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
       "Protected blacklist timeout was removed by an unauthorized user"
     ).catch(() => {});
   }
+});
+async function sendLog(channelId, embed) {
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel) return;
+  await channel.send({ embeds: [embed] }).catch(() => {});
+}
+
+client.on("messageDelete", async (message) => {
+  if (!message.guild || message.author?.bot) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("Message Deleted")
+    .setColor("Red")
+    .addFields(
+      { name: "User", value: `${message.author || "Unknown"}`, inline: true },
+      { name: "Channel", value: `${message.channel}`, inline: true },
+      { name: "Message", value: message.content || "No text / attachment only" }
+    )
+    .setTimestamp();
+
+  await sendLog(MESSAGE_LOG_CHANNEL, embed);
+});
+
+client.on("messageUpdate", async (oldMessage, newMessage) => {
+  if (!newMessage.guild || newMessage.author?.bot) return;
+  if (oldMessage.content === newMessage.content) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("Message Edited")
+    .setColor("Orange")
+    .addFields(
+      { name: "User", value: `${newMessage.author}`, inline: true },
+      { name: "Channel", value: `${newMessage.channel}`, inline: true },
+      { name: "Before", value: oldMessage.content || "Unknown" },
+      { name: "After", value: newMessage.content || "Unknown" }
+    )
+    .setTimestamp();
+
+  await sendLog(MESSAGE_LOG_CHANNEL, embed);
+});
+
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  if (oldMember.nickname !== newMember.nickname) {
+    const embed = new EmbedBuilder()
+      .setTitle("Nickname Changed")
+      .setColor("Blue")
+      .addFields(
+        { name: "User", value: `${newMember.user}`, inline: true },
+        { name: "Before", value: oldMember.nickname || oldMember.user.username, inline: true },
+        { name: "After", value: newMember.nickname || newMember.user.username, inline: true }
+      )
+      .setTimestamp();
+
+    await sendLog(NICK_LOG_CHANNEL, embed);
+  }
+
+  const oldRoles = oldMember.roles.cache;
+  const newRoles = newMember.roles.cache;
+
+  const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+  const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
+
+  if (addedRoles.size > 0 || removedRoles.size > 0) {
+    const embed = new EmbedBuilder()
+      .setTitle("Member Role Updated")
+      .setColor("Purple")
+      .addFields(
+        { name: "User", value: `${newMember.user}`, inline: true },
+        { name: "Roles Added", value: addedRoles.map(r => r.name).join(", ") || "None" },
+        { name: "Roles Removed", value: removedRoles.map(r => r.name).join(", ") || "None" }
+      )
+      .setTimestamp();
+
+    await sendLog(ROLE_LOG_CHANNEL, embed);
+  }
+});
+
+client.on("roleCreate", async (role) => {
+  const embed = new EmbedBuilder()
+    .setTitle("Role Created")
+    .setColor("Green")
+    .addFields(
+      { name: "Role Name", value: role.name, inline: true },
+      { name: "Role ID", value: role.id, inline: true }
+    )
+    .setTimestamp();
+
+  await sendLog(ROLE_LOG_CHANNEL, embed);
+});
+
+client.on("roleDelete", async (role) => {
+  const embed = new EmbedBuilder()
+    .setTitle("Role Deleted")
+    .setColor("Red")
+    .addFields(
+      { name: "Role Name", value: role.name, inline: true },
+      { name: "Role ID", value: role.id, inline: true }
+    )
+    .setTimestamp();
+
+  await sendLog(ROLE_LOG_CHANNEL, embed);
+});
+
+client.on("roleUpdate", async (oldRole, newRole) => {
+  if (oldRole.name === newRole.name) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("Role Name Changed")
+    .setColor("Orange")
+    .addFields(
+      { name: "Before", value: oldRole.name, inline: true },
+      { name: "After", value: newRole.name, inline: true },
+      { name: "Role ID", value: newRole.id, inline: true }
+    )
+    .setTimestamp();
+
+  await sendLog(ROLE_LOG_CHANNEL, embed);
 });
 client.login(process.env.TOKEN);
 

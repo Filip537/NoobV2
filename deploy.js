@@ -509,6 +509,19 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("suggestion")
+  .setDescription("Send a suggestion")
+  .addStringOption(option =>
+    option.setName("title")
+      .setDescription("Suggestion title or command name")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("feature")
+      .setDescription("Explain the feature")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")
 
