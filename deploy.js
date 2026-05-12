@@ -286,6 +286,38 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 
+  new SlashCommandBuilder()
+  .setName("addauction")
+  .setDescription("Create a new auction")
+  .addStringOption(o =>
+    o.setName("item")
+      .setDescription("Item name")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("startbid")
+      .setDescription("Starting bid amount")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("currency")
+      .setDescription("Currency")
+      .setRequired(true)
+      .addChoices(
+        { name: "WL", value: "WL" },
+        { name: "DL", value: "DL" },
+        { name: "BGL", value: "BGL" }
+      )
+  )
+  .addStringOption(o =>
+    o.setName("duration")
+      .setDescription("Auction duration, example: 1h, 12h, 1d")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("auctionlist")
+  .setDescription("View active auctions"),
 new SlashCommandBuilder()
   .setName("teamlist")
   .setDescription("Show confirmed event teams"),

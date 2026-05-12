@@ -33,6 +33,62 @@ const {
 
 const aiMemoryFile = "./aiMemory.json";
 
+const AUCTION_CHANNEL = "1503646000936517752";
+const auctionFile = "./auctions.json";
+const auctionThumbnail = "https://media.discordapp.net/attachments/1446501509708910704/1503647471077691473/New_Piskel_35.png?ex=6a041c55&is=6a02cad5&hm=e841f76e539eed1d9069010d78224e9c87beb1ddf6db934fc1a05055b8721fb0&=&format=webp&quality=lossless";
+
+function loadAuctions() {
+  if (!fs.existsSync(auctionFile)) fs.writeFileSync(auctionFile, "[]");
+  try {
+    return JSON.parse(fs.readFileSync(auctionFile, "utf8"));
+  } catch {
+    fs.writeFileSync(auctionFile, "[]");
+    return [];
+  }
+}
+
+function saveAuctions(data) {
+  fs.writeFileSync(auctionFile, JSON.stringify(data, null, 2));
+}
+
+function makeAuctionId() {
+  return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+}
+
+function parseAuctionDuration(input) {
+  if (!input) return Date.now() + 24 * 60 * 60 * 1000;
+
+  const match = input.match(/^(\d+)(m|h|d)$/i);
+  if (!match) return Date.now() + 24 * 60 * 60 * 1000;
+
+  const amount = Number(match[1]);
+  const type = match[2].toLowerCase();
+
+  if (type === "m") return Date.now() + amount * 60 * 1000;
+  if (type === "h") return Date.now() + amount * 60 * 60 * 1000;
+  if (type === "d") return Date.now() + amount * 24 * 60 * 60 * 1000;
+
+  return Date.now() + 24 * 60 * 60 * 1000;
+}
+
+function buildAuctionEmbed(auction) {
+  return new EmbedBuilder()
+    .setTitle("Auction House")
+    .setColor("Yellow")
+    .setThumbnail(auctionThumbnail)
+    .setDescription(
+      `**Item:** ${auction.item}\n` +
+      `**Seller:** <@${auction.ownerId}>\n\n` +
+      `**Starting Bid:** ${auction.startBid} ${auction.currency}\n` +
+      `**Current Bid:** ${auction.currentBid ? `${auction.currentBid} ${auction.currency}` : "No bids yet"}\n` +
+      `**Highest Bidder:** ${auction.highestBidder ? `<@${auction.highestBidder}>` : "None"}\n\n` +
+      `**Status:** ${auction.status}\n` +
+      `**Ends:** <t:${Math.floor(auction.endsAt / 1000)}:R>`
+    )
+    .setFooter({ text: `Auction ID: ${auction.auctionId}` })
+    .setTimestamp();
+}
+
 function loadAiMemory() {
   if (!fs.existsSync(aiMemoryFile)) {
     fs.writeFileSync(aiMemoryFile, "{}");
@@ -599,6 +655,101 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "addauction") {
+  const item = interaction.options.getString("item");
+  const startBid = interaction.options.getInteger("startbid");
+  const currency = interaction.options.getString("currency");
+  const duration = interaction.options.getString("duration") || "1d";
+
+  if (startBid <= 0) {
+    return interaction.reply({
+      content: "❌ Starting bid must be higher than 0.",
+      ephemeral: true
+    });
+  }
+
+  const auctionId = makeAuctionId();
+  const endsAt = parseAuctionDuration(duration);
+
+  const auction = {
+    auctionId,
+    item,
+    ownerId: interaction.user.id,
+    ownerTag: interaction.user.tag,
+    startBid,
+    currency,
+    currentBid: null,
+    highestBidder: null,
+    messageId: null,
+    channelId: AUCTION_CHANNEL,
+    status: "Preview",
+    createdAt: Date.now(),
+    endsAt
+  };
+
+  const previewEmbed = buildAuctionEmbed(auction)
+    .setTitle("Auction Preview")
+    .setDescription(
+      `Please confirm if you want to post this auction.\n\n` +
+      `**Item:** ${item}\n` +
+      `**Starting Bid:** ${startBid} ${currency}\n` +
+      `**Duration:** ${duration}\n` +
+      `**Auction Channel:** <#${AUCTION_CHANNEL}>`
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`auction_preview_yes_${auctionId}`)
+      .setLabel("Yes, Post Auction")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`auction_preview_no_${auctionId}`)
+      .setLabel("No, Cancel")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const auctions = loadAuctions();
+  auctions.push(auction);
+  saveAuctions(auctions);
+
+  return interaction.reply({
+    embeds: [previewEmbed],
+    components: [row],
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "auctionlist") {
+  const auctions = loadAuctions().filter(a => a.status === "Active");
+
+  if (auctions.length === 0) {
+    return interaction.reply({
+      content: "❌ There are no active auctions right now.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("Active Auctions")
+    .setColor("Yellow")
+    .setThumbnail(auctionThumbnail)
+    .setDescription(
+      auctions.slice(0, 10).map((a, i) =>
+        `**${i + 1}. ${a.item}**\n` +
+        `Seller: <@${a.ownerId}>\n` +
+        `Current Bid: ${a.currentBid ? `${a.currentBid} ${a.currency}` : `${a.startBid} ${a.currency}`}\n` +
+        `Highest Bidder: ${a.highestBidder ? `<@${a.highestBidder}>` : "None"}\n` +
+        `Ends: <t:${Math.floor(a.endsAt / 1000)}:R>`
+      ).join("\n\n")
+    )
+    .setFooter({ text: `Showing ${Math.min(auctions.length, 10)} of ${auctions.length} auctions` });
+
+  return interaction.reply({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
+}
+
   if (interaction.commandName === "editblist") {
   const GUARDIAN_ROLE_ID = "1483241188868882657";
 
@@ -2934,6 +3085,70 @@ return interaction.update({
  }
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+  if (interaction.customId.startsWith("auction_bid_modal_")) {
+  const auctionId = interaction.customId.replace("auction_bid_modal_", "");
+  const bidText = interaction.fields.getTextInputValue("auction_bid_amount").trim();
+  const bidAmount = Number(bidText);
+
+  if (!Number.isInteger(bidAmount) || bidAmount <= 0) {
+    return interaction.reply({
+      content: "❌ Please enter a valid number.",
+      ephemeral: true
+    });
+  }
+
+  const auctions = loadAuctions();
+  const auction = auctions.find(a => a.auctionId === auctionId);
+
+  if (!auction || auction.status !== "Active") {
+    return interaction.reply({
+      content: "❌ This auction is no longer active.",
+      ephemeral: true
+    });
+  }
+
+  const minimumBid = auction.currentBid || auction.startBid;
+
+  if (bidAmount <= minimumBid) {
+    return interaction.reply({
+      content: `❌ Your bid must be higher than **${minimumBid} ${auction.currency}**.`,
+      ephemeral: true
+    });
+  }
+
+  auction.currentBid = bidAmount;
+  auction.highestBidder = interaction.user.id;
+  saveAuctions(auctions);
+
+  const auctionChannel = await client.channels.fetch(auction.channelId).catch(() => null);
+  const auctionMessage = auctionChannel
+    ? await auctionChannel.messages.fetch(auction.messageId).catch(() => null)
+    : null;
+
+  if (auctionMessage) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`auction_bid_${auctionId}`)
+        .setLabel("Start Bidding")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`auction_confirm_${auctionId}`)
+        .setLabel("Confirm Winner")
+        .setStyle(ButtonStyle.Success)
+    );
+
+    await auctionMessage.edit({
+      embeds: [buildAuctionEmbed(auction)],
+      components: [row],
+      allowedMentions: { parse: [] }
+    });
+  }
+
+  return interaction.reply({
+    content: `✅ Your bid of **${bidAmount} ${auction.currency}** has been placed.`,
+    ephemeral: true
+  });
+}
 if (interaction.customId.startsWith("comment_modal_")) {
   const storyId = interaction.customId.replace("comment_modal_", "");
   const comment = interaction.fields.getTextInputValue("comment_input");
@@ -3069,6 +3284,135 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("auction_preview_yes_")) {
+  const auctionId = interaction.customId.replace("auction_preview_yes_", "");
+  const auctions = loadAuctions();
+  const auction = auctions.find(a => a.auctionId === auctionId);
+
+  if (!auction) {
+    return interaction.reply({ content: "❌ Auction not found.", ephemeral: true });
+  }
+
+  if (auction.ownerId !== interaction.user.id) {
+    return interaction.reply({ content: "❌ Only the auction creator can confirm this.", ephemeral: true });
+  }
+
+  const auctionChannel = await client.channels.fetch(AUCTION_CHANNEL).catch(() => null);
+
+  if (!auctionChannel) {
+    return interaction.reply({ content: "❌ Auction channel not found.", ephemeral: true });
+  }
+
+  auction.status = "Active";
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`auction_bid_${auctionId}`)
+      .setLabel("Start Bidding")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`auction_confirm_${auctionId}`)
+      .setLabel("Confirm Winner")
+      .setStyle(ButtonStyle.Success)
+  );
+
+  const sent = await auctionChannel.send({
+    embeds: [buildAuctionEmbed(auction)],
+    components: [row],
+    allowedMentions: { parse: [] }
+  });
+
+  auction.messageId = sent.id;
+  saveAuctions(auctions);
+
+  return interaction.update({
+    content: `✅ Auction posted in <#${AUCTION_CHANNEL}>.`,
+    embeds: [],
+    components: []
+  });
+}
+
+if (interaction.customId.startsWith("auction_preview_no_")) {
+  const auctionId = interaction.customId.replace("auction_preview_no_", "");
+  let auctions = loadAuctions();
+
+  const auction = auctions.find(a => a.auctionId === auctionId);
+
+  if (auction && auction.ownerId !== interaction.user.id) {
+    return interaction.reply({ content: "❌ Only the auction creator can cancel this.", ephemeral: true });
+  }
+
+  auctions = auctions.filter(a => a.auctionId !== auctionId);
+  saveAuctions(auctions);
+
+  return interaction.update({
+    content: "❌ Auction cancelled.",
+    embeds: [],
+    components: []
+  });
+}
+
+if (interaction.customId.startsWith("auction_bid_")) {
+  const auctionId = interaction.customId.replace("auction_bid_", "");
+  const auctions = loadAuctions();
+  const auction = auctions.find(a => a.auctionId === auctionId);
+
+  if (!auction || auction.status !== "Active") {
+    return interaction.reply({ content: "❌ This auction is no longer active.", ephemeral: true });
+  }
+
+  if (auction.ownerId === interaction.user.id) {
+    return interaction.reply({ content: "❌ You cannot bid on your own auction.", ephemeral: true });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId(`auction_bid_modal_${auctionId}`)
+    .setTitle("Place Your Bid");
+
+  const bidInput = new TextInputBuilder()
+    .setCustomId("auction_bid_amount")
+    .setLabel(`Enter your bid in ${auction.currency}`)
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(`Must be higher than ${auction.currentBid || auction.startBid}`)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(bidInput));
+
+  return interaction.showModal(modal);
+}
+
+if (interaction.customId.startsWith("auction_confirm_")) {
+  const auctionId = interaction.customId.replace("auction_confirm_", "");
+  const auctions = loadAuctions();
+  const auction = auctions.find(a => a.auctionId === auctionId);
+
+  if (!auction) {
+    return interaction.reply({ content: "❌ Auction not found.", ephemeral: true });
+  }
+
+  if (auction.ownerId !== interaction.user.id) {
+    return interaction.reply({ content: "❌ Only the auction owner can confirm the winner.", ephemeral: true });
+  }
+
+  auction.status = "Ended";
+  saveAuctions(auctions);
+
+  const embed = buildAuctionEmbed(auction)
+    .setColor("Green")
+    .setTitle("Auction Ended")
+    .setDescription(
+      `**Item:** ${auction.item}\n` +
+      `**Seller:** <@${auction.ownerId}>\n\n` +
+      `**Final Bid:** ${auction.currentBid ? `${auction.currentBid} ${auction.currency}` : "No bids"}\n` +
+      `**Winner:** ${auction.highestBidder ? `<@${auction.highestBidder}>` : "No winner"}\n\n` +
+      `**Status:** Ended`
+    );
+
+  return interaction.update({
+    embeds: [embed],
+    components: []
+  });
+}
   if (
   interaction.customId.startsWith("team_agree_") ||
   interaction.customId.startsWith("team_decline_")
