@@ -210,7 +210,12 @@ const sudokuGames = new Map();
 
 const teamsFile = "./teams.json";
 const TEAM_LOG_CHANNEL = "1502320280691806258";
+const UPDATE_BROADCAST_CHANNEL = "1501004255014686780";
+const updateBroadcastCooldown = new Set();
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 function loadTeams() {
   if (!fs.existsSync(teamsFile)) {
     fs.writeFileSync(teamsFile, "[]");
@@ -3997,6 +4002,52 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
+  // ================= UPDATE BROADCAST DM SYSTEM =================
+if (message.channel.id === UPDATE_BROADCAST_CHANNEL) {
+  if (updateBroadcastCooldown.has(message.id)) return;
+
+  updateBroadcastCooldown.add(message.id);
+
+  await message.channel.send({
+    content: "✅ Update notification is being sent to server members."
+  }).catch(() => {});
+
+  const members = await message.guild.members.fetch().catch(() => null);
+  if (!members) return;
+
+  let sent = 0;
+  let failed = 0;
+
+  const updateMessage =
+`**A new NoobV2 update has been released!**
+
+Please check the update channel for the latest changes:
+<#${UPDATE_BROADCAST_CHANNEL}>`;
+
+  for (const member of members.values()) {
+    if (member.user.bot) continue;
+
+    await member.send({
+      content: updateMessage
+    }).then(() => {
+      sent++;
+    }).catch(() => {
+      failed++;
+    });
+
+    await wait(1200); // prevents DM rate-limit spam
+  }
+
+  await message.channel.send({
+    content: `✅ Update DM broadcast completed.\nSent: **${sent}**\nFailed: **${failed}**`
+  }).catch(() => {});
+
+  setTimeout(() => {
+    updateBroadcastCooldown.delete(message.id);
+  }, 10 * 60 * 1000);
+
+  return;
+}
 if (message.channel.id === PAY_CHANNEL) {
 
   const levels = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
