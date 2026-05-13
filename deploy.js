@@ -16,6 +16,43 @@ const commands = [
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
+    new SlashCommandBuilder()
+  .setName("marketadd")
+  .setDescription("Create a marketplace listing")
+  .addStringOption(option =>
+    option.setName("itemname")
+      .setDescription("Item name")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("price")
+      .setDescription("Item price")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("world")
+      .setDescription("World name")
+      .setRequired(true)
+  )
+  .addIntegerOption(option =>
+    option.setName("amount")
+      .setDescription("Item amount")
+      .setRequired(true)
+  )
+  .addAttachmentOption(option =>
+    option.setName("image")
+      .setDescription("Item image optional")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("marketsearch")
+  .setDescription("Search marketplace listings")
+  .addStringOption(option =>
+    option.setName("item")
+      .setDescription("Item name to search")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")

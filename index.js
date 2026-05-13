@@ -37,6 +37,47 @@ const AUCTION_CHANNEL = "1503646000936517752";
 const auctionFile = "./auctions.json";
 const auctionThumbnail = "https://media.discordapp.net/attachments/1446501509708910704/1503647471077691473/New_Piskel_35.png?ex=6a041c55&is=6a02cad5&hm=e841f76e539eed1d9069010d78224e9c87beb1ddf6db934fc1a05055b8721fb0&=&format=webp&quality=lossless";
 
+const MARKET_CHANNEL = "1503918963392909424";
+const marketFile = "./market.json";
+
+function loadMarket() {
+  if (!fs.existsSync(marketFile)) fs.writeFileSync(marketFile, "[]");
+
+  try {
+    return JSON.parse(fs.readFileSync(marketFile, "utf8"));
+  } catch {
+    fs.writeFileSync(marketFile, "[]");
+    return [];
+  }
+}
+
+function saveMarket(data) {
+  fs.writeFileSync(marketFile, JSON.stringify(data, null, 2));
+}
+
+function makeMarketId() {
+  return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+}
+
+function buildMarketEmbed(listing) {
+  const embed = new EmbedBuilder()
+    .setTitle(listing.sold ? "Marketplace Listing - SOLD OUT" : "Marketplace Listing")
+    .setColor(listing.sold ? "Red" : "Green")
+    .addFields(
+      { name: "Item Name", value: listing.itemName, inline: true },
+      { name: "Price", value: listing.price, inline: true },
+      { name: "World", value: listing.worldName, inline: true },
+      { name: "Amount", value: String(listing.amount), inline: true },
+      { name: "Seller", value: `<@${listing.sellerId}>`, inline: true },
+      { name: "Status", value: listing.sold ? "Sold Out" : "Available", inline: true }
+    )
+    .setFooter({ text: `Market ID: ${listing.marketId}` })
+    .setTimestamp();
+
+  if (listing.imageUrl) embed.setImage(listing.imageUrl);
+
+  return embed;
+}
 function loadAuctions() {
   if (!fs.existsSync(auctionFile)) fs.writeFileSync(auctionFile, "[]");
   try {
@@ -666,6 +707,120 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "marketadd") {
+    const itemName = interaction.options.getString("itemname");
+    const price = interaction.options.getString("price");
+    const worldName = interaction.options.getString("world");
+    const amount = interaction.options.getInteger("amount");
+    const image = interaction.options.getAttachment("image");
+  
+    if (amount <= 0) {
+      return interaction.reply({
+        content: "❌ Amount must be higher than 0.",
+        ephemeral: true
+      });
+    }
+  
+    const marketChannel = await client.channels.fetch(MARKET_CHANNEL).catch(() => null);
+  
+    if (!marketChannel) {
+      return interaction.reply({
+        content: "❌ Marketplace channel not found.",
+        ephemeral: true
+      });
+    }
+  
+    const marketId = makeMarketId();
+  
+    const listing = {
+      marketId,
+      sellerId: interaction.user.id,
+      sellerTag: interaction.user.tag,
+      itemName,
+      price,
+      worldName,
+      amount,
+      imageUrl: image ? image.url : null,
+      messageId: null,
+      channelId: MARKET_CHANNEL,
+      sold: false,
+      createdAt: Date.now(),
+      soldAt: null
+    };
+  
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`market_sold_${marketId}`)
+        .setLabel("Marked as Sold Out")
+        .setStyle(ButtonStyle.Danger)
+    );
+  
+    const sent = await marketChannel.send({
+      embeds: [buildMarketEmbed(listing)],
+      components: [row],
+      allowedMentions: { parse: [] }
+    });
+  
+    listing.messageId = sent.id;
+  
+    const listings = loadMarket();
+    listings.push(listing);
+    saveMarket(listings);
+  
+    await interaction.user.send({
+      content:
+  `✅ Your marketplace listing has been posted.
+  
+  Item: **${itemName}**
+  World: **${worldName}**
+  Price: **${price}**
+  Amount: **${amount}**
+  
+  Please don't forget to click **Marked as Sold Out** once your item is sold out.`
+    }).catch(() => {});
+  
+    return interaction.reply({
+      content: `✅ Your market listing has been posted in <#${MARKET_CHANNEL}>.`,
+      ephemeral: true
+    });
+  }
+  
+  if (interaction.commandName === "marketsearch") {
+    const query = interaction.options.getString("item").toLowerCase();
+    const listings = loadMarket();
+  
+    const results = listings.filter(listing =>
+      !listing.sold &&
+      listing.itemName.toLowerCase().includes(query)
+    );
+  
+    if (results.length === 0) {
+      return interaction.reply({
+        content: "❌ No available marketplace listings found for that item.",
+        ephemeral: true
+      });
+    }
+  
+    const embed = new EmbedBuilder()
+      .setTitle("Marketplace Search Results")
+      .setColor("Green")
+      .setDescription(
+        results.slice(0, 10).map((listing, index) =>
+          `**${index + 1}. ${listing.itemName}**\n` +
+          `Price: ${listing.price}\n` +
+          `World: ${listing.worldName}\n` +
+          `Amount: ${listing.amount}\n` +
+          `Seller: <@${listing.sellerId}>\n` +
+          `Posted: <t:${Math.floor(listing.createdAt / 1000)}:R>`
+        ).join("\n\n")
+      )
+      .setFooter({ text: `Found ${results.length} available listing(s)` });
+  
+    return interaction.reply({
+      embeds: [embed],
+      allowedMentions: { parse: [] }
+    });
+  }
   if (interaction.commandName === "suggestion") {
   const title = interaction.options.getString("title");
   const feature = interaction.options.getString("feature");
@@ -3329,6 +3484,44 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId.startsWith("market_sold_")) {
+    const marketId = interaction.customId.replace("market_sold_", "");
+    const listings = loadMarket();
+    const listing = listings.find(x => x.marketId === marketId);
+  
+    if (!listing) {
+      return interaction.reply({
+        content: "❌ Market listing not found.",
+        ephemeral: true
+      });
+    }
+  
+    if (interaction.user.id !== listing.sellerId && !interaction.member.permissions.has("Administrator")) {
+      return interaction.reply({
+        content: "❌ Only the seller or an administrator can mark this as sold out.",
+        ephemeral: true
+      });
+    }
+  
+    if (listing.sold) {
+      return interaction.reply({
+        content: "❌ This item is already marked as sold out.",
+        ephemeral: true
+      });
+    }
+  
+    listing.sold = true;
+    listing.soldAt = Date.now();
+    saveMarket(listings);
+  
+    const soldEmbed = buildMarketEmbed(listing);
+  
+    return interaction.update({
+      embeds: [soldEmbed],
+      components: [],
+      allowedMentions: { parse: [] }
+    });
+  }
   if (interaction.customId.startsWith("auction_preview_yes_")) {
   const auctionId = interaction.customId.replace("auction_preview_yes_", "");
   const auctions = loadAuctions();
