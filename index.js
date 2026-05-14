@@ -857,6 +857,53 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+
+  if (
+    interaction.isStringSelectMenu() &&
+    interaction.customId.startsWith("wikiitem_menu:")
+  ) {
+    const [, cacheId, userId] = interaction.customId.split(":");
+
+    if (interaction.user.id !== userId) {
+      return interaction.reply({
+        content: "❌ This dropdown is not for you.",
+        ephemeral: true
+      });
+    }
+
+    const data = wikiItemCache.get(cacheId);
+
+    if (!data) {
+      return interaction.reply({
+        content: "❌ Menu expired. Use /wikiitem again.",
+        ephemeral: true
+      });
+    }
+
+    const selected = interaction.values[0];
+
+    const embed = new EmbedBuilder()
+      .setColor("Yellow");
+
+    if (selected === "splice") {
+      embed
+        .setTitle(`${data.title} - Splice`)
+        .setDescription(data.splice || "This item is **unsplicable**.");
+    } else {
+      embed
+        .setTitle(data.title)
+        .setDescription(data.description);
+    }
+
+    if (data.image) {
+      embed.setThumbnail(data.image);
+    }
+
+    return interaction.update({
+      embeds: [embed],
+      components: interaction.message.components
+    });
+  }
 if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") {
   const item = interaction.options.getString("item");
 
@@ -2967,53 +3014,7 @@ if (interaction.commandName === "addbirthday") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
-  if (
-  interaction.isStringSelectMenu() &&
-  interaction.customId.startsWith("wikiitem_menu:")
-) {
-  const [, cacheId, userId] = interaction.customId.split(":");
 
-  if (interaction.user.id !== userId) {
-    return interaction.reply({
-      content: "❌ This menu is not yours.",
-      ephemeral: true
-    });
-  }
-
-  const data = wikiItemCache.get(cacheId);
-
-  if (!data) {
-    return interaction.reply({
-      content: "❌ Menu expired. Use /wikiitem again.",
-      ephemeral: true
-    });
-  }
-
-  const selected = interaction.values[0];
-
-  let embed;
-
-  if (selected === "splice") {
-    embed = new EmbedBuilder()
-      .setTitle(`${data.title} - Splice`)
-      .setColor("Yellow")
-      .setDescription(data.splice);
-
-    if (data.image) embed.setThumbnail(data.image);
-
-  } else {
-    embed = new EmbedBuilder()
-      .setTitle(data.title)
-      .setColor("Yellow")
-      .setDescription(data.description);
-
-    if (data.image) embed.setThumbnail(data.image);
-  }
-
-  return interaction.update({
-    embeds: [embed]
-  });
-}
   if (interaction.customId === "guildlist_filter") {
   const selected = interaction.values[0];
   const members = loadGuildMembers();
