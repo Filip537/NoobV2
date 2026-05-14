@@ -328,63 +328,48 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
-async function getWikiItem(itemName) {
-  const pageName = itemName.trim().replace(/\s+/g, "_");
-  const url = `https://growtopiawiki.com/wiki/${pageName}`;
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "NoobV2 Wiki Sync Bot"
-    },
-    redirect: "follow"
+async function getWikiItem(itemName) {
+  const searchUrl =
+    "https://growtopiawiki.com/api.php?action=query&list=search&srsearch=" +
+    encodeURIComponent(itemName) +
+    "&format=json";
+
+  const searchRes = await fetch(searchUrl, {
+    headers: { "User-Agent": "NoobV2 Wiki Sync Bot" }
   });
 
-  if (!res.ok) return null;
+  if (!searchRes.ok) return null;
 
-  const finalUrl = res.url || url;
-  const html = await res.text();
-  const $ = cheerio.load(html);
+  const searchData = await searchRes.json();
+  const firstResult = searchData?.query?.search?.[0];
 
-  const pageTitle = $("h1").first().text().trim();
+  if (!firstResult) return null;
 
-  if (
-    !pageTitle ||
-    pageTitle.toLowerCase() === "growtopia wiki" ||
-    finalUrl === "https://growtopiawiki.com/" ||
-    html.includes("Your one-stop hub for items, events, guides, and updates")
-  ) {
-    return null;
-  }
+  const title = firstResult.title;
 
-  let image =
-    $(".infobox img").first().attr("src") ||
-    $("table img").first().attr("src") ||
-    $("img").filter((i, el) => {
-      const src = $(el).attr("src") || "";
-      return src.includes("/images/") || src.includes("static");
-    }).first().attr("src");
+  const detailUrl =
+    "https://growtopiawiki.com/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&pithumbsize=250&redirects=1&titles=" +
+    encodeURIComponent(title) +
+    "&format=json";
 
-  if (image && image.startsWith("//")) image = "https:" + image;
-  if (image && image.startsWith("/")) image = "https://growtopiawiki.com" + image;
+  const detailRes = await fetch(detailUrl, {
+    headers: { "User-Agent": "NoobV2 Wiki Sync Bot" }
+  });
 
-  let description =
-    $(".mw-parser-output > p").filter((i, el) => {
-      const text = $(el).text().replace(/\s+/g, " ").trim();
-      return text.length > 30 && !text.toLowerCase().includes("growtopia wiki");
-    }).first().text().replace(/\s+/g, " ").trim();
+  if (!detailRes.ok) return null;
 
-  if (!description) {
-    description =
-      $(".infobox").first().text().replace(/\s+/g, " ").trim().slice(0, 800);
-  }
+  const detailData = await detailRes.json();
+  const pages = detailData?.query?.pages;
+  const page = pages ? Object.values(pages)[0] : null;
 
-  if (!description) description = "No item description found on the wiki page.";
+  if (!page || page.missing) return null;
 
   return {
-    title: pageTitle,
-    description,
-    image,
-    url: finalUrl
+    title: page.title,
+    description: page.extract || "No description found.",
+    image: page.thumbnail?.source || null,
+    url: "https://growtopiawiki.com/wiki/" + encodeURIComponent(page.title.replace(/\s+/g, "_"))
   };
 }
 async function scanBlacklistChannel() {
