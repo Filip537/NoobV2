@@ -329,86 +329,155 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
+async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+  const controller = new AbortController();
 
-async function getWikiItem(itemName) {
-  const searchUrl =
-    "https://growtopiawiki.com/api.php?action=query&list=search&srsearch=" +
-    encodeURIComponent(itemName) +
-    "&format=json";
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
-  const searchRes = await fetch(searchUrl, {
-    headers: { "User-Agent": "NoobV2 Wiki Sync Bot" }
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
 
-  if (!searchRes.ok) return null;
-
-  const searchData = await searchRes.json();
-  const firstResult = searchData?.query?.search?.[0];
-  if (!firstResult) return null;
-
-  const title = firstResult.title;
-
-  const parseUrl =
-    "https://growtopiawiki.com/api.php?action=parse&page=" +
-    encodeURIComponent(title) +
-    "&prop=text|displaytitle&format=json";
-
-  const parseRes = await fetch(parseUrl, {
-    headers: { "User-Agent": "NoobV2 Wiki Sync Bot" }
-  });
-
-  if (!parseRes.ok) return null;
-
-  const parseData = await parseRes.json();
-  const html = parseData?.parse?.text?.["*"];
-  if (!html) return null;
-
-  const $ = cheerio.load(html);
-  const content = $(".mw-parser-output");
-
-  const description =
-    content.children("p").first().text().replace(/\s+/g, " ").trim() ||
-    "No description found.";
-
-  const image =
-    content.find(".infobox img, .itembox img, img").first().attr("src");
-
-  function getSectionText(sectionId) {
-    const span = $(`#${sectionId}`);
-    if (!span.length) return null;
-
-    const heading = span.closest("h2, h3");
-    let texts = [];
-
-    let node = heading.next();
-    while (node.length && !["H2", "H3"].includes(node[0].tagName?.toUpperCase())) {
-      const txt = node.text().replace(/\s+/g, " ").trim();
-      if (txt) texts.push(txt);
-      node = node.next();
-    }
-
-    return texts.join("\n\n").trim() || null;
+    return response;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const spliceText =
-    getSectionText("Splicing") ||
-    getSectionText("Splice") ||
-    null;
-
-  const possibilitiesText =
-    getSectionText("Possibilities") ||
-    null;
-
-  return {
-    title,
-    description,
-    image: image ? `https://growtopiawiki.com${image}` : null,
-    splice: spliceText || "This item is **unsplicable**.",
-    possibilities: possibilitiesText || "No possibilities found.",
-    url: "https://growtopiawiki.com/wiki/" + encodeURIComponent(title.replace(/\s+/g, "_"))
-  };
 }
 
+async function getWikiItem(itemName) {
+  try {
+    // Search item first
+    const searchUrl =
+      "https://growtopiawiki.com/api.php?action=query&list=search&srsearch=" +
+      encodeURIComponent(itemName) +
+      "&format=json";
+
+    const searchRes = await fetchWithTimeout(
+      searchUrl,
+      {
+        headers: {
+          "User-Agent": "NoobV2 Wiki Sync Bot"
+        }
+      },
+      8000
+    );
+
+    if (!searchRes.ok) return null;
+
+    const searchData = await searchRes.json();
+
+    const firstResult = searchData?.query?.search?.[0];
+
+    if (!firstResult) return null;
+
+    const title = firstResult.title;
+
+    // Load page content
+    const parseUrl =
+      "https://growtopiawiki.com/api.php?action=parse&page=" +
+      encodeURIComponent(title) +
+      "&prop=text|displaytitle&format=json";
+
+    const parseRes = await fetchWithTimeout(
+      parseUrl,
+      {
+        headers: {
+          "User-Agent": "NoobV2 Wiki Sync Bot"
+        }
+      },
+      8000
+    );
+
+    if (!parseRes.ok) return null;
+
+    const parseData = await parseRes.json();
+
+    const html = parseData?.parse?.text?.["*"];
+
+    if (!html) return null;
+
+    const $ = cheerio.load(html);
+
+    const content = $(".mw-parser-output");
+
+    // Main description
+    const description =
+      content
+        .children("p")
+        .first()
+        .text()
+        .replace(/\s+/g, " ")
+        .trim() || "No description found.";
+
+    // Image
+    const image =
+      content.find(".infobox img, .itembox img, img").first().attr("src");
+
+    // Helper for sections
+    function extractSection(sectionName) {
+      const section = $(`#${sectionName}`);
+
+      if (!section.length) return null;
+
+      const heading = section.closest("h2, h3");
+
+      let textParts = [];
+
+      let current = heading.next();
+
+      while (
+        current.length &&
+        !["H2", "H3"].includes(
+          current[0]?.tagName?.toUpperCase()
+        )
+      ) {
+        const txt = current.text().replace(/\s+/g, " ").trim();
+
+        if (txt) {
+          textParts.push(txt);
+        }
+
+        current = current.next();
+      }
+
+      return textParts.join("\n\n").trim();
+    }
+
+    // Splice section
+    const splice =
+      extractSection("Splicing") ||
+      extractSection("Splice") ||
+      "This item is **unsplicable**.";
+
+    // Possibilities section
+    const possibilities =
+      extractSection("Possibilities") ||
+      "No possibilities found.";
+
+    return {
+      title,
+      description,
+      image: image
+        ? `https://growtopiawiki.com${image}`
+        : null,
+      splice,
+      possibilities,
+      url:
+        "https://growtopiawiki.com/wiki/" +
+        encodeURIComponent(
+          title.replace(/\s+/g, "_")
+        )
+    };
+
+  } catch (error) {
+    console.error("Wiki fetch error:", error);
+    return null;
+  }
+}
 async function scanBlacklistChannel() {
   const channel = await client.channels.fetch(APPROVED_CHANNEL).catch(() => null);
   if (!channel) return { scanned: 0 };
@@ -808,12 +877,22 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-if (interaction.commandName === "wikiitem") {
+if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") {
   const item = interaction.options.getString("item");
 
   await interaction.deferReply();
 
-  const data = await getWikiItem(item);
+  let data;
+
+  try {
+    data = await getWikiItem(item);
+  } catch (err) {
+    console.error("Wiki item error:", err);
+
+    return interaction.editReply({
+      content: "❌ Growtopia Wiki took too long to respond. Please try again."
+    });
+  }
 
   if (!data) {
     return interaction.editReply({
