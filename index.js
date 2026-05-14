@@ -329,7 +329,7 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
-async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+async function fetchWithTimeout(url, options = {}, timeout = 3000) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
@@ -363,7 +363,7 @@ async function getWikiItem(itemName) {
           "User-Agent": "NoobV2 Wiki Sync Bot"
         }
       },
-      8000
+      3000
     );
 
     if (!searchRes.ok) return null;
@@ -389,7 +389,7 @@ async function getWikiItem(itemName) {
           "User-Agent": "NoobV2 Wiki Sync Bot"
         }
       },
-      8000
+      3000
     );
 
     if (!parseRes.ok) return null;
@@ -884,15 +884,15 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
 
   let data;
 
-  try {
-    data = await getWikiItem(item);
-  } catch (err) {
-    console.error("Wiki item error:", err);
+try {
+  data = await getWikiItem(item);
+} catch (err) {
+  console.error("Wiki item error:", err);
 
-    return interaction.editReply({
-      content: "❌ Growtopia Wiki took too long to respond. Please try again."
-    });
-  }
+  return interaction.editReply({
+    content: "❌ Growtopia Wiki is taking too long. Please try again in a few seconds."
+  });
+}
 
   if (!data) {
     return interaction.editReply({
