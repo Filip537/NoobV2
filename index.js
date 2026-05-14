@@ -1,5 +1,6 @@
 require("dotenv").config();
 const cheerio = require("cheerio");
+const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Rejection:", err);
@@ -343,35 +344,71 @@ async function getWikiItem(itemName) {
 
   const searchData = await searchRes.json();
   const firstResult = searchData?.query?.search?.[0];
-
   if (!firstResult) return null;
 
   const title = firstResult.title;
 
-  const detailUrl =
-    "https://growtopiawiki.com/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&pithumbsize=250&redirects=1&titles=" +
+  const parseUrl =
+    "https://growtopiawiki.com/api.php?action=parse&page=" +
     encodeURIComponent(title) +
-    "&format=json";
+    "&prop=text|displaytitle&format=json";
 
-  const detailRes = await fetch(detailUrl, {
+  const parseRes = await fetch(parseUrl, {
     headers: { "User-Agent": "NoobV2 Wiki Sync Bot" }
   });
 
-  if (!detailRes.ok) return null;
+  if (!parseRes.ok) return null;
 
-  const detailData = await detailRes.json();
-  const pages = detailData?.query?.pages;
-  const page = pages ? Object.values(pages)[0] : null;
+  const parseData = await parseRes.json();
+  const html = parseData?.parse?.text?.["*"];
+  if (!html) return null;
 
-  if (!page || page.missing) return null;
+  const $ = cheerio.load(html);
+  const content = $(".mw-parser-output");
+
+  const description =
+    content.children("p").first().text().replace(/\s+/g, " ").trim() ||
+    "No description found.";
+
+  const image =
+    content.find(".infobox img, .itembox img, img").first().attr("src");
+
+  function getSectionText(sectionId) {
+    const span = $(`#${sectionId}`);
+    if (!span.length) return null;
+
+    const heading = span.closest("h2, h3");
+    let texts = [];
+
+    let node = heading.next();
+    while (node.length && !["H2", "H3"].includes(node[0].tagName?.toUpperCase())) {
+      const txt = node.text().replace(/\s+/g, " ").trim();
+      if (txt) texts.push(txt);
+      node = node.next();
+    }
+
+    return texts.join("\n\n").trim() || null;
+  }
+
+  const spliceText =
+    getSectionText("Splicing") ||
+    getSectionText("Splice") ||
+    null;
+
+  const possibilitiesText =
+    getSectionText("Possibilities") ||
+    null;
 
   return {
-    title: page.title,
-    description: page.extract || "No description found.",
-    image: page.thumbnail?.source || null,
-    url: "https://growtopiawiki.com/wiki/" + encodeURIComponent(page.title.replace(/\s+/g, "_"))
+    title,
+    description,
+    image: image ? `https://growtopiawiki.com${image}` : null,
+    splice: spliceText || "This item is **unsplicable**.",
+    possibilities: possibilitiesText || "No possibilities found.",
+    url: "https://growtopiawiki.com/wiki/" + encodeURIComponent(title.replace(/\s+/g, "_"))
   };
 }
+
 async function scanBlacklistChannel() {
   const channel = await client.channels.fetch(APPROVED_CHANNEL).catch(() => null);
   if (!channel) return { scanned: 0 };
@@ -771,7 +808,7 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "wikiitem") {
+if (interaction.commandName === "wikiitem") {
   const item = interaction.options.getString("item");
 
   await interaction.deferReply();
@@ -784,18 +821,45 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
+  const cacheId = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+  wikiItemCache.set(cacheId, data);
+
+  setTimeout(() => wikiItemCache.delete(cacheId), 10 * 60 * 1000);
+
   const embed = new EmbedBuilder()
     .setTitle(data.title)
     .setURL(data.url)
     .setColor("Yellow")
-    .setDescription(data.description.slice(0, 1000))
-    .setFooter({ text: "Synced from growtopiawiki.com" })
-    .setTimestamp();
+    .setDescription(data.description.slice(0, 1000));
 
   if (data.image) embed.setThumbnail(data.image);
 
+  const row = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`wikiitem_menu:${cacheId}:${interaction.user.id}`)
+      .setPlaceholder("Choose item section")
+      .addOptions(
+        {
+          label: "Main",
+          description: "Item name and description",
+          value: "main"
+        },
+        {
+          label: "Splice",
+          description: "Show splicing recipe",
+          value: "splice"
+        },
+        {
+          label: "Possibilities",
+          description: "Show item possibilities",
+          value: "possibilities"
+        }
+      )
+  );
+
   return interaction.editReply({
-    embeds: [embed]
+    embeds: [embed],
+    components: [row]
   });
 }
   if (interaction.commandName === "addguild") {
