@@ -863,24 +863,13 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
 
   await interaction.deferReply();
 
-  let data = null;
-
-  try {
-    data = await getWikiItem(item);
-  } catch (err) {
-    console.error("Wiki item command error:", err);
-  }
+  const data = await getWikiItem(item);
 
   if (!data) {
     return interaction.editReply({
       content: `❌ I could not find **${item}** on Growtopia Wiki.`
     });
   }
-
-  const cacheId = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
-  wikiItemCache.set(cacheId, data);
-
-  setTimeout(() => wikiItemCache.delete(cacheId), 10 * 60 * 1000);
 
   const embed = new EmbedBuilder()
     .setTitle(data.title)
@@ -890,27 +879,8 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
 
   if (data.image) embed.setThumbnail(data.image);
 
-  const row = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(`wikiitem_menu:${cacheId}:${interaction.user.id}`)
-      .setPlaceholder("Choose item section")
-      .addOptions(
-        {
-          label: "Main",
-          description: "Item name and description",
-          value: "main"
-        },
-        {
-          label: "Splice",
-          description: "Show splicing recipe",
-          value: "splice"
-        }
-      )
-  );
-
   return interaction.editReply({
-    embeds: [embed],
-    components: [row]
+    embeds: [embed]
   });
 }
   if (interaction.commandName === "addguild") {
