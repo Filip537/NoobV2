@@ -360,11 +360,15 @@ async function getWikiItem(itemName) {
       encodeURIComponent(title) +
       "&prop=text&format=json";
 
-    const parseRes = await fetchWithTimeout(parseUrl, {
-      headers: {
-        "User-Agent": "NoobV2 Wiki Sync Bot"
-      }
-    }, 2500);
+    const parseRes = await fetchWithTimeout(
+      parseUrl,
+      {
+        headers: {
+          "User-Agent": "NoobV2 Wiki Sync Bot"
+        }
+      },
+      2500
+    );
 
     if (!parseRes.ok) return null;
 
@@ -376,45 +380,66 @@ async function getWikiItem(itemName) {
     if (!html) return null;
 
     const $ = cheerio.load(html);
+
     const content = $(".mw-parser-output");
 
     const realTitle = parseData?.parse?.title || title;
 
+    // Description
     const description =
-      content.children("p").first().text().replace(/\s+/g, " ").trim() ||
-      "No description found.";
+      content
+        .children("p")
+        .first()
+        .text()
+        .replace(/\s+/g, " ")
+        .trim() || "No description found.";
 
-    let image = content.find(".infobox img, .itembox img, img").first().attr("src");
+    // Image
+    let image = content
+      .find(".infobox img, .itembox img, img")
+      .first()
+      .attr("src");
 
     if (image) {
-      if (image.startsWith("//")) image = "https:" + image;
-      else if (image.startsWith("/")) image = "https://growtopiawiki.com" + image;
+      if (image.startsWith("//")) {
+        image = "https:" + image;
+      } else if (image.startsWith("/")) {
+        image = "https://growtopiawiki.com" + image;
+      }
     }
 
-    function extractSection(sectionName) {
-      const section = $(`#${sectionName}`);
-      if (!section.length) return null;
+    // Better splice detection
+    function getSpliceRecipe() {
+      let foundRecipe = null;
 
-      const heading = section.closest("h2, h3");
-      let lines = [];
-      let current = heading.next();
+      $("*").each((i, el) => {
+        const text = $(el)
+          .text()
+          .replace(/\s+/g, " ")
+          .trim();
 
-      while (
-        current.length &&
-        !["H2", "H3"].includes(current[0]?.tagName?.toUpperCase())
-      ) {
-        const text = current.text().replace(/\s+/g, " ").trim();
-        if (text) lines.push(text);
-        current = current.next();
+        if (
+          text.includes("The tree of this item can be made by") ||
+          text.includes("made by mixing the following seeds")
+        ) {
+          foundRecipe = text;
+          return false;
+        }
+      });
+
+      if (!foundRecipe) {
+        return "This item is **unsplicable**.";
       }
 
-      return lines.join("\n\n").trim();
+      foundRecipe = foundRecipe
+        .replace("Splicing", "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      return foundRecipe;
     }
 
-    const splice =
-      extractSection("Splicing") ||
-      extractSection("Splice") ||
-      "This item is **unsplicable**.";
+    const splice = getSpliceRecipe();
 
     return {
       title: realTitle,
@@ -423,8 +448,11 @@ async function getWikiItem(itemName) {
       splice,
       url:
         "https://growtopiawiki.com/wiki/" +
-        encodeURIComponent(realTitle.replace(/\s+/g, "_"))
+        encodeURIComponent(
+          realTitle.replace(/\s+/g, "_")
+        )
     };
+
   } catch (err) {
     console.error("Wiki Error:", err);
     return null;
