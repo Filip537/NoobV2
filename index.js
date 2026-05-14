@@ -347,10 +347,8 @@ async function fetchWithTimeout(url, options = {}, timeout = 3000) {
     clearTimeout(timer);
   }
 }
-
 async function getWikiItem(itemName) {
   try {
-    // Search item first
     const searchUrl =
       "https://growtopiawiki.com/api.php?action=query&list=search&srsearch=" +
       encodeURIComponent(itemName) +
@@ -369,18 +367,16 @@ async function getWikiItem(itemName) {
     if (!searchRes.ok) return null;
 
     const searchData = await searchRes.json();
-
     const firstResult = searchData?.query?.search?.[0];
 
     if (!firstResult) return null;
 
     const title = firstResult.title;
 
-    // Load page content
     const parseUrl =
       "https://growtopiawiki.com/api.php?action=parse&page=" +
       encodeURIComponent(title) +
-      "&prop=text|displaytitle&format=json";
+      "&prop=text&format=json";
 
     const parseRes = await fetchWithTimeout(
       parseUrl,
@@ -404,7 +400,6 @@ async function getWikiItem(itemName) {
 
     const content = $(".mw-parser-output");
 
-    // Main description
     const description =
       content
         .children("p")
@@ -413,11 +408,9 @@ async function getWikiItem(itemName) {
         .replace(/\s+/g, " ")
         .trim() || "No description found.";
 
-    // Image
     const image =
       content.find(".infobox img, .itembox img, img").first().attr("src");
 
-    // Helper for sections
     function extractSection(sectionName) {
       const section = $(`#${sectionName}`);
 
@@ -425,7 +418,7 @@ async function getWikiItem(itemName) {
 
       const heading = section.closest("h2, h3");
 
-      let textParts = [];
+      let lines = [];
 
       let current = heading.next();
 
@@ -435,28 +428,20 @@ async function getWikiItem(itemName) {
           current[0]?.tagName?.toUpperCase()
         )
       ) {
-        const txt = current.text().replace(/\s+/g, " ").trim();
+        const text = current.text().replace(/\s+/g, " ").trim();
 
-        if (txt) {
-          textParts.push(txt);
-        }
+        if (text) lines.push(text);
 
         current = current.next();
       }
 
-      return textParts.join("\n\n").trim();
+      return lines.join("\n\n").trim();
     }
 
-    // Splice section
     const splice =
       extractSection("Splicing") ||
       extractSection("Splice") ||
       "This item is **unsplicable**.";
-
-    // Possibilities section
-    const possibilities =
-      extractSection("Possibilities") ||
-      "No possibilities found.";
 
     return {
       title,
@@ -465,16 +450,13 @@ async function getWikiItem(itemName) {
         ? `https://growtopiawiki.com${image}`
         : null,
       splice,
-      possibilities,
       url:
         "https://growtopiawiki.com/wiki/" +
-        encodeURIComponent(
-          title.replace(/\s+/g, "_")
-        )
+        encodeURIComponent(title.replace(/\s+/g, "_"))
     };
 
-  } catch (error) {
-    console.error("Wiki fetch error:", error);
+  } catch (err) {
+    console.error("Wiki Error:", err);
     return null;
   }
 }
@@ -927,11 +909,6 @@ try {
           label: "Splice",
           description: "Show splicing recipe",
           value: "splice"
-        },
-        {
-          label: "Possibilities",
-          description: "Show item possibilities",
-          value: "possibilities"
         }
       )
   );
@@ -2993,6 +2970,53 @@ if (interaction.commandName === "addbirthday") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
+  if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith("wikiitem_menu:")
+) {
+  const [, cacheId, userId] = interaction.customId.split(":");
+
+  if (interaction.user.id !== userId) {
+    return interaction.reply({
+      content: "❌ This menu is not yours.",
+      ephemeral: true
+    });
+  }
+
+  const data = wikiItemCache.get(cacheId);
+
+  if (!data) {
+    return interaction.reply({
+      content: "❌ Menu expired. Use /wikiitem again.",
+      ephemeral: true
+    });
+  }
+
+  const selected = interaction.values[0];
+
+  let embed;
+
+  if (selected === "splice") {
+    embed = new EmbedBuilder()
+      .setTitle(`${data.title} - Splice`)
+      .setColor("Yellow")
+      .setDescription(data.splice);
+
+    if (data.image) embed.setThumbnail(data.image);
+
+  } else {
+    embed = new EmbedBuilder()
+      .setTitle(data.title)
+      .setColor("Yellow")
+      .setDescription(data.description);
+
+    if (data.image) embed.setThumbnail(data.image);
+  }
+
+  return interaction.update({
+    embeds: [embed]
+  });
+}
   if (interaction.customId === "guildlist_filter") {
   const selected = interaction.values[0];
   const members = loadGuildMembers();
