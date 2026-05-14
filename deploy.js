@@ -533,6 +533,9 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("guildlist")
+  .setDescription("View all guild members"),
+  new SlashCommandBuilder()
   .setName("suggestion")
   .setDescription("Send a suggestion")
   .addStringOption(option =>
