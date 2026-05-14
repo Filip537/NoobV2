@@ -329,7 +329,7 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
-async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+async function fetchWithTimeout(url, options = {}, timeout = 2500) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
@@ -349,89 +349,62 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
 }
 async function getWikiItem(itemName) {
   try {
-    const searchUrl =
-      "https://growtopiawiki.com/api.php?action=query&list=search&srsearch=" +
-      encodeURIComponent(itemName) +
-      "&format=json";
-
-    const searchRes = await fetchWithTimeout(
-      searchUrl,
-      {
-        headers: {
-          "User-Agent": "NoobV2 Wiki Sync Bot"
-        }
-      },
-      5000
-    );
-
-    if (!searchRes.ok) return null;
-
-    const searchData = await searchRes.json();
-    const firstResult = searchData?.query?.search?.[0];
-
-    if (!firstResult) return null;
-
-    const title = firstResult.title;
+    const title = itemName
+      .trim()
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
 
     const parseUrl =
       "https://growtopiawiki.com/api.php?action=parse&page=" +
       encodeURIComponent(title) +
       "&prop=text&format=json";
 
-    const parseRes = await fetchWithTimeout(
-      parseUrl,
-      {
-        headers: {
-          "User-Agent": "NoobV2 Wiki Sync Bot"
-        }
-      },
-      3000
-    );
+    const parseRes = await fetchWithTimeout(parseUrl, {
+      headers: {
+        "User-Agent": "NoobV2 Wiki Sync Bot"
+      }
+    }, 2500);
 
     if (!parseRes.ok) return null;
 
     const parseData = await parseRes.json();
 
-    const html = parseData?.parse?.text?.["*"];
+    if (parseData?.error) return null;
 
+    const html = parseData?.parse?.text?.["*"];
     if (!html) return null;
 
     const $ = cheerio.load(html);
-
     const content = $(".mw-parser-output");
 
-    const description =
-      content
-        .children("p")
-        .first()
-        .text()
-        .replace(/\s+/g, " ")
-        .trim() || "No description found.";
+    const realTitle = parseData?.parse?.title || title;
 
-    const image =
-      content.find(".infobox img, .itembox img, img").first().attr("src");
+    const description =
+      content.children("p").first().text().replace(/\s+/g, " ").trim() ||
+      "No description found.";
+
+    let image = content.find(".infobox img, .itembox img, img").first().attr("src");
+
+    if (image) {
+      if (image.startsWith("//")) image = "https:" + image;
+      else if (image.startsWith("/")) image = "https://growtopiawiki.com" + image;
+    }
 
     function extractSection(sectionName) {
       const section = $(`#${sectionName}`);
-
       if (!section.length) return null;
 
       const heading = section.closest("h2, h3");
-
       let lines = [];
-
       let current = heading.next();
 
       while (
         current.length &&
-        !["H2", "H3"].includes(
-          current[0]?.tagName?.toUpperCase()
-        )
+        !["H2", "H3"].includes(current[0]?.tagName?.toUpperCase())
       ) {
         const text = current.text().replace(/\s+/g, " ").trim();
-
         if (text) lines.push(text);
-
         current = current.next();
       }
 
@@ -444,17 +417,14 @@ async function getWikiItem(itemName) {
       "This item is **unsplicable**.";
 
     return {
-      title,
+      title: realTitle,
       description,
-      image: image
-        ? `https://growtopiawiki.com${image}`
-        : null,
+      image,
       splice,
       url:
         "https://growtopiawiki.com/wiki/" +
-        encodeURIComponent(title.replace(/\s+/g, "_"))
+        encodeURIComponent(realTitle.replace(/\s+/g, "_"))
     };
-
   } catch (err) {
     console.error("Wiki Error:", err);
     return null;
@@ -864,34 +834,20 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
 
   await interaction.deferReply();
 
-  // Send fast response first after max 3 seconds
-  const loadingEmbed = new EmbedBuilder()
-    .setTitle(item)
-    .setColor("Yellow")
-    .setDescription("🔍 Fetching item info from Growtopia Wiki...");
-
-  await interaction.editReply({
-    embeds: [loadingEmbed],
-    components: []
-  });
-
-  let data;
+  let data = null;
 
   try {
-    data = await getWikiItem(item);
+    data = await Promise.race([
+      getWikiItem(item),
+      new Promise(resolve => setTimeout(() => resolve(null), 2800))
+    ]);
   } catch (err) {
-    console.error("Wiki item error:", err);
+    console.error("Wiki item command error:", err);
   }
 
   if (!data) {
-    const failEmbed = new EmbedBuilder()
-      .setTitle(item)
-      .setColor("Red")
-      .setDescription("❌ Could not load this item from Growtopia Wiki. Please try again.");
-
     return interaction.editReply({
-      embeds: [failEmbed],
-      components: []
+      content: `❌ Could not load **${item}** within 3 seconds. Please try again.`
     });
   }
 
@@ -920,7 +876,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
         },
         {
           label: "Splice",
-          description: "Show splice recipe",
+          description: "Show splicing recipe",
           value: "splice"
         }
       )
