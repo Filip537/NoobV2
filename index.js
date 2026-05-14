@@ -1,4 +1,5 @@
 require("dotenv").config();
+const cheerio = require("cheerio");
 
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Rejection:", err);
@@ -326,6 +327,44 @@ function loadBlacklist() {
 
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
+}
+async function getWikiItem(itemName) {
+  const pageName = itemName.trim().replaceAll(" ", "_");
+  const url = `https://growtopiawiki.com/${encodeURIComponent(pageName)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "NoobV2 Wiki Sync Bot"
+    }
+  });
+
+  if (!res.ok) return null;
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const title = $("h1").first().text().trim() || itemName;
+
+  let description =
+    $(".mw-parser-output > p").filter((i, el) => {
+      return $(el).text().trim().length > 40;
+    }).first().text().trim();
+
+  if (!description) description = "No description found.";
+
+  let image =
+    $(".infobox img").first().attr("src") ||
+    $(".mw-parser-output img").first().attr("src");
+
+  if (image && image.startsWith("//")) image = "https:" + image;
+  if (image && image.startsWith("/")) image = "https://growtopiawiki.com" + image;
+
+  return {
+    title,
+    description,
+    image,
+    url
+  };
 }
 async function scanBlacklistChannel() {
   const channel = await client.channels.fetch(APPROVED_CHANNEL).catch(() => null);
@@ -726,6 +765,33 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "wikiitem") {
+  const item = interaction.options.getString("item");
+
+  await interaction.deferReply();
+
+  const data = await getWikiItem(item);
+
+  if (!data) {
+    return interaction.editReply({
+      content: `❌ I could not find **${item}** on Growtopia Wiki.`
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(data.title)
+    .setURL(data.url)
+    .setColor("Yellow")
+    .setDescription(data.description.slice(0, 1000))
+    .setFooter({ text: "Synced from growtopiawiki.com" })
+    .setTimestamp();
+
+  if (data.image) embed.setThumbnail(data.image);
+
+  return interaction.editReply({
+    embeds: [embed]
+  });
+}
   if (interaction.commandName === "addguild") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({

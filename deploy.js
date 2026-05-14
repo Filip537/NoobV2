@@ -536,6 +536,14 @@ new SlashCommandBuilder()
   .setName("guildlist")
   .setDescription("View all guild members"),
   new SlashCommandBuilder()
+  .setName("wikiitem")
+  .setDescription("Search an item from Growtopia Wiki")
+  .addStringOption(option =>
+    option.setName("item")
+      .setDescription("Item name, example: Dirt or World Lock")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("suggestion")
   .setDescription("Send a suggestion")
   .addStringOption(option =>
