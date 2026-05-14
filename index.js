@@ -858,50 +858,6 @@ cron.schedule("0 * * * *", async () => {
 
 client.on("interactionCreate", async (interaction) => {
 
-if (
-  interaction.isStringSelectMenu() &&
-  interaction.customId.startsWith("wikiitem_menu:")
-) {
-  try {
-    await interaction.deferUpdate();
-
-    const [, cacheId] = interaction.customId.split(":");
-    const data = wikiItemCache.get(cacheId);
-
-    if (!data) {
-      return interaction.message.edit({
-        content: "❌ Menu expired. Use /wikiitem again.",
-        embeds: [],
-        components: []
-      });
-    }
-
-    const selected = interaction.values[0];
-
-    const embed = new EmbedBuilder()
-      .setColor("Yellow");
-
-    if (selected === "splice") {
-      embed
-        .setTitle(`${data.title} - Splice`)
-        .setDescription((data.splice || "This item is **unsplicable**.").slice(0, 4000));
-    } else {
-      embed
-        .setTitle(data.title)
-        .setDescription((data.description || "No description found.").slice(0, 1000));
-    }
-
-    if (data.image) embed.setThumbnail(data.image);
-
-    return interaction.message.edit({
-      embeds: [embed],
-      components: interaction.message.components
-    });
-
-  } catch (err) {
-    console.error("Wiki dropdown error:", err);
-  }
-}
 if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") {
   const item = interaction.options.getString("item");
 
