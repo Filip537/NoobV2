@@ -37,47 +37,6 @@ const AUCTION_CHANNEL = "1503646000936517752";
 const auctionFile = "./auctions.json";
 const auctionThumbnail = "https://media.discordapp.net/attachments/1446501509708910704/1503647471077691473/New_Piskel_35.png?ex=6a041c55&is=6a02cad5&hm=e841f76e539eed1d9069010d78224e9c87beb1ddf6db934fc1a05055b8721fb0&=&format=webp&quality=lossless";
 
-const MARKET_CHANNEL = "1503918963392909424";
-const marketFile = "./market.json";
-
-function loadMarket() {
-  if (!fs.existsSync(marketFile)) fs.writeFileSync(marketFile, "[]");
-
-  try {
-    return JSON.parse(fs.readFileSync(marketFile, "utf8"));
-  } catch {
-    fs.writeFileSync(marketFile, "[]");
-    return [];
-  }
-}
-
-function saveMarket(data) {
-  fs.writeFileSync(marketFile, JSON.stringify(data, null, 2));
-}
-
-function makeMarketId() {
-  return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
-}
-
-function buildMarketEmbed(listing) {
-  const embed = new EmbedBuilder()
-    .setTitle(listing.sold ? "Marketplace Listing - SOLD OUT" : "Marketplace Listing")
-    .setColor(listing.sold ? "Red" : "Green")
-    .addFields(
-      { name: "Item Name", value: listing.itemName, inline: true },
-      { name: "Price", value: listing.price, inline: true },
-      { name: "World", value: listing.worldName, inline: true },
-      { name: "Amount", value: String(listing.amount), inline: true },
-      { name: "Seller", value: `<@${listing.sellerId}>`, inline: true },
-      { name: "Status", value: listing.sold ? "Sold Out" : "Available", inline: true }
-    )
-    .setFooter({ text: `Market ID: ${listing.marketId}` })
-    .setTimestamp();
-
-  if (listing.imageUrl) embed.setImage(listing.imageUrl);
-
-  return embed;
-}
 function loadAuctions() {
   if (!fs.existsSync(auctionFile)) fs.writeFileSync(auctionFile, "[]");
   try {
@@ -253,7 +212,67 @@ const teamsFile = "./teams.json";
 const TEAM_LOG_CHANNEL = "1502320280691806258";
 const UPDATE_BROADCAST_CHANNEL = "1501004255014686780";
 const updateBroadcastCooldown = new Set();
+const guildFile = "./guildMembers.json";
+const guildThumbnail = "https://media.discordapp.net/attachments/1441484400385720320/1504343505072427120/New_Piskel_36.png?ex=6a06a490&is=6a055310&hm=6788bd09d7274293d3243bc7bfb6b5253c020ddecdbbb79be6ec0bbe937ec924&=&format=webp&quality=lossless";
 
+function loadGuildMembers() {
+  if (!fs.existsSync(guildFile)) fs.writeFileSync(guildFile, "[]");
+
+  try {
+    return JSON.parse(fs.readFileSync(guildFile, "utf8"));
+  } catch {
+    fs.writeFileSync(guildFile, "[]");
+    return [];
+  }
+}
+
+function saveGuildMembers(data) {
+  fs.writeFileSync(guildFile, JSON.stringify(data, null, 2));
+}
+
+function guildRoleName(role) {
+  if (role === "GL") return "Guild Leader";
+  if (role === "GC") return "Guild Co-Leader";
+  if (role === "GE") return "Guild Elder";
+  return "Member";
+}
+
+function buildGuildEmbed(members, filter = "ALL") {
+  const filtered = filter === "ALL"
+    ? members
+    : members.filter(m => m.role === filter);
+
+  const description = filtered.length
+    ? filtered.map((m, i) =>
+        `**${i + 1}. ${m.growid}**\n` +
+        `Role: **${guildRoleName(m.role)}**\n` +
+        `Discord: ${m.discordId ? `<@${m.discordId}>` : "Not linked"}`
+      ).join("\n\n")
+    : "No guild members found for this category.";
+
+  return new EmbedBuilder()
+    .setTitle(filter === "ALL" ? "Guild Member List" : `${guildRoleName(filter)} List`)
+    .setColor("Yellow")
+    .setThumbnail(guildThumbnail)
+    .setDescription(description)
+    .setFooter({ text: `Total shown: ${filtered.length}` })
+    .setTimestamp();
+}
+
+function guildListDropdown(selected = "ALL") {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("guildlist_filter")
+      .setPlaceholder("Filter guild members")
+      .addOptions(
+        { label: "All Members", value: "ALL", default: selected === "ALL" },
+        { label: "GL - Guild Leader", value: "GL", default: selected === "GL" },
+        { label: "GC - Guild Co-Leader", value: "GC", default: selected === "GC" },
+        { label: "GE - Guild Elder", value: "GE", default: selected === "GE" },
+        { label: "Normal Member", value: "MEMBER", default: selected === "MEMBER" }
+      )
+  );
+}
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -707,120 +726,64 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "marketadd") {
-    const itemName = interaction.options.getString("itemname");
-    const price = interaction.options.getString("price");
-    const worldName = interaction.options.getString("world");
-    const amount = interaction.options.getInteger("amount");
-    const image = interaction.options.getAttachment("image");
-  
-    if (amount <= 0) {
-      return interaction.reply({
-        content: "❌ Amount must be higher than 0.",
-        ephemeral: true
-      });
-    }
-  
-    const marketChannel = await client.channels.fetch(MARKET_CHANNEL).catch(() => null);
-  
-    if (!marketChannel) {
-      return interaction.reply({
-        content: "❌ Marketplace channel not found.",
-        ephemeral: true
-      });
-    }
-  
-    const marketId = makeMarketId();
-  
-    const listing = {
-      marketId,
-      sellerId: interaction.user.id,
-      sellerTag: interaction.user.tag,
-      itemName,
-      price,
-      worldName,
-      amount,
-      imageUrl: image ? image.url : null,
-      messageId: null,
-      channelId: MARKET_CHANNEL,
-      sold: false,
-      createdAt: Date.now(),
-      soldAt: null
-    };
-  
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`market_sold_${marketId}`)
-        .setLabel("Marked as Sold Out")
-        .setStyle(ButtonStyle.Danger)
-    );
-  
-    const sent = await marketChannel.send({
-      embeds: [buildMarketEmbed(listing)],
-      components: [row],
-      allowedMentions: { parse: [] }
-    });
-  
-    listing.messageId = sent.id;
-  
-    const listings = loadMarket();
-    listings.push(listing);
-    saveMarket(listings);
-  
-    await interaction.user.send({
-      content:
-  `✅ Your marketplace listing has been posted.
-  
-  Item: **${itemName}**
-  World: **${worldName}**
-  Price: **${price}**
-  Amount: **${amount}**
-  
-  Please don't forget to click **Marked as Sold Out** once your item is sold out.`
-    }).catch(() => {});
-  
+  if (interaction.commandName === "addguild") {
+  if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
-      content: `✅ Your market listing has been posted in <#${MARKET_CHANNEL}>.`,
+      content: "❌ Administrator only.",
       ephemeral: true
     });
   }
-  
-  if (interaction.commandName === "marketsearch") {
-    const query = interaction.options.getString("item").toLowerCase();
-    const listings = loadMarket();
-  
-    const results = listings.filter(listing =>
-      !listing.sold &&
-      listing.itemName.toLowerCase().includes(query)
-    );
-  
-    if (results.length === 0) {
-      return interaction.reply({
-        content: "❌ No available marketplace listings found for that item.",
-        ephemeral: true
-      });
-    }
-  
-    const embed = new EmbedBuilder()
-      .setTitle("Marketplace Search Results")
-      .setColor("Green")
-      .setDescription(
-        results.slice(0, 10).map((listing, index) =>
-          `**${index + 1}. ${listing.itemName}**\n` +
-          `Price: ${listing.price}\n` +
-          `World: ${listing.worldName}\n` +
-          `Amount: ${listing.amount}\n` +
-          `Seller: <@${listing.sellerId}>\n` +
-          `Posted: <t:${Math.floor(listing.createdAt / 1000)}:R>`
-        ).join("\n\n")
-      )
-      .setFooter({ text: `Found ${results.length} available listing(s)` });
-  
-    return interaction.reply({
-      embeds: [embed],
-      allowedMentions: { parse: [] }
+
+  const growid = interaction.options.getString("growid");
+  const discordUser = interaction.options.getUser("discord");
+  const role = interaction.options.getString("role");
+
+  const members = loadGuildMembers();
+
+  const existing = members.find(m =>
+    m.growid.toLowerCase() === growid.toLowerCase()
+  );
+
+  if (existing) {
+    existing.growid = growid;
+    existing.discordId = discordUser ? discordUser.id : existing.discordId || null;
+    existing.discordTag = discordUser ? discordUser.tag : existing.discordTag || null;
+    existing.role = role;
+    existing.updatedAt = Date.now();
+    existing.updatedBy = interaction.user.id;
+  } else {
+    members.push({
+      growid,
+      discordId: discordUser ? discordUser.id : null,
+      discordTag: discordUser ? discordUser.tag : null,
+      role,
+      addedBy: interaction.user.id,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     });
   }
+
+  saveGuildMembers(members);
+
+  return interaction.reply({
+    content:
+      `✅ Guild member saved.\n` +
+      `**GrowID:** ${growid}\n` +
+      `**Role:** ${guildRoleName(role)}\n` +
+      `**Discord:** ${discordUser ? `${discordUser}` : "Not linked"}`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "guildlist") {
+  const members = loadGuildMembers();
+
+  return interaction.reply({
+    embeds: [buildGuildEmbed(members, "ALL")],
+    components: [guildListDropdown("ALL")],
+    allowedMentions: { parse: [] }
+  });
+}
   if (interaction.commandName === "suggestion") {
   const title = interaction.options.getString("title");
   const feature = interaction.options.getString("feature");
@@ -2815,6 +2778,16 @@ if (interaction.commandName === "addbirthday") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
+  if (interaction.customId === "guildlist_filter") {
+  const selected = interaction.values[0];
+  const members = loadGuildMembers();
+
+  return interaction.update({
+    embeds: [buildGuildEmbed(members, selected)],
+    components: [guildListDropdown(selected)],
+    allowedMentions: { parse: [] }
+  });
+}
   if (interaction.customId === "role_selector_menu") {
   const value = interaction.values[0];
 
@@ -3484,44 +3457,6 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
-  if (interaction.customId.startsWith("market_sold_")) {
-    const marketId = interaction.customId.replace("market_sold_", "");
-    const listings = loadMarket();
-    const listing = listings.find(x => x.marketId === marketId);
-  
-    if (!listing) {
-      return interaction.reply({
-        content: "❌ Market listing not found.",
-        ephemeral: true
-      });
-    }
-  
-    if (interaction.user.id !== listing.sellerId && !interaction.member.permissions.has("Administrator")) {
-      return interaction.reply({
-        content: "❌ Only the seller or an administrator can mark this as sold out.",
-        ephemeral: true
-      });
-    }
-  
-    if (listing.sold) {
-      return interaction.reply({
-        content: "❌ This item is already marked as sold out.",
-        ephemeral: true
-      });
-    }
-  
-    listing.sold = true;
-    listing.soldAt = Date.now();
-    saveMarket(listings);
-  
-    const soldEmbed = buildMarketEmbed(listing);
-  
-    return interaction.update({
-      embeds: [soldEmbed],
-      components: [],
-      allowedMentions: { parse: [] }
-    });
-  }
   if (interaction.customId.startsWith("auction_preview_yes_")) {
   const auctionId = interaction.customId.replace("auction_preview_yes_", "");
   const auctions = loadAuctions();

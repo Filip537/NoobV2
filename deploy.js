@@ -16,43 +16,6 @@ const commands = [
     .addIntegerOption(o =>
       o.setName("year").setDescription("Year").setRequired(true)
     ),
-    new SlashCommandBuilder()
-  .setName("marketadd")
-  .setDescription("Create a marketplace listing")
-  .addStringOption(option =>
-    option.setName("itemname")
-      .setDescription("Item name")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("price")
-      .setDescription("Item price")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("world")
-      .setDescription("World name")
-      .setRequired(true)
-  )
-  .addIntegerOption(option =>
-    option.setName("amount")
-      .setDescription("Item amount")
-      .setRequired(true)
-  )
-  .addAttachmentOption(option =>
-    option.setName("image")
-      .setDescription("Item image optional")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("marketsearch")
-  .setDescription("Search marketplace listings")
-  .addStringOption(option =>
-    option.setName("item")
-      .setDescription("Item name to search")
-      .setRequired(true)
-  ),
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")
@@ -558,6 +521,34 @@ new SlashCommandBuilder()
       .setDescription("Explain the feature")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("addguild")
+  .setDescription("Add or update a guild member")
+  .addStringOption(option =>
+    option.setName("growid")
+      .setDescription("GrowID / in-game name")
+      .setRequired(true)
+  )
+  .addUserOption(option =>
+    option.setName("discord")
+      .setDescription("Discord user, optional")
+      .setRequired(false)
+  )
+  .addStringOption(option =>
+    option.setName("role")
+      .setDescription("Guild role")
+      .setRequired(true)
+      .addChoices(
+        { name: "Guild Leader", value: "GL" },
+        { name: "Guild Co-Leader", value: "GC" },
+        { name: "Guild Elder", value: "GE" },
+        { name: "Member", value: "MEMBER" }
+      )
+  ),
+
+new SlashCommandBuilder()
+  .setName("guildlist")
+  .setDescription("View all guild members"),
   new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")
