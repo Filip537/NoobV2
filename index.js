@@ -859,107 +859,48 @@ cron.schedule("0 * * * *", async () => {
 client.on("interactionCreate", async (interaction) => {
 
   if (
-    interaction.isStringSelectMenu() &&
-    interaction.customId.startsWith("wikiitem_menu:")
-  ) {
-    const [, cacheId, userId] = interaction.customId.split(":");
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith("wikiitem_menu:")
+) {
+  const [, cacheId, userId] = interaction.customId.split(":");
 
-    if (interaction.user.id !== userId) {
-      return interaction.reply({
-        content: "❌ This dropdown is not for you.",
-        ephemeral: true
-      });
-    }
-
-    const data = wikiItemCache.get(cacheId);
-
-    if (!data) {
-      return interaction.reply({
-        content: "❌ Menu expired. Use /wikiitem again.",
-        ephemeral: true
-      });
-    }
-
-    const selected = interaction.values[0];
-
-    const embed = new EmbedBuilder()
-      .setColor("Yellow");
-
-    if (selected === "splice") {
-      embed
-        .setTitle(`${data.title} - Splice`)
-        .setDescription(data.splice || "This item is **unsplicable**.");
-    } else {
-      embed
-        .setTitle(data.title)
-        .setDescription(data.description);
-    }
-
-    if (data.image) {
-      embed.setThumbnail(data.image);
-    }
-
-    return interaction.update({
-      embeds: [embed],
-      components: interaction.message.components
+  if (interaction.user.id !== userId) {
+    return interaction.reply({
+      content: "❌ This dropdown is not for you.",
+      ephemeral: true
     });
   }
-if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") {
-  const item = interaction.options.getString("item");
 
-  await interaction.deferReply();
-
-  let data = null;
-
-  try {
-    data = await Promise.race([
-      getWikiItem(item),
-      new Promise(resolve => setTimeout(() => resolve(null), 2800))
-    ]);
-  } catch (err) {
-    console.error("Wiki item command error:", err);
-  }
+  const data = wikiItemCache.get(cacheId);
 
   if (!data) {
-    return interaction.editReply({
-      content: `❌ Could not load **${item}** within 3 seconds. Please try again.`
+    return interaction.reply({
+      content: "❌ Menu expired. Use /wikiitem again.",
+      ephemeral: true
     });
   }
 
-  const cacheId = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
-  wikiItemCache.set(cacheId, data);
-
-  setTimeout(() => wikiItemCache.delete(cacheId), 10 * 60 * 1000);
+  const selected = interaction.values[0];
 
   const embed = new EmbedBuilder()
-    .setTitle(data.title)
-    .setURL(data.url)
     .setColor("Yellow")
-    .setDescription(data.description.slice(0, 1000));
+    .setURL(data.url);
+
+  if (selected === "splice") {
+    embed
+      .setTitle(`${data.title} - Splice`)
+      .setDescription((data.splice || "This item is **unsplicable**.").slice(0, 4000));
+  } else {
+    embed
+      .setTitle(data.title)
+      .setDescription((data.description || "No description found.").slice(0, 1000));
+  }
 
   if (data.image) embed.setThumbnail(data.image);
 
-  const row = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(`wikiitem_menu:${cacheId}:${interaction.user.id}`)
-      .setPlaceholder("Choose item section")
-      .addOptions(
-        {
-          label: "Main",
-          description: "Item name and description",
-          value: "main"
-        },
-        {
-          label: "Splice",
-          description: "Show splicing recipe",
-          value: "splice"
-        }
-      )
-  );
-
-  return interaction.editReply({
+  return interaction.update({
     embeds: [embed],
-    components: [row]
+    components: interaction.message.components
   });
 }
   if (interaction.commandName === "addguild") {
