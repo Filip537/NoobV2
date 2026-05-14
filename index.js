@@ -856,8 +856,139 @@ cron.schedule("0 * * * *", async () => {
 });
 });
 
+const LEGEND_QUESTS = {
+  honor: {
+    title: "Quest For Honor",
+    reward: "Legendary Title",
+    steps: [
+      "Deliver 2,000 Sand.",
+      "Kill 100 players in PvP via a Game Generator.",
+      "Break 5,000 blocks.",
+      "Deliver 600 Display Boxes.",
+      "Plant seeds that add up to 50,000 rarities.",
+      "Earn 50 Growtokens.",
+      "Deliver 3 Golden Diapers.",
+      "Earn 10,000 XP.",
+      "Deliver 1,000 Tombstones.",
+      "Deliver 100,000 Gems.",
+      "Break 100,000 rarity worth of blocks.",
+      "Complete 100 successful surgeries.",
+      "Collect from 1,000 providers.",
+      "Deliver 3 Golden Heart Crystals.",
+      "Collect 100,000 rarity worth of fruit from trees.",
+      "Deliver a Growie Award or Neptune's Crown.",
+      "Deliver 3 Super Fireworks.",
+      "Deliver 10 pairs of Rainbow Wings.",
+      "Deliver 3 Birth Certificates.",
+      "Deliver the Legendary Orb."
+    ]
+  },
+  fire: {
+    title: "Quest For Fire",
+    reward: "Dragon of Legend",
+    steps: [
+      "Deliver 2,000 Lava.",
+      "Kill 100 players in PvP via a Game Generator.",
+      "Break 5,000 blocks.",
+      "Deliver 600 Dragon Gates.",
+      "Plant seeds that add up to 50,000 rarities.",
+      "Earn 50 Growtokens.",
+      "Deliver 10 Dragon Hands.",
+      "Earn 10,000 XP.",
+      "Deliver 1,000 Dragon Tails.",
+      "Deliver 100,000 Gems.",
+      "Break 100,000 rarity worth of blocks.",
+      "Complete 100 successful surgeries.",
+      "Collect from 1,000 providers.",
+      "Deliver 3 Fiesta Dragons.",
+      "Collect 100,000 rarity worth of fruit from trees.",
+      "Deliver an Ultra Trophy 3000 or any WOTD Trophy.",
+      "Deliver 1 Neptune's Pendant.",
+      "Deliver 1,000 Rocket Thrusters.",
+      "Deliver 3 Devil Wings.",
+      "Deliver the Legendary Orb."
+    ]
+  },
+  steel: {
+    title: "Quest Of Steel",
+    reward: "Legendbot-009",
+    steps: [
+      "Deliver 2,000 Chemical Gs.",
+      "Kill 100 players in PvP via a Game Generator.",
+      "Break 5,000 blocks.",
+      "Deliver 600 Robot Wants Dubsteps.",
+      "Plant seeds that add up to 50,000 rarities.",
+      "Earn 50 Growtokens.",
+      "Deliver 3 Edison Zoomsters.",
+      "Earn 10,000 XP.",
+      "Deliver 1,000 High Tech Blocks.",
+      "Deliver 100,000 Gems.",
+      "Break 100,000 rarity worth of blocks.",
+      "Complete 100 successful surgeries.",
+      "Collect from 1,000 providers.",
+      "Deliver 3 Bride Of Reanimator Remotes.",
+      "Collect 100,000 rarity worth of fruit from trees.",
+      "Deliver 1 Mint Julep or 1 Neptune's Chariot.",
+      "Deliver 5 Kerjiggers.",
+      "Deliver 5 Doohickeys.",
+      "Deliver 2 Thingamabobs.",
+      "Deliver the Legendary Orb."
+    ]
+  },
+  heavens: {
+    title: "Quest Of The Heavens",
+    reward: "Legendary Wings",
+    steps: [
+      "Deliver 1,000 Clouds.",
+      "Kill 100 players in PvP via a Game Generator.",
+      "Break 5,000 blocks.",
+      "Deliver 600 Fairy Wings.",
+      "Plant seeds that add up to 50,000 rarities.",
+      "Earn 50 Growtokens.",
+      "Deliver 3 Bubble Wings.",
+      "Earn 10,000 XP.",
+      "Deliver 800 Crimson Eagle Wings.",
+      "Deliver 100,000 Gems.",
+      "Break 100,000 rarity worth of blocks.",
+      "Complete 100 successful surgeries.",
+      "Collect from 1,000 providers.",
+      "Deliver 20 Rainbow Wings.",
+      "Collect 100,000 rarity worth of fruit from trees.",
+      "Deliver 3 Golden Angel Wings.",
+      "Deliver 100 Ripper Wings.",
+      "Deliver 1 Phoenix Wings or 1 Neptune's Trident.",
+      "Deliver 50 Parrot Wings.",
+      "Deliver the Legendary Orb."
+    ]
+  }
+};
 client.on("interactionCreate", async (interaction) => {
+if (interaction.isChatInputCommand() && interaction.commandName === "legendquest") {
+  const questId = interaction.options.getString("quest");
+  const quest = LEGEND_QUESTS[questId];
 
+  if (!quest) {
+    return interaction.reply({
+      content: "❌ Legendary quest not found.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(quest.title)
+    .setColor("Yellow")
+    .setDescription(
+      quest.steps.map((step, i) => `**${i + 1}.** ${step}`).join("\n")
+    )
+    .addFields({
+      name: "Reward",
+      value: quest.reward
+    });
+
+  return interaction.reply({
+    embeds: [embed]
+  });
+}
 if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") {
   const item = interaction.options.getString("item");
 

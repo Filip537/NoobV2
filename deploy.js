@@ -556,7 +556,25 @@ new SlashCommandBuilder()
       .setDescription("Explain the feature")
       .setRequired(true)
   ),
-
+new SlashCommandBuilder()
+  .setName("legendquest")
+  .setDescription("View Legendary Quest steps")
+  .addStringOption(option =>
+    option.setName("quest")
+      .setDescription("Choose a legendary quest")
+      .setRequired(true)
+      .addChoices(
+        { name: "Quest For Honor", value: "honor" },
+        { name: "Quest For Fire", value: "fire" },
+        { name: "Quest Of Steel", value: "steel" },
+        { name: "Quest Of The Heavens", value: "heavens" },
+        { name: "Quest For The Blade", value: "blade" },
+        { name: "Quest For Candour", value: "candour" },
+        { name: "Quest For The Sky", value: "sky" },
+        { name: "Quest Of The Owl", value: "owl" },
+        { name: "Quest Of The Mech", value: "mech" }
+      )
+  ),
   new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")
