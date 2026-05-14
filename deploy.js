@@ -509,6 +509,30 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("addguild")
+  .setDescription("Add or update a guild member")
+  .addStringOption(option =>
+    option.setName("growid")
+      .setDescription("GrowID / in-game name")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("role")
+      .setDescription("Guild role")
+      .setRequired(true)
+      .addChoices(
+        { name: "Guild Leader", value: "GL" },
+        { name: "Guild Co-Leader", value: "GC" },
+        { name: "Guild Elder", value: "GE" },
+        { name: "Member", value: "MEMBER" }
+      )
+  )
+  .addUserOption(option =>
+    option.setName("discord")
+      .setDescription("Discord user, optional")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
   .setName("suggestion")
   .setDescription("Send a suggestion")
   .addStringOption(option =>
@@ -521,34 +545,7 @@ new SlashCommandBuilder()
       .setDescription("Explain the feature")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("addguild")
-  .setDescription("Add or update a guild member")
-  .addStringOption(option =>
-    option.setName("growid")
-      .setDescription("GrowID / in-game name")
-      .setRequired(true)
-  )
-  .addUserOption(option =>
-    option.setName("discord")
-      .setDescription("Discord user, optional")
-      .setRequired(false)
-  )
-  .addStringOption(option =>
-    option.setName("role")
-      .setDescription("Guild role")
-      .setRequired(true)
-      .addChoices(
-        { name: "Guild Leader", value: "GL" },
-        { name: "Guild Co-Leader", value: "GC" },
-        { name: "Guild Elder", value: "GE" },
-        { name: "Member", value: "MEMBER" }
-      )
-  ),
 
-new SlashCommandBuilder()
-  .setName("guildlist")
-  .setDescription("View all guild members"),
   new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)")
