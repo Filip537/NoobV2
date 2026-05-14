@@ -329,7 +329,7 @@ function loadBlacklist() {
 function saveBlacklist(data) {
   fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
 }
-async function fetchWithTimeout(url, options = {}, timeout = 3000) {
+async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   const controller = new AbortController();
 
   const timer = setTimeout(() => {
@@ -361,7 +361,7 @@ async function getWikiItem(itemName) {
           "User-Agent": "NoobV2 Wiki Sync Bot"
         }
       },
-      3000
+      5000
     );
 
     if (!searchRes.ok) return null;
@@ -864,21 +864,34 @@ if (interaction.isChatInputCommand() && interaction.commandName === "wikiitem") 
 
   await interaction.deferReply();
 
+  // Send fast response first after max 3 seconds
+  const loadingEmbed = new EmbedBuilder()
+    .setTitle(item)
+    .setColor("Yellow")
+    .setDescription("🔍 Fetching item info from Growtopia Wiki...");
+
+  await interaction.editReply({
+    embeds: [loadingEmbed],
+    components: []
+  });
+
   let data;
 
-try {
-  data = await getWikiItem(item);
-} catch (err) {
-  console.error("Wiki item error:", err);
-
-  return interaction.editReply({
-    content: "❌ Growtopia Wiki is taking too long. Please try again in a few seconds."
-  });
-}
+  try {
+    data = await getWikiItem(item);
+  } catch (err) {
+    console.error("Wiki item error:", err);
+  }
 
   if (!data) {
+    const failEmbed = new EmbedBuilder()
+      .setTitle(item)
+      .setColor("Red")
+      .setDescription("❌ Could not load this item from Growtopia Wiki. Please try again.");
+
     return interaction.editReply({
-      content: `❌ I could not find **${item}** on Growtopia Wiki.`
+      embeds: [failEmbed],
+      components: []
     });
   }
 
@@ -907,7 +920,7 @@ try {
         },
         {
           label: "Splice",
-          description: "Show splicing recipe",
+          description: "Show splice recipe",
           value: "splice"
         }
       )
