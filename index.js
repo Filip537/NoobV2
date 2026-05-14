@@ -330,8 +330,7 @@ function saveBlacklist(data) {
 }
 async function getWikiItem(itemName) {
   const pageName = itemName.trim().replaceAll(" ", "_");
-  const url = `https://growtopiawiki.com/${encodeURIComponent(pageName)}`;
-
+const url = `https://growtopiawiki.com/wiki/${encodeURIComponent(pageName)}`;
   const res = await fetch(url, {
     headers: {
       "User-Agent": "NoobV2 Wiki Sync Bot"
