@@ -858,53 +858,47 @@ cron.schedule("0 * * * *", async () => {
 
 client.on("interactionCreate", async (interaction) => {
 
- if (
+if (
   interaction.isStringSelectMenu() &&
   interaction.customId.startsWith("wikiitem_menu:")
 ) {
-  try {
-    await interaction.deferUpdate();
+  await interaction.deferUpdate();
 
-    const [, cacheId, userId] = interaction.customId.split(":");
+  const [, cacheId, userId] = interaction.customId.split(":");
 
-    const data = wikiItemCache.get(cacheId);
+  const data = wikiItemCache.get(cacheId);
 
-    if (!data) {
-      return interaction.message.edit({
-        content: "❌ Menu expired. Use /wikiitem again.",
-        embeds: [],
-        components: []
-      });
-    }
-
-    const selected = interaction.values[0];
-
-    const embed = new EmbedBuilder()
-      .setColor("Yellow");
-
-    if (data.url) embed.setURL(data.url);
-
-    if (selected === "splice") {
-      embed
-        .setTitle(`${data.title} - Splice`)
-        .setDescription((data.splice || "This item is **unsplicable**.").slice(0, 4000));
-    } else {
-      embed
-        .setTitle(data.title)
-        .setDescription((data.description || "No description found.").slice(0, 1000));
-    }
-
-    if (data.image) embed.setThumbnail(data.image);
-
-    return interaction.message.edit({
-      embeds: [embed],
-      components: interaction.message.components
+  if (!data) {
+    return interaction.editReply({
+      content: "❌ Menu expired. Use /wikiitem again.",
+      embeds: [],
+      components: []
     });
-
-  } catch (err) {
-    console.error("Wiki dropdown error:", err);
-    return;
   }
+
+  const selected = interaction.values[0];
+
+  const embed = new EmbedBuilder()
+    .setColor("Yellow");
+
+  if (data.url) embed.setURL(data.url);
+
+  if (selected === "splice") {
+    embed
+      .setTitle(`${data.title}`)
+      .setDescription((data.splice || "This item is **unsplicable**.").slice(0, 4000));
+  } else {
+    embed
+      .setTitle(data.title)
+      .setDescription((data.description || "No description found.").slice(0, 1000));
+  }
+
+  if (data.image) embed.setThumbnail(data.image);
+
+  return interaction.editReply({
+    embeds: [embed],
+    components: interaction.message.components
+  });
 }
   if (interaction.commandName === "addguild") {
   if (!interaction.member.permissions.has("Administrator")) {
