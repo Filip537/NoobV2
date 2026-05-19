@@ -4540,18 +4540,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
   // ================= AUTO REPLY: TUMMA / TUMMARATSU / NIRIEL =================
-const autoGayWords = ["tumma", "tummaratsu", "niriel"];
 
-const msgContent = message.content.toLowerCase().trim();
-
-if (autoGayWords.includes(msgContent)) {
-  await message.reply({
-    content: "gay",
-    allowedMentions: { repliedUser: false }
-  }).catch(() => {});
-
-  return;
-}
 
   // ================= UPDATE BROADCAST DM SYSTEM =================
 if (message.channel.id === UPDATE_BROADCAST_CHANNEL) {
