@@ -1673,55 +1673,75 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
     });
   }
 }
-if (interaction.commandName === "sayas") {
-  const ALLOWED_ROLE_ID = "1495044283294552165";
-  const SAYAS_LOG_VIEWER_ID = "1146756192710959155";
 
-  if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {
+if (interaction.commandName === "sayas") {
+
+  const SAYAS_ROLE = "1491399898237501530";
+
+  if (
+    !interaction.member.roles.cache.has(SAYAS_ROLE) &&
+    interaction.user.id !== OWNER_ID
+  ) {
     return interaction.reply({
-      content: "❌ You don’t have permission to use this command.",
+      content: "❌ You do not have permission to use this command.",
       ephemeral: true
     });
   }
 
   const targetUser = interaction.options.getUser("user");
-  const messageInput = interaction.options.getString("message");
-  const commandInput = interaction.options.getString("command");
+  const message = interaction.options.getString("message");
+  const command = interaction.options.getString("command");
   const file = interaction.options.getAttachment("file");
-  const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
+  const targetChannel =
+    interaction.options.getChannel("channel") || interaction.channel;
 
-  if (!messageInput && !commandInput && !file) {
+  if (!message && !command && !file) {
     return interaction.reply({
-      content: "❌ Please enter a message, choose a command, or attach a file.",
+      content: "❌ Please provide a message, command, or file.",
       ephemeral: true
     });
   }
 
-  if (!targetChannel || !targetChannel.isTextBased()) {
-    return interaction.reply({
-      content: "❌ Please choose a valid text channel.",
-      ephemeral: true
-    });
+  let finalMessage = message || "";
+
+  if (command === "howgay") {
+    finalMessage =
+      `${targetUser} is **${Math.floor(Math.random() * 101)}% gay** 🌈`;
+  }
+
+  if (command === "howpro") {
+    finalMessage =
+      `${targetUser} is **${Math.floor(Math.random() * 201)}% pro** 🔥`;
   }
 
   try {
-    const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
-    const displayName = member?.displayName || targetUser.username;
 
-    let finalMessage = messageInput || "";
+    const webhook = await targetChannel.createWebhook({
+      name: targetUser.username,
+      avatar: targetUser.displayAvatarURL({ dynamic: true })
+    });
 
-    if (commandInput === "howgay") {
-const percent = Math.floor(Math.random() * 500) + 1;
-      const messages = [
-        `${targetUser} is **${percent}% gay** today 🌈`,
-        `Gay meter result for ${targetUser}: **${percent}%** 🌈`,
-        `${targetUser}, you are **${percent}% gay** 😳`,
-        `The rainbow scanner says ${targetUser} is **${percent}% gay** 🌈`,
-        `${targetUser} unlocked **${percent}% gayness** ✨`
-      ];
+    await webhook.send({
+      content: finalMessage || null,
+      files: file ? [file.url] : []
+    });
 
-      finalMessage = messages[Math.floor(Math.random() * messages.length)];
-    }
+    await webhook.delete().catch(() => {});
+
+    return interaction.reply({
+      content: "✅ Message sent successfully.",
+      ephemeral: true
+    });
+
+  } catch (err) {
+    console.error("Sayas Error:", err);
+
+    return interaction.reply({
+      content: "❌ Failed to use /sayas.",
+      ephemeral: true
+    });
+  }
+}
 
     if (commandInput === "howpro") {
       const percent = Math.floor(Math.random() * 500) + 1;
@@ -2276,50 +2296,52 @@ avatar: member?.displayAvatarURL({ dynamic: true }) || targetUser.displayAvatarU
   }
 }
 if (interaction.commandName === "dms") {
-  const targetUser = interaction.options.getUser("user");
-  const message = interaction.options.getString("message");
-  const file = interaction.options.getAttachment("file");
 
-  if (!targetUser) {
+  const SAYAS_ROLE = "1491399898237501530";
+
+  if (
+    !interaction.member.roles.cache.has(SAYAS_ROLE) &&
+    interaction.user.id !== OWNER_ID
+  ) {
     return interaction.reply({
-      content: "❌ Please choose a user.",
+      content: "❌ You do not have permission to use this command.",
       ephemeral: true
     });
   }
 
+  const user = interaction.options.getUser("user");
+  const message = interaction.options.getString("message");
+  const file = interaction.options.getAttachment("file");
+
   if (!message && !file) {
     return interaction.reply({
-      content: "❌ Please provide a message or a file.",
+      content: "❌ Please provide a message or attachment.",
       ephemeral: true
     });
   }
 
   try {
-    await targetUser.send({
-      content: message || null,
-      files: file ? [file.url] : []
-    });
 
-    const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+    const payload = {};
 
-    if (owner) {
-      await owner.send(
-        `**Bot /dms Log**\n\n` +
-        `**Used By:** ${interaction.user.tag}\n` +
-        `**Sent To:** ${targetUser.tag}\n` +
-        `**Message:** ${message || "None"}\n` +
-        `**Attachment:** ${file ? file.url : "None"}`
-      ).catch(() => {});
+    if (message) payload.content = message;
+
+    if (file) {
+      payload.files = [file.url];
     }
 
+    await user.send(payload);
+
     return interaction.reply({
-      content: `✅ Message sent to ${targetUser.tag}.`,
+      content: `✅ Successfully sent a DM to ${user.tag}`,
       ephemeral: true
     });
 
   } catch (err) {
+    console.error("DM Error:", err);
+
     return interaction.reply({
-      content: "❌ Could not send DM.",
+      content: "❌ Failed to send DM to that user.",
       ephemeral: true
     });
   }
