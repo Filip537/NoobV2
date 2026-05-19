@@ -183,10 +183,12 @@ new SlashCommandBuilder()
     option.setName("command")
       .setDescription("Command to activate")
       .setRequired(false)
-      .addChoices(
-        { name: "/howgay", value: "howgay" },
-        { name: "/howpro", value: "howpro" }
-      )
+.addChoices(
+  { name: "/howgay", value: "howgay" },
+  { name: "/howpro", value: "howpro" },
+  { name: "/whosmypartner", value: "whosmypartner" },
+  { name: "/fortuneteller", value: "fortuneteller" }
+)
   )
   .addAttachmentOption(option =>
     option.setName("file")
