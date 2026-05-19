@@ -117,6 +117,24 @@ intents: [
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
 
+const sharkfinReplyFile = "./sharkfinReplies.json";
+
+function loadSharkfinReplies() {
+  if (!fs.existsSync(sharkfinReplyFile)) {
+    fs.writeFileSync(sharkfinReplyFile, "{}");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(sharkfinReplyFile, "utf8"));
+  } catch {
+    fs.writeFileSync(sharkfinReplyFile, "{}");
+    return {};
+  }
+}
+
+function saveSharkfinReplies(data) {
+  fs.writeFileSync(sharkfinReplyFile, JSON.stringify(data, null, 2));
+}
 const randomMessageFile = "./randomMessagesUsed.json";
 
 function loadRandomMessageUsed() {
@@ -4540,19 +4558,33 @@ client.on("messageCreate", async (message) => {
     return;
   }
   // ================= AUTO REPLY: TUMMA / TUMMARATSU / NIRIEL =================
-const autoGayWords = ["tumma", "tummaratsu", "niriel"];
 
-const msgContent = message.content.toLowerCase().trim();
+// ================= SHARKFIN AUTO REPLY =================
 
-if (autoGayWords.includes(msgContent)) {
-  await message.reply({
-    content: "gay",
-    allowedMentions: { repliedUser: false }
-  }).catch(() => {});
+const SHARKFIN_USER_ID = "946556932636950528";
 
-  return;
+if (message.author.id === SHARKFIN_USER_ID && !message.author.bot) {
+
+  const sharkfinData = loadSharkfinReplies();
+
+  const today = new Date().toISOString().split("T")[0];
+
+  if (!sharkfinData[today]) {
+    sharkfinData[today] = 0;
+  }
+
+  if (sharkfinData[today] < 3) {
+
+    sharkfinData[today]++;
+
+    saveSharkfinReplies(sharkfinData);
+
+    await message.reply({
+      content: "i love sharkfin soup",
+      allowedMentions: { repliedUser: false }
+    }).catch(() => {});
+  }
 }
-
   // ================= UPDATE BROADCAST DM SYSTEM =================
 if (message.channel.id === UPDATE_BROADCAST_CHANNEL) {
   if (updateBroadcastCooldown.has(message.id)) return;
