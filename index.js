@@ -1708,6 +1708,72 @@ if (interaction.commandName === "sayas") {
     finalMessage = `${targetUser} is **${percent}% pro** 🔥`;
   }
 
+  if (command === "fortuneteller") {
+    const fortunes = [
+      "You will have a lucky day soon 🍀",
+      "Someone will surprise you this week ✨",
+      "Your hard work will pay off soon 🔥",
+      "A funny moment is coming your way 😂",
+      "You will receive good news soon 📩",
+      "Be careful, someone is secretly watching you 👀",
+      "Your next decision will be important 🌟",
+      "Money luck is coming your way 💰",
+      "A new friendship may start soon 🤝",
+      "Your future looks bright today 🌈"
+    ];
+
+    finalMessage = `${targetUser}, ${fortunes[Math.floor(Math.random() * fortunes.length)]}`;
+  }
+
+  if (command === "whosmypartner") {
+    const boostIds = [
+      "1009567472577429515",
+      "987285444754550805",
+      "1146756192710959155",
+      "946556932636950528",
+      "1307800986534019207",
+      "887369211322720297"
+    ];
+
+    const members = interaction.guild.members.cache.filter(member =>
+      !member.user.bot &&
+      member.id !== targetUser.id
+    );
+
+    const memberPool = [];
+
+    members.forEach(member => {
+      memberPool.push(member);
+
+      if (boostIds.includes(member.id)) {
+        for (let i = 0; i < 5; i++) {
+          memberPool.push(member);
+        }
+      }
+    });
+
+    if (memberPool.length === 0) {
+      return interaction.editReply("❌ I could not find a partner.");
+    }
+
+    const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
+
+    const messages = [
+      `Hello ${targetUser}, your future partner is ${randomMember}. Please enjoy 💖`,
+      `${targetUser}, destiny has chosen ${randomMember} as your future partner 💘`,
+      `Love alert! ${targetUser}, your future partner is ${randomMember} 💕`,
+      `${targetUser}, the bot has matched you with ${randomMember}. Please enjoy 😳`,
+      `Congratulations ${targetUser}! Your future partner is ${randomMember} 🎉`,
+      `${targetUser}, your perfect match is ${randomMember} 💞`,
+      `The love machine says ${targetUser} belongs with ${randomMember} 💗`,
+      `${targetUser}, your future romance starts with ${randomMember} 🌹`,
+      `Breaking news: ${targetUser}'s future partner is ${randomMember} 💌`,
+      `${targetUser}, the stars say your partner is ${randomMember} ✨`
+    ];
+
+    finalMessage = messages[Math.floor(Math.random() * messages.length)];
+  }
+
   try {
     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
@@ -1729,8 +1795,7 @@ if (interaction.commandName === "sayas") {
     console.error("Sayas Error:", err);
     return interaction.editReply("❌ Failed. Make sure the bot has **Manage Webhooks** permission.");
   }
-}
-  if (interaction.commandName === "sendroleselector") {
+}  if (interaction.commandName === "sendroleselector") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
       content: "❌ No permission.",
