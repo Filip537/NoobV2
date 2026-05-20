@@ -2896,38 +2896,67 @@ if (interaction.channel.id === PAY_CHANNEL) {
   }
   
 if (interaction.commandName === "leaderboard") {
+  const category = interaction.options.getString("category") || "level";
 
-  const category = interaction.options.getString("category");
+  if (!fs.existsSync("./levels.json")) {
+    fs.writeFileSync("./levels.json", "{}");
+  }
+
+  const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+
+  let sorted;
 
   if (category === "level") {
-    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-    const sorted = Object.entries(data)
-      .sort((a, b) => b[1].level - a[1].level)
+    sorted = Object.entries(data)
+      .filter(([id, info]) => info && !isNaN(info.level))
+      .sort((a, b) => {
+        const levelDiff = (b[1].level || 1) - (a[1].level || 1);
+        if (levelDiff !== 0) return levelDiff;
+        return (b[1].xp || 0) - (a[1].xp || 0);
+      })
       .slice(0, 10);
-
-    if (sorted.length === 0) {
-      return interaction.reply("No data yet.");
-    }
-
-    let description = "";
-
-    for (let i = 0; i < sorted.length; i++) {
-      const [userId, info] = sorted[i];
-
-      description += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
-    }
-
-    const embed = new EmbedBuilder()
-.setTitle("<:bulletin:1447778065512923217> Level Leaderboard")
-      .setDescription(description)
-      .setColor("Gold");
-
+  } else if (category === "wl") {
+    sorted = Object.entries(data)
+      .filter(([id, info]) => info && !isNaN(info.wl))
+      .sort((a, b) => (b[1].wl || 0) - (a[1].wl || 0))
+      .slice(0, 10);
+  } else {
     return interaction.reply({
-      embeds: [embed],
-      allowedMentions: { parse: [] } // 🚫 prevents ping
+      content: "❌ Invalid leaderboard category.",
+      ephemeral: true
     });
   }
+
+  if (sorted.length === 0) {
+    return interaction.reply({
+      content: "No leaderboard data yet.",
+      ephemeral: true
+    });
+  }
+
+  const description = sorted.map(([userId, info], index) => {
+    if (category === "level") {
+      return `**${index + 1}.** <@${userId}> — Level **${info.level || 1}** | **${info.xp || 0} XP**`;
+    }
+
+    return `**${index + 1}.** <@${userId}> — **${info.wl || 0} WL**`;
+  }).join("\n");
+
+  const embed = new EmbedBuilder()
+    .setTitle(
+      category === "level"
+        ? "<:bulletin:1447778065512923217> Level Leaderboard"
+        : "<:bulletin:1447778065512923217> World Lock Leaderboard"
+    )
+    .setColor("Gold")
+    .setDescription(description)
+    .setFooter({ text: "Top 10 members" })
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
 }
 if (interaction.commandName === "wordbanlist") {
 
