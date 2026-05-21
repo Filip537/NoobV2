@@ -874,6 +874,47 @@ cron.schedule("0 * * * *", async () => {
 });
 });
 
+setInterval(async () => {
+
+  const blacklistData = loadBlacklist();
+
+  const remaining = [];
+
+  for (const entry of blacklistData) {
+
+    if (
+      entry.expiresAt &&
+      Date.now() >= entry.expiresAt
+    ) {
+
+      const logChannel =
+        client.channels.cache.get("1505252429967396904");
+
+      if (logChannel) {
+
+        logChannel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("Green")
+              .setTitle("Unblacklisted")
+              .setDescription(
+`Growid: **${entry.growid}**
+Reason: **Blacklist Expired**`
+              )
+              .setTimestamp()
+          ]
+        });
+      }
+
+    } else {
+
+      remaining.push(entry);
+    }
+  }
+
+  saveBlacklist(remaining);
+
+}, 60000);
 const LEGEND_QUESTS = {
   honor: {
     title: "Quest For Honor",
@@ -2896,67 +2937,38 @@ if (interaction.channel.id === PAY_CHANNEL) {
   }
   
 if (interaction.commandName === "leaderboard") {
-  const category = interaction.options.getString("category") || "level";
 
-  if (!fs.existsSync("./levels.json")) {
-    fs.writeFileSync("./levels.json", "{}");
-  }
-
-  const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
-
-  let sorted;
+  const category = interaction.options.getString("category");
 
   if (category === "level") {
-    sorted = Object.entries(data)
-      .filter(([id, info]) => info && !isNaN(info.level))
-      .sort((a, b) => {
-        const levelDiff = (b[1].level || 1) - (a[1].level || 1);
-        if (levelDiff !== 0) return levelDiff;
-        return (b[1].xp || 0) - (a[1].xp || 0);
-      })
-      .slice(0, 10);
-  } else if (category === "wl") {
-    sorted = Object.entries(data)
-      .filter(([id, info]) => info && !isNaN(info.wl))
-      .sort((a, b) => (b[1].wl || 0) - (a[1].wl || 0))
-      .slice(0, 10);
-  } else {
-    return interaction.reply({
-      content: "❌ Invalid leaderboard category.",
-      ephemeral: true
-    });
-  }
+    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
 
-  if (sorted.length === 0) {
-    return interaction.reply({
-      content: "No leaderboard data yet.",
-      ephemeral: true
-    });
-  }
+    const sorted = Object.entries(data)
+      .sort((a, b) => b[1].level - a[1].level)
+      .slice(0, 10);
 
-  const description = sorted.map(([userId, info], index) => {
-    if (category === "level") {
-      return `**${index + 1}.** <@${userId}> — Level **${info.level || 1}** | **${info.xp || 0} XP**`;
+    if (sorted.length === 0) {
+      return interaction.reply("No data yet.");
     }
 
-    return `**${index + 1}.** <@${userId}> — **${info.wl || 0} WL**`;
-  }).join("\n");
+    let description = "";
 
-  const embed = new EmbedBuilder()
-    .setTitle(
-      category === "level"
-        ? "<:bulletin:1447778065512923217> Level Leaderboard"
-        : "<:bulletin:1447778065512923217> World Lock Leaderboard"
-    )
-    .setColor("Gold")
-    .setDescription(description)
-    .setFooter({ text: "Top 10 members" })
-    .setTimestamp();
+    for (let i = 0; i < sorted.length; i++) {
+      const [userId, info] = sorted[i];
 
-  return interaction.reply({
-    embeds: [embed],
-    allowedMentions: { parse: [] }
-  });
+      description += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
+    }
+
+    const embed = new EmbedBuilder()
+.setTitle("<:bulletin:1447778065512923217> Level Leaderboard")
+      .setDescription(description)
+      .setColor("Gold");
+
+    return interaction.reply({
+      embeds: [embed],
+      allowedMentions: { parse: [] } // 🚫 prevents ping
+    });
+  }
 }
 if (interaction.commandName === "wordbanlist") {
 
@@ -3111,49 +3123,103 @@ if (interaction.commandName === "wordban") {
 // ================= ADD BLACKLIST =================
 if (interaction.commandName === "addblist") {
 
-  if (activeInteractions.has(interaction.id)) return;
-  activeInteractions.add(interaction.id);
-  setTimeout(() => activeInteractions.delete(interaction.id), 5000);
-
-  const image = interaction.options.getAttachment("image");
-
-  if (!interaction.member.roles.cache.has(BLIST_ROLE)) {
-    return interaction.reply({ content: "You don't have permission.", ephemeral: true });
-  }
-
   const growid = interaction.options.getString("growid");
   const reason = interaction.options.getString("reason");
   const proofUser = interaction.options.getUser("proof");
+  const image = interaction.options.getAttachment("image");
+  const durationInput = interaction.options.getString("duration");
 
-  const channel = await client.channels.fetch(PENDING_CHANNEL);
+  let expiresAt = null;
+  let durationText = null;
+
+  if (durationInput) {
+
+    if (durationInput.toLowerCase() === "perma") {
+
+      durationText = "Permanent";
+
+    } else {
+
+      const match = durationInput.match(/^(\d+)([hd])$/i);
+
+      if (!match) {
+        return interaction.reply({
+          content: "❌ Invalid duration format. Use example: 1h, 1d or perma",
+          ephemeral: true
+        });
+      }
+
+      const amount = parseInt(match[1]);
+      const type = match[2].toLowerCase();
+
+      let ms = 0;
+
+      if (type === "h") ms = amount * 60 * 60 * 1000;
+      if (type === "d") ms = amount * 24 * 60 * 60 * 1000;
+
+      expiresAt = Date.now() + ms;
+      durationText = durationInput;
+    }
+  }
 
   const embed = new EmbedBuilder()
     .setTitle("Blacklist Request")
-    .setDescription(`Hello ${interaction.user}`)
+    .setColor("Red")
     .addFields(
-      { name: "GrowID", value: growid, inline: true },
-      { name: "Reason", value: reason, inline: true },
-      { name: "Proof By", value: `<@${proofUser.id}>`, inline: true }
+      {
+        name: "GrowID",
+        value: growid,
+        inline: true
+      },
+      {
+        name: "Reason",
+        value: reason,
+        inline: true
+      },
+      {
+        name: "Proof By",
+        value: `${proofUser}`,
+        inline: true
+      }
     )
-    .setColor("Yellow");
+    .setFooter({
+      text: `Requested by ${interaction.user.tag}`
+    })
+    .setTimestamp();
 
-  if (image) embed.setImage(image.url);
+  if (durationText) {
+    embed.addFields({
+      name: "Duration",
+      value: durationText,
+      inline: true
+    });
+  }
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`approve_${interaction.user.id}`)
-      .setLabel("Approve")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`deny_${interaction.user.id}`)
-      .setLabel("Not Approve")
-      .setStyle(ButtonStyle.Danger)
-  );
+  if (image) {
+    embed.setImage(image.url);
+  }
 
-  await channel.send({ embeds: [embed], components: [row] });
+  const approve = new ButtonBuilder()
+    .setCustomId(`approve_blist_${interaction.user.id}`)
+    .setLabel("Approve")
+    .setStyle(ButtonStyle.Success);
+
+  const deny = new ButtonBuilder()
+    .setCustomId(`deny_blist_${interaction.user.id}`)
+    .setLabel("Deny")
+    .setStyle(ButtonStyle.Danger);
+
+  const row = new ActionRowBuilder().addComponents(approve, deny);
+
+  const channel = client.channels.cache.get("1481767733304623235");
+
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
 
   return interaction.reply({
-    content: "✅ Your blacklist is currently pending.",
+    content: "✅ Blacklist request submitted.",
     ephemeral: true
   });
 }
@@ -4454,7 +4520,7 @@ if (interaction.customId.startsWith("report_blacklist_") || interaction.customId
 }
   if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
 
-    const ownerId = interaction.customId.split("_")[1];
+const ownerId = interaction.customId.split("_").pop();
     const SELF_APPROVE_ROLE = "1448858787296317553";
 
     if (interaction.user.id === ownerId) {

@@ -34,11 +34,16 @@ new SlashCommandBuilder()
       .setDescription("Proof by")
       .setRequired(true)
   )
+  .addStringOption(o =>
+    o.setName("duration")
+      .setDescription("Example: 1h, 1d, 7d or perma")
+      .setRequired(false)
+  )
   .addAttachmentOption(o =>
-  o.setName("image")
-   .setDescription("Upload proof (optional)")
-   .setRequired(false)
-),
+    o.setName("image")
+      .setDescription("Upload proof (optional)")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("leaderboard")
   .setDescription("View leaderboard")
