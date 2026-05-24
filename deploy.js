@@ -83,6 +83,13 @@ new SlashCommandBuilder()
         { name: "The Final Admin Test", value: "admin_test" }
       )
   ),
+  new SlashCommandBuilder()
+  .setName("wiki")
+  .setDescription("Open the NoobV2 wiki menu"),
+
+new SlashCommandBuilder()
+  .setName("editwiki")
+  .setDescription("Add or remove wiki selectors"),
 new SlashCommandBuilder()
   .setName("whatsmydare")
   .setDescription("Get a random dare that will not repeat in 1 day"),

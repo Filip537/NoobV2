@@ -39,6 +39,65 @@ const AUCTION_CHANNEL = "1503646000936517752";
 const auctionFile = "./auctions.json";
 const auctionThumbnail = "https://media.discordapp.net/attachments/1446501509708910704/1503647471077691473/New_Piskel_35.png?ex=6a041c55&is=6a02cad5&hm=e841f76e539eed1d9069010d78224e9c87beb1ddf6db934fc1a05055b8721fb0&=&format=webp&quality=lossless";
 
+const wikiFile = "./wikiData.json";
+const pendingWikiEdits = new Map();
+
+function loadWikiData() {
+  if (!fs.existsSync(wikiFile)) fs.writeFileSync(wikiFile, "[]");
+
+  try {
+    return JSON.parse(fs.readFileSync(wikiFile, "utf8"));
+  } catch {
+    fs.writeFileSync(wikiFile, "[]");
+    return [];
+  }
+}
+
+function saveWikiData(data) {
+  fs.writeFileSync(wikiFile, JSON.stringify(data, null, 2));
+}
+
+function makeWikiId() {
+  return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+}
+
+function buildWikiMenu() {
+  const wiki = loadWikiData();
+
+  if (wiki.length === 0) return null;
+
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("wiki_select")
+      .setPlaceholder("Choose a wiki guide")
+      .addOptions(
+        wiki.slice(0, 25).map(item => ({
+          label: item.title.slice(0, 100),
+          description: "Click to read this guide",
+          value: item.id
+        }))
+      )
+  );
+}
+
+function buildRemoveWikiMenu() {
+  const wiki = loadWikiData();
+
+  if (wiki.length === 0) return null;
+
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("wiki_remove_select")
+      .setPlaceholder("Choose a wiki selector to remove")
+      .addOptions(
+        wiki.slice(0, 25).map(item => ({
+          label: item.title.slice(0, 100),
+          description: "Remove this wiki selector",
+          value: item.id
+        }))
+      )
+  );
+}
 function loadAuctions() {
   if (!fs.existsSync(auctionFile)) fs.writeFileSync(auctionFile, "[]");
   try {
@@ -1523,6 +1582,53 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "wiki") {
+  const menu = buildWikiMenu();
+
+  if (!menu) {
+    return interaction.reply({
+      content: "❌ No wiki guides have been added yet.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("NoobV2 Wiki")
+    .setColor("Blue")
+    .setDescription("Please choose a guide from the selector below.");
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [menu],
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "editwiki") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("wiki_add_button")
+      .setLabel("Add Wiki Selector")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("wiki_remove_button")
+      .setLabel("Remove Wiki Selector")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return interaction.reply({
+    content: "What do you want to do?",
+    components: [row],
+    ephemeral: true
+  });
+}
   if (interaction.commandName === "inventory") {
   const target = interaction.options.getUser("user") || interaction.user;
   const levels = loadLevelsData();
@@ -3779,6 +3885,59 @@ if (interaction.commandName === "addbirthday") {
 
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
+  if (interaction.customId === "wiki_select") {
+  const wiki = loadWikiData();
+  const selectedId = interaction.values[0];
+
+  const selected = wiki.find(item => item.id === selectedId);
+
+  if (!selected) {
+    return interaction.reply({
+      content: "❌ This wiki guide no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(selected.title)
+    .setColor("Blue")
+    .setDescription(selected.body)
+    .setTimestamp();
+
+  return interaction.update({
+    embeds: [embed],
+    components: []
+  });
+}
+
+if (interaction.customId === "wiki_remove_select") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const selectedId = interaction.values[0];
+  const wiki = loadWikiData();
+
+  const selected = wiki.find(item => item.id === selectedId);
+
+  if (!selected) {
+    return interaction.reply({
+      content: "❌ This wiki selector no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  const updated = wiki.filter(item => item.id !== selectedId);
+  saveWikiData(updated);
+
+  return interaction.update({
+    content: `✅ Removed wiki selector: **${selected.title}**`,
+    components: []
+  });
+}
 
   if (interaction.customId === "guildlist_filter") {
   const selected = interaction.values[0];
@@ -4260,6 +4419,49 @@ return interaction.update({
  }
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+  if (interaction.customId === "wiki_add_modal") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const title = interaction.fields.getTextInputValue("wiki_title").trim();
+  const body = interaction.fields.getTextInputValue("wiki_body").trim();
+
+  const tempId = makeWikiId();
+
+  pendingWikiEdits.set(tempId, {
+    title,
+    body
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle("Confirm Wiki Selector")
+    .setColor("Yellow")
+    .addFields(
+      { name: "Title", value: title },
+      { name: "Description / Body", value: body.slice(0, 1000) }
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`wiki_confirm_add_${tempId}`)
+      .setLabel("Confirm")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`wiki_cancel_add_${tempId}`)
+      .setLabel("Cancel")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row],
+    ephemeral: true
+  });
+}
   if (interaction.customId.startsWith("auction_bid_modal_")) {
   const auctionId = interaction.customId.replace("auction_bid_modal_", "");
   const bidText = interaction.fields.getTextInputValue("auction_bid_amount").trim();
@@ -4459,6 +4661,112 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (interaction.customId === "wiki_add_button") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId("wiki_add_modal")
+    .setTitle("Add Wiki Selector");
+
+  const titleInput = new TextInputBuilder()
+    .setCustomId("wiki_title")
+    .setLabel("Selector Title")
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("Example: NoobV2 Guide")
+    .setRequired(true);
+
+  const bodyInput = new TextInputBuilder()
+    .setCustomId("wiki_body")
+    .setLabel("Description / Body")
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder("Write the guide information here")
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(titleInput),
+    new ActionRowBuilder().addComponents(bodyInput)
+  );
+
+  return interaction.showModal(modal);
+}
+
+if (interaction.customId.startsWith("wiki_confirm_add_")) {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const tempId = interaction.customId.replace("wiki_confirm_add_", "");
+  const data = pendingWikiEdits.get(tempId);
+
+  if (!data) {
+    return interaction.reply({
+      content: "❌ This wiki edit expired. Please try again.",
+      ephemeral: true
+    });
+  }
+
+  const wiki = loadWikiData();
+
+  wiki.push({
+    id: makeWikiId(),
+    title: data.title,
+    body: data.body,
+    createdBy: interaction.user.id,
+    createdAt: Date.now()
+  });
+
+  saveWikiData(wiki);
+  pendingWikiEdits.delete(tempId);
+
+  return interaction.update({
+    content: `✅ Added wiki selector: **${data.title}**`,
+    embeds: [],
+    components: []
+  });
+}
+
+if (interaction.customId.startsWith("wiki_cancel_add_")) {
+  const tempId = interaction.customId.replace("wiki_cancel_add_", "");
+  pendingWikiEdits.delete(tempId);
+
+  return interaction.update({
+    content: "❌ Wiki selector creation cancelled.",
+    embeds: [],
+    components: []
+  });
+}
+
+if (interaction.customId === "wiki_remove_button") {
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const menu = buildRemoveWikiMenu();
+
+  if (!menu) {
+    return interaction.reply({
+      content: "❌ No wiki selectors to remove.",
+      ephemeral: true
+    });
+  }
+
+  return interaction.reply({
+    content: "Choose the wiki selector you want to remove:",
+    components: [menu],
+    ephemeral: true
+  });
+}
   if (interaction.customId.startsWith("auction_preview_yes_")) {
   const auctionId = interaction.customId.replace("auction_preview_yes_", "");
   const auctions = loadAuctions();
