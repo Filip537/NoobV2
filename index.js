@@ -91,6 +91,135 @@ function buildAuctionEmbed(auction) {
     .setTimestamp();
 }
 
+const STORY_COST = 5;
+
+function loadLevelsData() {
+  if (!fs.existsSync("./levels.json")) {
+    fs.writeFileSync("./levels.json", "{}");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+  } catch {
+    fs.writeFileSync("./levels.json", "{}");
+    return {};
+  }
+}
+
+function saveLevelsData(data) {
+  fs.writeFileSync("./levels.json", JSON.stringify(data, null, 2));
+}
+
+const tellStories = {
+  redratsu: [
+    "Once upon a time, Redratsu walked into a dark forest.",
+    "He was looking for Red Riding Hood, who disappeared near NoobV2 village.",
+    "A strange wolf appeared and asked for World Locks.",
+    "Redratsu said, 'I only pay with courage.'",
+    "The wolf got scared because Redratsu was too powerful.",
+    "Red Riding Hood came out from behind a tree and laughed.",
+    "Together, they went back home and became legends of the forest."
+  ],
+  noob_bgl: [
+    "Once upon a time, a noob found a shiny Blue Gem Lock on the ground.",
+    "He screamed so loud that the whole world joined.",
+    "Everyone asked if it was real or fake.",
+    "The noob tried to wrench it but accidentally dropped it.",
+    "A chicken picked it up and ran away.",
+    "The noob chased the chicken for three worlds.",
+    "In the end, the chicken gave it back and became his pet."
+  ],
+  lost_wl: [
+    "Once upon a time, an admin lost one World Lock.",
+    "He searched every block in the world.",
+    "Players started making theories about where it went.",
+    "One player said the WL became invisible.",
+    "Another said it got eaten by a dirt block.",
+    "Finally, the admin found it in his own inventory.",
+    "Everyone laughed, and the admin pretended nothing happened."
+  ],
+  ghost_noobv2: [
+    "Once upon a time, NoobV2 had a ghost problem.",
+    "Every night, someone heard a door opening by itself.",
+    "The admins gathered with flashlights and suspicious faces.",
+    "They followed the sound to the storage room.",
+    "Inside, they found a player secretly farming dirt.",
+    "The ghost was not a ghost at all.",
+    "It was just a noob trying to become rich."
+  ],
+  parkour_king: [
+    "Once upon a time, a player claimed he was the Parkour King.",
+    "He said he could finish any parkour without dying.",
+    "The whole server gathered to watch him.",
+    "He jumped once and immediately fell.",
+    "Everyone stayed silent for three seconds.",
+    "Then he said it was just a warm-up.",
+    "After 99 tries, he finally won and became a legend."
+  ],
+  fake_pro: [
+    "Once upon a time, a player called himself the strongest pro.",
+    "He wore expensive items and walked like a boss.",
+    "Everyone believed him until someone asked him to break a dirt block.",
+    "He missed the dirt block three times.",
+    "The server became quiet.",
+    "Then someone whispered, 'He is a noob.'",
+    "The fake pro accepted his destiny and changed his name."
+  ],
+  wl_wizard: [
+    "Once upon a time, there was a World Lock Wizard.",
+    "He could turn dirt into dreams and gems into chaos.",
+    "Players came from every world to ask for luck.",
+    "One noob asked to become rich overnight.",
+    "The wizard gave him one seed and said, 'Farm.'",
+    "The noob was confused but started working.",
+    "Years later, he became richer than the wizard."
+  ],
+  dice_cave: [
+    "Once upon a time, there was a hidden dice cave.",
+    "Only brave players could enter it.",
+    "Inside the cave, dice rolled by themselves.",
+    "One player rolled a six and the cave started shaking.",
+    "A secret door opened behind a lava wall.",
+    "Inside was one sign that said, 'Touch grass.'",
+    "Everyone left the cave and pretended they never saw it."
+  ],
+  rich_noob: [
+    "Once upon a time, a noob became rich by accident.",
+    "He sold a random item for way too many World Locks.",
+    "Nobody knew why the buyer wanted it.",
+    "The noob bought wings, a cape, and sunglasses.",
+    "Then he forgot how to trade.",
+    "He asked the server how to drop items safely.",
+    "Everyone protected him because he was rich but still noob."
+  ],
+  dragon_gt: [
+    "Once upon a time, a dragon landed in a Growtopia world.",
+    "It wanted gems, World Locks, and a comfortable bed.",
+    "The players tried to fight it with pickaxes.",
+    "The dragon laughed and opened a shop instead.",
+    "It sold lava, wings, and suspicious soup.",
+    "Soon, the dragon became the richest shop owner.",
+    "Nobody fought it again because the prices were actually good."
+  ],
+  lost_growid: [
+    "Once upon a time, a player forgot his GrowID.",
+    "He asked everyone if they remembered who he was.",
+    "Some said he was a legend.",
+    "Some said he owed them World Locks.",
+    "He became more confused every second.",
+    "Finally, he checked his own profile.",
+    "His GrowID was there the whole time."
+  ],
+  admin_test: [
+    "Once upon a time, a player wanted to become an admin.",
+    "The owners gave him the final admin test.",
+    "He had to stay calm during chaos.",
+    "Suddenly, everyone started asking questions at once.",
+    "Someone yelled scam, someone yelled parkour, and someone asked for free WL.",
+    "The player took a deep breath and answered everyone politely.",
+    "He passed the test and became a trusted admin."
+  ]
+};
 const dareFile = "./dareUsed.json";
 
 function loadDareUsed() {
@@ -1394,6 +1523,64 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "inventory") {
+  const target = interaction.options.getUser("user") || interaction.user;
+  const levels = loadLevelsData();
+  const data = levels[target.id] || {};
+
+  const wl = data.wl || 0;
+  const level = data.level || 1;
+  const xp = data.xp || 0;
+
+  return interaction.reply({
+    content:
+      `🎒 **${target.username}'s Inventory**\n` +
+      `World Locks: **${wl} WL**\n` +
+      `Level: **${level}**\n` +
+      `XP: **${xp}**`,
+    allowedMentions: { parse: [] }
+  });
+}
+
+if (interaction.commandName === "tellstory") {
+  const storyId = interaction.options.getString("story");
+  const story = tellStories[storyId];
+
+  if (!story) {
+    return interaction.reply({
+      content: "❌ Story not found.",
+      ephemeral: true
+    });
+  }
+
+  const levels = loadLevelsData();
+  const userData = levels[interaction.user.id] || { wl: 0, level: 1, xp: 0 };
+
+  if ((userData.wl || 0) < STORY_COST) {
+    return interaction.reply({
+      content: `❌ You need **5 World Locks** to use /tellstory.\nYou currently have **${userData.wl || 0} WL**.`,
+      ephemeral: true
+    });
+  }
+
+  userData.wl -= STORY_COST;
+  levels[interaction.user.id] = userData;
+  saveLevelsData(levels);
+
+  await interaction.reply({
+    content: `Story started. **5 WL** has been removed from your inventory.`
+  });
+
+  for (const line of story) {
+    await wait(3000);
+    await interaction.followUp({
+      content: line,
+      allowedMentions: { parse: [] }
+    });
+  }
+
+  return;
+}
   if (interaction.commandName === "hownoob") {
   const target = interaction.options.getUser("user") || interaction.user;
   const percent = Math.floor(Math.random() * 500) + 1;

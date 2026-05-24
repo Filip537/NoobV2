@@ -52,7 +52,37 @@ new SlashCommandBuilder()
       .setDescription("User to check")
       .setRequired(false)
   ),
+new SlashCommandBuilder()
+  .setName("inventory")
+  .setDescription("Check your or another member's World Locks")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("Member to check")
+      .setRequired(false)
+  ),
 
+new SlashCommandBuilder()
+  .setName("tellstory")
+  .setDescription("Tell a story for 5 World Locks")
+  .addStringOption(option =>
+    option.setName("story")
+      .setDescription("Choose a story")
+      .setRequired(true)
+      .addChoices(
+        { name: "Story of Redratsu and Red Riding Hood", value: "redratsu" },
+        { name: "The Noob Who Found a BGL", value: "noob_bgl" },
+        { name: "The Admin and the Lost WL", value: "lost_wl" },
+        { name: "The Ghost in NoobV2", value: "ghost_noobv2" },
+        { name: "The Parkour King", value: "parkour_king" },
+        { name: "The Fake Pro Player", value: "fake_pro" },
+        { name: "The World Lock Wizard", value: "wl_wizard" },
+        { name: "The Dice Cave Mystery", value: "dice_cave" },
+        { name: "The Rich Noob", value: "rich_noob" },
+        { name: "The Dragon of Growtopia", value: "dragon_gt" },
+        { name: "The Lost GrowID", value: "lost_growid" },
+        { name: "The Final Admin Test", value: "admin_test" }
+      )
+  ),
 new SlashCommandBuilder()
   .setName("whatsmydare")
   .setDescription("Get a random dare that will not repeat in 1 day"),
