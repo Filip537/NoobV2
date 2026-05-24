@@ -44,6 +44,18 @@ new SlashCommandBuilder()
       .setDescription("Upload proof (optional)")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("hownoob")
+  .setDescription("See how noob someone is")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to check")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("whatsmydare")
+  .setDescription("Get a random dare that will not repeat in 1 day"),
 new SlashCommandBuilder()
   .setName("leaderboard")
   .setDescription("View leaderboard")

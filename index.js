@@ -91,6 +91,43 @@ function buildAuctionEmbed(auction) {
     .setTimestamp();
 }
 
+const dareFile = "./dareUsed.json";
+
+function loadDareUsed() {
+  if (!fs.existsSync(dareFile)) {
+    fs.writeFileSync(dareFile, "{}");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(dareFile, "utf8"));
+  } catch {
+    fs.writeFileSync(dareFile, "{}");
+    return {};
+  }
+}
+
+function saveDareUsed(data) {
+  fs.writeFileSync(dareFile, JSON.stringify(data, null, 2));
+}
+
+function getDareMessages() {
+  return [
+    "Send a random emoji and let people guess your mood.",
+    "Type your next message with your eyes closed.",
+    "Change your nickname for 10 minutes.",
+    "Say something nice about the last person who messaged.",
+    "Send your most used emoji.",
+    "Talk like a robot for 5 minutes.",
+    "Let someone choose your profile status for 10 minutes.",
+    "Send a voice message saying hello.",
+    "Ping a friend and say they are cool.",
+    "Use only emojis for your next 3 messages.",
+
+    ...Array.from({ length: 300 }, (_, i) =>
+      `Dare #${i + 1}: Do something funny in the chat and let the server rate it from 1 to 10.`
+    )
+  ];
+}
 function loadAiMemory() {
   if (!fs.existsSync(aiMemoryFile)) {
     fs.writeFileSync(aiMemoryFile, "{}");
@@ -1152,6 +1189,56 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "hownoob") {
+  const target = interaction.options.getUser("user") || interaction.user;
+  const percent = Math.floor(Math.random() * 500) + 1;
+
+  const messages = [
+    `${target} is **${percent}% noob** today 😂`,
+    `Noob meter result for ${target}: **${percent}%** 🤓`,
+    `${target}, you are **${percent}% noob** 💀`,
+    `The noob scanner says ${target} is **${percent}% noob** 🧠`,
+    `${target} unlocked **${percent}% noob power** ⚡`,
+    `Certified result: ${target} is **${percent}% noob** 🏆`,
+    `${target} has reached **${percent}% noob level** 🚀`,
+    `Breaking news: ${target} is **${percent}% noob** 😭`
+  ];
+
+  return interaction.reply({
+    content: messages[Math.floor(Math.random() * messages.length)]
+  });
+}
+
+if (interaction.commandName === "whatsmydare") {
+  const usedData = loadDareUsed();
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  usedData.used = (usedData.used || []).filter(item => now - item.usedAt < dayMs);
+
+  const allDares = getDareMessages();
+  const usedDares = new Set(usedData.used.map(item => item.dare));
+
+  let available = allDares.filter(dare => !usedDares.has(dare));
+
+  if (available.length === 0) {
+    usedData.used = [];
+    available = allDares;
+  }
+
+  const picked = available[Math.floor(Math.random() * available.length)];
+
+  usedData.used.push({
+    dare: picked,
+    usedAt: now
+  });
+
+  saveDareUsed(usedData);
+
+  return interaction.reply({
+    content: `**Your Dare:**\n${picked}`
+  });
+}
 if (interaction.isChatInputCommand() && interaction.commandName === "legendquest") {
   const questId = interaction.options.getString("quest");
   const quest = LEGEND_QUESTS[questId];
