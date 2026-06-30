@@ -546,7 +546,6 @@ intents: [
 ],
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
-require("./nirielAlert.js")(client);
 const sharkfinReplyFile = "./sharkfinReplies.json";
 
 function loadSharkfinReplies() {
