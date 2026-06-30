@@ -546,7 +546,7 @@ intents: [
 ],
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
-
+require("./nirielAlert.js")(client);
 const sharkfinReplyFile = "./sharkfinReplies.json";
 
 function loadSharkfinReplies() {
@@ -5442,7 +5442,6 @@ client.on("messageCreate", async (message) => {
   // ================= AUTO REPLY: TUMMA / TUMMARATSU / NIRIEL =================
 
 // ================= SHARKFIN AUTO REPLY =================
-
 const SHARKFIN_USER_ID = "946556932636950528";
 
 if (message.author.id === SHARKFIN_USER_ID && !message.author.bot) {
