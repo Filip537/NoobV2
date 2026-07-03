@@ -1,12 +1,6 @@
 const fs = require("fs");
-const path = require("path");
-const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  AttachmentBuilder
-} = require("discord.js");
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { renderBlackjack } = require("./renderBlackjack.js");
 
 const LEVELS_FILE = "./levels.json";
 const games = new Map();
@@ -60,18 +54,17 @@ function handValue(hand) {
 }
 
 function cardText(card) {
-  const suit = {
-    S: "♠️",
-    H: "♥️",
-    D: "♦️",
-    C: "♣️"
-  }[card.suit];
-
+  const suit = { S: "♠️", H: "♥️", D: "♦️", C: "♣️" }[card.suit];
   return `${card.rank}${suit}`;
 }
 
 function draw(game) {
   return game.deck.pop();
+}
+
+function updateTotals(game) {
+  game.playerTotal = handValue(game.playerHand);
+  game.dealerTotal = handValue(game.dealerHand);
 }
 
 function buttonRow(id, ended = false) {
@@ -93,14 +86,9 @@ function buttonRow(id, ended = false) {
 }
 
 function buildEmbed(game, note = "") {
-  const playerTotal = handValue(game.playerHand);
   const dealerShown = game.finished
     ? game.dealerHand.map(cardText).join(" ")
     : `${cardText(game.dealerHand[0])} 🂠`;
-
-  const dealerTotal = game.finished
-    ? handValue(game.dealerHand)
-    : cardValue(game.dealerHand[0]);
 
   return new EmbedBuilder()
     .setColor(game.finished ? "Gold" : "Green")
@@ -108,8 +96,8 @@ function buildEmbed(game, note = "") {
     .setDescription(
       `${note ? `${note}\n\n` : ""}` +
       `**Bet:** ${game.bet} WL\n\n` +
-      `**Dealer:**\n${dealerShown}\nTotal: **${dealerTotal}${game.finished ? "" : "+"}**\n\n` +
-      `**You:**\n${game.playerHand.map(cardText).join(" ")}\nTotal: **${playerTotal}**`
+      `**Dealer:**\n${dealerShown}\nTotal: **${game.finished ? game.dealerTotal : "?"}**\n\n` +
+      `**You:**\n${game.playerHand.map(cardText).join(" ")}\nTotal: **${game.playerTotal}**`
     )
     .setFooter({ text: `Player: ${game.username}` });
 }
@@ -126,13 +114,10 @@ function takeBet(userId, amount) {
   const levels = loadLevels();
   const user = getUser(levels, userId);
 
-  if (user.wl < amount) {
-    return { ok: false, balance: user.wl };
-  }
+  if (user.wl < amount) return { ok: false, balance: user.wl };
 
   user.wl -= amount;
   saveLevels(levels);
-
   return { ok: true, balance: user.wl };
 }
 
@@ -160,7 +145,6 @@ async function handleCommand(interaction) {
 
     const result = Math.random() < 0.5 ? "heads" : "tails";
     const win = result === side;
-
     let balance = betResult.balance;
 
     if (win) balance = pay(interaction.user.id, bet * 2);
@@ -210,25 +194,28 @@ async function handleCommand(interaction) {
       deck: makeDeck(),
       playerHand: [],
       dealerHand: [],
-      finished: false
+      finished: false,
+      playerTotal: 0,
+      dealerTotal: 0
     };
 
     game.playerHand.push(draw(game), draw(game));
     game.dealerHand.push(draw(game), draw(game));
+    updateTotals(game);
 
     games.set(id, game);
 
-    const playerTotal = handValue(game.playerHand);
-
-    if (playerTotal === 21) {
+    if (game.playerTotal === 21) {
       game.finished = true;
+      updateTotals(game);
+
       const winAmount = Math.floor(bet * 2.5);
       const balance = pay(interaction.user.id, winAmount);
+      const image = await renderBlackjack(game, "BLACKJACK!");
 
       await interaction.reply({
-        embeds: [
-          buildEmbed(game, `🔥 BLACKJACK! You won **${winAmount} WL**!\nBalance: **${balance} WL**`)
-        ],
+        embeds: [buildEmbed(game, `🔥 BLACKJACK! You won **${winAmount} WL**!\nBalance: **${balance} WL**`)],
+        files: [image],
         components: [buttonRow(id, true)]
       });
 
@@ -236,8 +223,11 @@ async function handleCommand(interaction) {
       return true;
     }
 
+    const image = await renderBlackjack(game, "Choose Hit or Stand");
+
     await interaction.reply({
       embeds: [buildEmbed(game, "Choose **Hit** or **Stand**.")],
+      files: [image],
       components: [buttonRow(id)]
     });
 
@@ -250,25 +240,24 @@ async function handleCommand(interaction) {
 async function finishGame(interaction, game) {
   game.finished = true;
 
-  let playerTotal = handValue(game.playerHand);
-  let dealerTotal = handValue(game.dealerHand);
+  updateTotals(game);
 
-  while (dealerTotal < 17) {
+  while (game.dealerTotal < 17) {
     game.dealerHand.push(draw(game));
-    dealerTotal = handValue(game.dealerHand);
+    updateTotals(game);
   }
 
   let note = "";
 
-  if (playerTotal > 21) {
+  if (game.playerTotal > 21) {
     note = `💥 You busted and lost **${game.bet} WL**.`;
-  } else if (dealerTotal > 21) {
+  } else if (game.dealerTotal > 21) {
     const balance = pay(game.userId, game.bet * 2);
     note = `🎉 Dealer busted! You won **${game.bet} WL**.\nBalance: **${balance} WL**`;
-  } else if (playerTotal > dealerTotal) {
+  } else if (game.playerTotal > game.dealerTotal) {
     const balance = pay(game.userId, game.bet * 2);
     note = `🎉 You beat the dealer and won **${game.bet} WL**.\nBalance: **${balance} WL**`;
-  } else if (playerTotal === dealerTotal) {
+  } else if (game.playerTotal === game.dealerTotal) {
     const balance = pay(game.userId, game.bet);
     note = `🤝 Push! Your **${game.bet} WL** was refunded.\nBalance: **${balance} WL**`;
   } else {
@@ -277,8 +266,11 @@ async function finishGame(interaction, game) {
 
   games.delete(game.id);
 
+  const image = await renderBlackjack(game, note.replace(/\n/g, " "));
+
   await interaction.update({
     embeds: [buildEmbed(game, note)],
+    files: [image],
     components: [buttonRow(game.id, true)]
   });
 }
@@ -311,14 +303,18 @@ async function handleButton(interaction) {
 
   if (action === "hit") {
     game.playerHand.push(draw(game));
+    updateTotals(game);
 
-    if (handValue(game.playerHand) > 21) {
+    if (game.playerTotal > 21) {
       await finishGame(interaction, game);
       return true;
     }
 
+    const image = await renderBlackjack(game, "You drew a card");
+
     await interaction.update({
       embeds: [buildEmbed(game, "You drew a card. Hit or Stand?")],
+      files: [image],
       components: [buttonRow(id)]
     });
 
