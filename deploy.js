@@ -131,6 +131,9 @@ new SlashCommandBuilder()
       .setAutocomplete(true)
   ),
   new SlashCommandBuilder()
+  .setName("slot")
+  .setDescription("Test your luck with the slot machine"),
+  new SlashCommandBuilder()
   .setName("wiki")
   .setDescription("Open the NoobV2 wiki menu"),
 
