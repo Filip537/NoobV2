@@ -14,6 +14,7 @@ const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const slot = require("./feature/slot.js");
+const gamble = require("./feature/gamble.js");
 const level = require("./feature/level.js");
 const stickerGif = require("./feature/stickerGif.js");
 const words = require("./feature/words.js");
@@ -1583,6 +1584,10 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+  const handled = await gamble.handleCommand(interaction);
+  if (handled) return;
+}
   if (interaction.isChatInputCommand()) {
   const handled = await slot.handleCommand(interaction);
   if (handled) return;

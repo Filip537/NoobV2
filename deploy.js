@@ -131,6 +131,69 @@ new SlashCommandBuilder()
       .setAutocomplete(true)
   ),
   new SlashCommandBuilder()
+.setName("coinflip")
+.setDescription("Bet your WL on a coin flip.")
+.addIntegerOption(o =>
+    o.setName("bet")
+    .setDescription("Amount of WL to bet")
+    .setRequired(true)
+)
+.addStringOption(o =>
+    o.setName("side")
+    .setDescription("Heads or Tails")
+    .setRequired(true)
+    .addChoices(
+        { name: "Heads", value: "heads" },
+        { name: "Tails", value: "tails" }
+    )
+),
+new SlashCommandBuilder()
+.setName("blackjack")
+.setDescription("Play Blackjack against the dealer.")
+.addIntegerOption(o =>
+    o.setName("bet")
+    .setDescription("Amount of WL to bet")
+    .setRequired(true)
+),
+new SlashCommandBuilder()
+  .setName("daily")
+  .setDescription("Claim 10-50 WL once every 24 hours"),
+
+new SlashCommandBuilder()
+  .setName("work")
+  .setDescription("Work and earn 5-20 WL every hour"),
+
+new SlashCommandBuilder()
+  .setName("beg")
+  .setDescription("Beg for a small chance to get WL"),
+
+new SlashCommandBuilder()
+  .setName("crime")
+  .setDescription("Commit a risky crime for WL"),
+
+new SlashCommandBuilder()
+  .setName("rob")
+  .setDescription("Try to rob another user")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to rob")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("pay")
+  .setDescription("Pay WL to another user")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to pay")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("amount")
+      .setDescription("Amount of WL")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("slot")
   .setDescription("Test your luck with the slot machine"),
   new SlashCommandBuilder()
