@@ -194,6 +194,47 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("rps")
+  .setDescription("Challenge someone to Rock Paper Scissors")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to challenge")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("bet")
+      .setDescription("WL bet amount")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("bombpass")
+  .setDescription("Challenge someone to Bomb Pass")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to challenge")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("bet")
+      .setDescription("WL bet amount")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("battle")
+  .setDescription("Challenge someone to an Arena Battle")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("User to challenge")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("bet")
+      .setDescription("WL bet amount")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("slot")
   .setDescription("Test your luck with the slot machine"),
   new SlashCommandBuilder()
