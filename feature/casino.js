@@ -166,73 +166,54 @@ async function handleCommand(interaction) {
     return true;
   }
 
-  if (interaction.commandName === "blackjack") {
-    const bet = interaction.options.getInteger("bet");
+if (interaction.commandName === "blackjack") {
+  await interaction.deferReply();
 
-    if (!bet || bet <= 0) {
-      await interaction.reply({ content: "Bet must be above 0.", ephemeral: true });
-      return true;
-    }
+  const bet = interaction.options.getInteger("bet");
 
-    const betResult = takeBet(interaction.user.id, bet);
-
-    if (!betResult.ok) {
-      await interaction.reply({
-        content: `You only have **${betResult.balance} WL**.`,
-        ephemeral: true
-      });
-      return true;
-    }
-
-    const id = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
-
-    const game = {
-      id,
-      userId: interaction.user.id,
-      username: interaction.user.username,
-      bet,
-      deck: makeDeck(),
-      playerHand: [],
-      dealerHand: [],
-      finished: false,
-      playerTotal: 0,
-      dealerTotal: 0
-    };
-
-    game.playerHand.push(draw(game), draw(game));
-    game.dealerHand.push(draw(game), draw(game));
-    updateTotals(game);
-
-    games.set(id, game);
-
-    if (game.playerTotal === 21) {
-      game.finished = true;
-      updateTotals(game);
-
-      const winAmount = Math.floor(bet * 2.5);
-      const balance = pay(interaction.user.id, winAmount);
-      const image = await renderBlackjack(game, "BLACKJACK!");
-
-      await interaction.reply({
-        embeds: [buildEmbed(game, `🔥 BLACKJACK! You won **${winAmount} WL**!\nBalance: **${balance} WL**`)],
-        files: [image],
-        components: [buttonRow(id, true)]
-      });
-
-      games.delete(id);
-      return true;
-    }
-
-    const image = await renderBlackjack(game, "Choose Hit or Stand");
-
-    await interaction.reply({
-      embeds: [buildEmbed(game, "Choose **Hit** or **Stand**.")],
-      files: [image],
-      components: [buttonRow(id)]
-    });
-
+  if (!bet || bet <= 0) {
+    await interaction.editReply("Bet must be above 0.");
     return true;
   }
+
+  const betResult = takeBet(interaction.user.id, bet);
+
+  if (!betResult.ok) {
+    await interaction.editReply(`You only have **${betResult.balance} WL**.`);
+    return true;
+  }
+
+  const id = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+
+  const game = {
+    id,
+    userId: interaction.user.id,
+    username: interaction.user.username,
+    bet,
+    deck: makeDeck(),
+    playerHand: [],
+    dealerHand: [],
+    finished: false,
+    playerTotal: 0,
+    dealerTotal: 0
+  };
+
+  game.playerHand.push(draw(game), draw(game));
+  game.dealerHand.push(draw(game), draw(game));
+  updateTotals(game);
+
+  games.set(id, game);
+
+  const image = await renderBlackjack(game, "Choose Hit or Stand");
+
+  await interaction.editReply({
+    embeds: [buildEmbed(game, "Choose **Hit** or **Stand**.")],
+    files: [image],
+    components: [buttonRow(id)]
+  });
+
+  return true;
+}
 
   return false;
 }
@@ -266,10 +247,13 @@ async function finishGame(interaction, game) {
 
   games.delete(game.id);
 
-  const image = await renderBlackjack(game, note.replace(/\n/g, " "));
+if (!interaction.deferred && !interaction.replied) {
+  await interaction.deferUpdate();
+}
 
-  await interaction.update({
-    embeds: [buildEmbed(game, note)],
+const image = await renderBlackjack(game, note.replace(/\n/g, " "));
+
+await interaction.editReply({    embeds: [buildEmbed(game, note)],
     files: [image],
     components: [buttonRow(game.id, true)]
   });
@@ -310,9 +294,11 @@ async function handleButton(interaction) {
       return true;
     }
 
-    const image = await renderBlackjack(game, "You drew a card");
+await interaction.deferUpdate();
 
-    await interaction.update({
+const image = await renderBlackjack(game, "You drew a card");
+
+await interaction.editReply({
       embeds: [buildEmbed(game, "You drew a card. Hit or Stand?")],
       files: [image],
       components: [buttonRow(id)]
