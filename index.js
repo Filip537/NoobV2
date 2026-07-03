@@ -3561,38 +3561,58 @@ if (interaction.channel.id === PAY_CHANNEL) {
   }
   
 if (interaction.commandName === "leaderboard") {
-
   const category = interaction.options.getString("category");
+  const levels = loadLevelsData();
 
-  if (category === "level") {
-    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+  const users = Object.entries(levels)
+    .map(([userId, data]) => ({
+      userId,
+      level: data.level || 1,
+      xp: data.xp || 0,
+      wl: data.wl || 0
+    }))
+    .filter(user => category === "wl" ? user.wl > 0 : user.level > 0)
+    .sort((a, b) => {
+      if (category === "wl") return b.wl - a.wl;
+      return b.level - a.level || b.xp - a.xp;
+    })
+    .slice(0, 10);
 
-    const sorted = Object.entries(data)
-      .sort((a, b) => b[1].level - a[1].level)
-      .slice(0, 10);
-
-    if (sorted.length === 0) {
-      return interaction.reply("No data yet.");
-    }
-
-    let description = "";
-
-    for (let i = 0; i < sorted.length; i++) {
-      const [userId, info] = sorted[i];
-
-      description += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
-    }
-
-    const embed = new EmbedBuilder()
-.setTitle("<:bulletin:1447778065512923217> Level Leaderboard")
-      .setDescription(description)
-      .setColor("Gold");
-
+  if (users.length === 0) {
     return interaction.reply({
-      embeds: [embed],
-      allowedMentions: { parse: [] } // 🚫 prevents ping
+      content: "❌ No leaderboard data found.",
+      ephemeral: true
     });
   }
+
+  const title = category === "wl"
+    ? "🏆 World Locks Leaderboard"
+    : "🏆 Level Leaderboard";
+
+  const description = users.map((user, index) => {
+    const medal =
+      index === 0 ? "🥇" :
+      index === 1 ? "🥈" :
+      index === 2 ? "🥉" :
+      `**${index + 1}.**`;
+
+    if (category === "wl") {
+      return `${medal} <@${user.userId}> — **${user.wl} WL**`;
+    }
+
+    return `${medal} <@${user.userId}> — Level **${user.level}** | XP **${user.xp}**`;
+  }).join("\n");
+
+  const embed = new EmbedBuilder()
+    .setColor("Gold")
+    .setTitle(title)
+    .setDescription(description)
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
 }
 if (interaction.commandName === "wordbanlist") {
 

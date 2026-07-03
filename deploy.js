@@ -254,9 +254,10 @@ new SlashCommandBuilder()
     option.setName("category")
       .setDescription("Choose leaderboard category")
       .setRequired(true)
-      .addChoices(
-        { name: "Level", value: "level" }
-      )
+.addChoices(
+  { name: "Level", value: "level" },
+  { name: "World Locks", value: "wl" }
+)
   ),
   new SlashCommandBuilder()
   .setName("sendupdates")
