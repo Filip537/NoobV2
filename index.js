@@ -14,6 +14,7 @@ const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const level = require("./feature/level.js");
+const stickerGif = require("./feature/stickerGif.js");
 const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
@@ -1581,6 +1582,20 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isAutocomplete()) {
+  const handled = await stickerGif.handleAutocomplete(interaction);
+  if (handled) return;
+}
+
+if (interaction.isChatInputCommand()) {
+  const handled = await stickerGif.handleCommand(interaction, client);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+const handled = await stickerGif.handleButton(interaction, client);
+  if (handled) return;
+}
   if (interaction.commandName === "wiki") {
   const menu = buildWikiMenu();
 

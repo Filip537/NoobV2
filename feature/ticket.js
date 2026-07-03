@@ -133,6 +133,11 @@ Please choose the correct option below.`
       description: "Create a normal ticket",
       value: "ticket_others"
     },
+    {
+  label: "Sponsor Giveaway",
+  description: "Sponsor a giveaway using the Giveaway Bot",
+  value: "ticket_giveaway"
+},
     ...customTickets.map(t => ({
       label: t.label.slice(0, 100),
       description: `${t.description} | Ends ${t.durationRaw}`.slice(0, 100),
@@ -245,6 +250,25 @@ async function createTicket(interaction, type, customData = null) {
       components: [closeButton()]
     });
   }
+
+  if (type === "giveaway") {
+  await channel.send({
+    content:
+`Hello ${user},
+
+Thank you for choosing to sponsor a giveaway using the **Giveaway Bot**.
+
+Please submit your giveaway details below in **one message**.
+
+\`\`\`
+- Giveaway Prize:
+- Others (Please Specify):
+\`\`\`
+
+A staff member will help you coordinate the giveaway through this ticket.`,
+    components: [closeButton()]
+  });
+}
 
   if (customData) {
     await channel.send({
@@ -436,7 +460,7 @@ async refreshTicketPanelCommand(interaction) {
           label: "Send Support Application",
           description: "Send the support application form",
           value: "ticketmod_support_form"
-        }
+        },
       );
 
     return interaction.reply({
@@ -452,7 +476,7 @@ async refreshTicketPanelCommand(interaction) {
       if (value === "ticket_admin") return createTicket(interaction, "admin");
       if (value === "ticket_support") return createTicket(interaction, "support");
       if (value === "ticket_others") return createTicket(interaction, "others");
-
+if (value === "ticket_giveaway") return createTicket(interaction, "giveaway");
       if (value.startsWith("custom_")) {
         const id = value.replace("custom_", "");
         const customTickets = loadCustomTickets();

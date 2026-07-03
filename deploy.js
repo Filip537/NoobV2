@@ -84,6 +84,53 @@ new SlashCommandBuilder()
       )
   ),
   new SlashCommandBuilder()
+  .setName("addsticker")
+  .setDescription("Submit a sticker/image for admin approval")
+  .addStringOption(o =>
+    o.setName("name")
+      .setDescription("Sticker name")
+      .setRequired(true)
+  )
+  .addAttachmentOption(o =>
+    o.setName("file")
+      .setDescription("Upload sticker/image")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("addgif")
+  .setDescription("Submit a GIF for admin approval")
+  .addStringOption(o =>
+    o.setName("name")
+      .setDescription("GIF name")
+      .setRequired(true)
+  )
+  .addAttachmentOption(o =>
+    o.setName("file")
+      .setDescription("Upload GIF")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("sendsticker")
+  .setDescription("Send a saved sticker")
+  .addStringOption(o =>
+    o.setName("name")
+      .setDescription("Sticker name")
+      .setRequired(true)
+      .setAutocomplete(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("sendgif")
+  .setDescription("Send a saved GIF")
+  .addStringOption(o =>
+    o.setName("name")
+      .setDescription("GIF name")
+      .setRequired(true)
+      .setAutocomplete(true)
+  ),
+  new SlashCommandBuilder()
   .setName("wiki")
   .setDescription("Open the NoobV2 wiki menu"),
 
