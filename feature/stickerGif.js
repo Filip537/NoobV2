@@ -207,7 +207,9 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  const [, action, requestId] = interaction.customId.split("_");
+const parts = interaction.customId.split("_");
+const action = parts[1];
+const requestId = parts.slice(2).join("_");
 
   const data = loadData();
   const pending = data.pending.find(item => item.id === requestId);
