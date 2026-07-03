@@ -260,6 +260,25 @@ new SlashCommandBuilder()
 )
   ),
   new SlashCommandBuilder()
+  .setName("business")
+  .setDescription("Invest WL into an interactive business")
+  .addStringOption(o =>
+    o.setName("type")
+      .setDescription("Choose business type")
+      .setRequired(true)
+      .addChoices(
+        { name: "Restaurant", value: "restaurant" },
+        { name: "Mining Company", value: "mining" },
+        { name: "Delivery Company", value: "delivery" },
+        { name: "Fishing Boat", value: "fishing" }
+      )
+  )
+  .addIntegerOption(o =>
+    o.setName("investment")
+      .setDescription("Amount of WL to invest")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("sendupdates")
   .setDescription("Send the latest bot update log")
   .addChannelOption(option =>

@@ -14,6 +14,7 @@ const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const slot = require("./feature/slot.js");
+const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -1586,6 +1587,15 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+  const handled = await business.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await business.handleButton(interaction);
+  if (handled) return;
+}
   if (interaction.isChatInputCommand()) {
   const handled = await casino.handleCommand(interaction);
   if (handled) return;
