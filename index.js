@@ -1587,6 +1587,15 @@ const LEGEND_QUESTS = {
 };
 client.on("interactionCreate", async (interaction) => {
   if (interaction.isChatInputCommand()) {
+  const handled = await casino.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await casino.handleButton(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
   const handled = await pvp.handleCommand(interaction);
   if (handled) return;
 }

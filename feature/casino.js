@@ -1,115 +1,339 @@
 const fs = require("fs");
-const { EmbedBuilder } = require("discord.js");
+const path = require("path");
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  AttachmentBuilder
+} = require("discord.js");
 
 const LEVELS_FILE = "./levels.json";
+const games = new Map();
+
+const suits = ["S", "H", "D", "C"];
+const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 
 function loadLevels() {
-    if (!fs.existsSync(LEVELS_FILE)) {
-        fs.writeFileSync(LEVELS_FILE, "{}");
-    }
-
-    try {
-        return JSON.parse(fs.readFileSync(LEVELS_FILE, "utf8"));
-    } catch {
-        return {};
-    }
+  if (!fs.existsSync(LEVELS_FILE)) fs.writeFileSync(LEVELS_FILE, "{}");
+  try {
+    return JSON.parse(fs.readFileSync(LEVELS_FILE, "utf8"));
+  } catch {
+    return {};
+  }
 }
 
 function saveLevels(data) {
-    fs.writeFileSync(LEVELS_FILE, JSON.stringify(data, null, 2));
+  fs.writeFileSync(LEVELS_FILE, JSON.stringify(data, null, 2));
 }
 
 function getUser(data, id) {
-    if (!data[id]) {
-        data[id] = {
-            xp: 0,
-            level: 1,
-            wl: 0
-        };
-    }
+  if (!data[id]) data[id] = { xp: 0, level: 1, wl: 0 };
+  if (typeof data[id].wl !== "number") data[id].wl = 0;
+  return data[id];
+}
 
-    if (typeof data[id].wl !== "number")
-        data[id].wl = 0;
+function makeDeck() {
+  const deck = [];
+  for (const s of suits) {
+    for (const r of ranks) deck.push({ rank: r, suit: s });
+  }
+  return deck.sort(() => Math.random() - 0.5);
+}
 
-    return data[id];
+function cardValue(card) {
+  if (["J", "Q", "K"].includes(card.rank)) return 10;
+  if (card.rank === "A") return 11;
+  return Number(card.rank);
+}
+
+function handValue(hand) {
+  let total = hand.reduce((sum, c) => sum + cardValue(c), 0);
+  let aces = hand.filter(c => c.rank === "A").length;
+
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces--;
+  }
+
+  return total;
+}
+
+function cardText(card) {
+  const suit = {
+    S: "♠️",
+    H: "♥️",
+    D: "♦️",
+    C: "♣️"
+  }[card.suit];
+
+  return `${card.rank}${suit}`;
+}
+
+function draw(game) {
+  return game.deck.pop();
+}
+
+function buttonRow(id, ended = false) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`bj_hit_${id}`)
+      .setLabel("Hit")
+      .setEmoji("🃏")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(ended),
+
+    new ButtonBuilder()
+      .setCustomId(`bj_stand_${id}`)
+      .setLabel("Stand")
+      .setEmoji("✋")
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(ended)
+  );
+}
+
+function buildEmbed(game, note = "") {
+  const playerTotal = handValue(game.playerHand);
+  const dealerShown = game.finished
+    ? game.dealerHand.map(cardText).join(" ")
+    : `${cardText(game.dealerHand[0])} 🂠`;
+
+  const dealerTotal = game.finished
+    ? handValue(game.dealerHand)
+    : cardValue(game.dealerHand[0]);
+
+  return new EmbedBuilder()
+    .setColor(game.finished ? "Gold" : "Green")
+    .setTitle("🃏 Blackjack")
+    .setDescription(
+      `${note ? `${note}\n\n` : ""}` +
+      `**Bet:** ${game.bet} WL\n\n` +
+      `**Dealer:**\n${dealerShown}\nTotal: **${dealerTotal}${game.finished ? "" : "+"}**\n\n` +
+      `**You:**\n${game.playerHand.map(cardText).join(" ")}\nTotal: **${playerTotal}**`
+    )
+    .setFooter({ text: `Player: ${game.username}` });
+}
+
+function pay(userId, amount) {
+  const levels = loadLevels();
+  const user = getUser(levels, userId);
+  user.wl += amount;
+  saveLevels(levels);
+  return user.wl;
+}
+
+function takeBet(userId, amount) {
+  const levels = loadLevels();
+  const user = getUser(levels, userId);
+
+  if (user.wl < amount) {
+    return { ok: false, balance: user.wl };
+  }
+
+  user.wl -= amount;
+  saveLevels(levels);
+
+  return { ok: true, balance: user.wl };
 }
 
 async function handleCommand(interaction) {
+  if (!interaction.isChatInputCommand()) return false;
 
-    if (!interaction.isChatInputCommand())
-        return false;
+  if (interaction.commandName === "coinflip") {
+    const bet = interaction.options.getInteger("bet");
+    const side = interaction.options.getString("side");
 
-    // ---------------- COINFLIP ----------------
-
-    if (interaction.commandName === "coinflip") {
-
-        const bet = interaction.options.getInteger("bet");
-        const side = interaction.options.getString("side");
-
-        const levels = loadLevels();
-        const user = getUser(levels, interaction.user.id);
-
-        if (bet <= 0) {
-            await interaction.reply({
-                content: "Bet must be above 0.",
-                ephemeral: true
-            });
-            return true;
-        }
-
-        if (user.wl < bet) {
-            await interaction.reply({
-                content: `You only have **${user.wl} WL**.`,
-                ephemeral: true
-            });
-            return true;
-        }
-
-        const result = Math.random() < 0.5 ? "heads" : "tails";
-
-        let win = result === side;
-
-        if (win) {
-            user.wl += bet;
-        } else {
-            user.wl -= bet;
-        }
-
-        saveLevels(levels);
-
-        const embed = new EmbedBuilder()
-            .setColor(win ? "Green" : "Red")
-            .setTitle("🪙 Coin Flip")
-            .setDescription(
-                `**Your Choice:** ${side}\n` +
-                `**Result:** ${result}\n\n` +
-                (win
-                    ? `🎉 You won **${bet} WL**!`
-                    : `💀 You lost **${bet} WL**.`) +
-                `\n\nBalance: **${user.wl} WL**`
-            );
-
-        await interaction.reply({
-            embeds: [embed]
-        });
-
-        return true;
+    if (!bet || bet <= 0) {
+      await interaction.reply({ content: "Bet must be above 0.", ephemeral: true });
+      return true;
     }
 
-    // ---------------- BLACKJACK ----------------
+    const betResult = takeBet(interaction.user.id, bet);
 
-    if (interaction.commandName === "blackjack") {
-
-        await interaction.reply({
-            content: "🃏 Blackjack is coming soon!"
-        });
-
-        return true;
+    if (!betResult.ok) {
+      await interaction.reply({
+        content: `You only have **${betResult.balance} WL**.`,
+        ephemeral: true
+      });
+      return true;
     }
 
-    return false;
+    const result = Math.random() < 0.5 ? "heads" : "tails";
+    const win = result === side;
+
+    let balance = betResult.balance;
+
+    if (win) balance = pay(interaction.user.id, bet * 2);
+
+    await interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(win ? "Green" : "Red")
+          .setTitle("🪙 Coin Flip")
+          .setDescription(
+            `Choice: **${side}**\n` +
+            `Result: **${result}**\n\n` +
+            (win ? `🎉 You won **${bet} WL**!` : `💀 You lost **${bet} WL**.`) +
+            `\nBalance: **${balance} WL**`
+          )
+      ]
+    });
+
+    return true;
+  }
+
+  if (interaction.commandName === "blackjack") {
+    const bet = interaction.options.getInteger("bet");
+
+    if (!bet || bet <= 0) {
+      await interaction.reply({ content: "Bet must be above 0.", ephemeral: true });
+      return true;
+    }
+
+    const betResult = takeBet(interaction.user.id, bet);
+
+    if (!betResult.ok) {
+      await interaction.reply({
+        content: `You only have **${betResult.balance} WL**.`,
+        ephemeral: true
+      });
+      return true;
+    }
+
+    const id = `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
+
+    const game = {
+      id,
+      userId: interaction.user.id,
+      username: interaction.user.username,
+      bet,
+      deck: makeDeck(),
+      playerHand: [],
+      dealerHand: [],
+      finished: false
+    };
+
+    game.playerHand.push(draw(game), draw(game));
+    game.dealerHand.push(draw(game), draw(game));
+
+    games.set(id, game);
+
+    const playerTotal = handValue(game.playerHand);
+
+    if (playerTotal === 21) {
+      game.finished = true;
+      const winAmount = Math.floor(bet * 2.5);
+      const balance = pay(interaction.user.id, winAmount);
+
+      await interaction.reply({
+        embeds: [
+          buildEmbed(game, `🔥 BLACKJACK! You won **${winAmount} WL**!\nBalance: **${balance} WL**`)
+        ],
+        components: [buttonRow(id, true)]
+      });
+
+      games.delete(id);
+      return true;
+    }
+
+    await interaction.reply({
+      embeds: [buildEmbed(game, "Choose **Hit** or **Stand**.")],
+      components: [buttonRow(id)]
+    });
+
+    return true;
+  }
+
+  return false;
+}
+
+async function finishGame(interaction, game) {
+  game.finished = true;
+
+  let playerTotal = handValue(game.playerHand);
+  let dealerTotal = handValue(game.dealerHand);
+
+  while (dealerTotal < 17) {
+    game.dealerHand.push(draw(game));
+    dealerTotal = handValue(game.dealerHand);
+  }
+
+  let note = "";
+
+  if (playerTotal > 21) {
+    note = `💥 You busted and lost **${game.bet} WL**.`;
+  } else if (dealerTotal > 21) {
+    const balance = pay(game.userId, game.bet * 2);
+    note = `🎉 Dealer busted! You won **${game.bet} WL**.\nBalance: **${balance} WL**`;
+  } else if (playerTotal > dealerTotal) {
+    const balance = pay(game.userId, game.bet * 2);
+    note = `🎉 You beat the dealer and won **${game.bet} WL**.\nBalance: **${balance} WL**`;
+  } else if (playerTotal === dealerTotal) {
+    const balance = pay(game.userId, game.bet);
+    note = `🤝 Push! Your **${game.bet} WL** was refunded.\nBalance: **${balance} WL**`;
+  } else {
+    note = `💀 Dealer wins. You lost **${game.bet} WL**.`;
+  }
+
+  games.delete(game.id);
+
+  await interaction.update({
+    embeds: [buildEmbed(game, note)],
+    components: [buttonRow(game.id, true)]
+  });
+}
+
+async function handleButton(interaction) {
+  if (!interaction.isButton()) return false;
+  if (!interaction.customId.startsWith("bj_")) return false;
+
+  const parts = interaction.customId.split("_");
+  const action = parts[1];
+  const id = parts.slice(2).join("_");
+
+  const game = games.get(id);
+
+  if (!game) {
+    await interaction.reply({
+      content: "This Blackjack game already ended.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  if (interaction.user.id !== game.userId) {
+    await interaction.reply({
+      content: "This is not your Blackjack game.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  if (action === "hit") {
+    game.playerHand.push(draw(game));
+
+    if (handValue(game.playerHand) > 21) {
+      await finishGame(interaction, game);
+      return true;
+    }
+
+    await interaction.update({
+      embeds: [buildEmbed(game, "You drew a card. Hit or Stand?")],
+      components: [buttonRow(id)]
+    });
+
+    return true;
+  }
+
+  if (action === "stand") {
+    await finishGame(interaction, game);
+    return true;
+  }
+
+  return false;
 }
 
 module.exports = {
-    handleCommand
+  handleCommand,
+  handleButton
 };
