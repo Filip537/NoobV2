@@ -1,5 +1,6 @@
 const fs = require("fs");
-
+const { AttachmentBuilder } = require("discord.js");
+const { createLevelCard } = require("./levelCard");
 const levelFile = "./levels.json";
 
 function loadLevels() {
@@ -38,8 +39,8 @@ module.exports = {
     const user = data[message.author.id];
 
     // XP per message (random small amount)
-const gainedXP = Math.floor(Math.random() * 3) + 1; // 1–3 XP    user.xp += gainedXP;
-
+const gainedXP = Math.floor(Math.random() * 3) + 1;
+user.xp += gainedXP;
     const neededXP = getXPNeeded(user.level);
 
     if (user.xp >= neededXP) {
@@ -49,11 +50,21 @@ const gainedXP = Math.floor(Math.random() * 3) + 1; // 1–3 XP    user.xp += ga
       if (user.level > 125) user.level = 125;
 
       const reward = getReward(user.level);
-
-      // LEVEL UP MESSAGE
-await message.channel.send(
-  `***<:bulletin:1447778065512923217> You reach Level ${user.level} and earned ${neededXP} XP and ${reward} <:World_Lock:1455752235966533662> World Locks nice!***`
+user.wl = (user.wl || 0) + reward;
+const image = await createLevelCard(
+    message.author,
+    user.level,
+    reward
 );
+
+const attachment = new AttachmentBuilder(image, {
+    name: "levelup.png"
+});
+
+await message.channel.send({
+    content: `🎉 Congratulations ${message.author}!`,
+    files: [attachment]
+});
     }
 
     saveLevels(data);
