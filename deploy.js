@@ -738,6 +738,9 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("call")
+  .setDescription("Use the old Growtopia telephone"),
+  new SlashCommandBuilder()
   .setName("addguild")
   .setDescription("Add or update a guild member")
   .addStringOption(option =>

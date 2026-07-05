@@ -12,6 +12,7 @@ process.on("uncaughtException", (err) => {
 const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
+const call = require("./feature/call.js");
 const slot = require("./feature/slot.js");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
@@ -1586,6 +1587,15 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+  const handled = await call.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isStringSelectMenu()) {
+  const handled = await call.handleSelect(interaction);
+  if (handled) return;
+}
   if (interaction.isChatInputCommand() && interaction.commandName === "testlevelup") {
   return testLevelCommand.execute(interaction);
 }
