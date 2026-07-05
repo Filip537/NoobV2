@@ -1,6 +1,5 @@
 require("dotenv").config();
-const testLevelCommand = require("../commands/testlevelup.js");
-const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+const testLevelCommand = require("./commands/testlevelup.js");const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const commands = [
 
@@ -807,8 +806,8 @@ new SlashCommandBuilder()
   ),
   new SlashCommandBuilder()
     .setName("testbday")
-    .setDescription("Send a test birthday message (Admin only)")
-
+    .setDescription("Send a test birthday message (Admin only)"),
+testLevelCommand.data
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);

@@ -9,8 +9,7 @@ process.on("unhandledRejection", (err) => {
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
 });
-const testLevelCommand = require("../commands/testlevelup.js");
-const wyr = require("./commands/wyr.js");
+const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const slot = require("./feature/slot.js");
@@ -1587,6 +1586,9 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand() && interaction.commandName === "testlevelup") {
+  return testLevelCommand.execute(interaction);
+}
   if (interaction.isChatInputCommand()) {
   const handled = await business.handleCommand(interaction);
   if (handled) return;
