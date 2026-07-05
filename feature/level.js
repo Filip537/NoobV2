@@ -1,6 +1,6 @@
 const fs = require("fs");
 const { AttachmentBuilder } = require("discord.js");
-const { createLevelCard } = require("./levelCard");
+const { createLevelCard } = require("./levelcard");
 const levelFile = "./levels.json";
 
 function loadLevels() {
