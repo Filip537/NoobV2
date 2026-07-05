@@ -147,14 +147,6 @@ new SlashCommandBuilder()
     )
 ),
 new SlashCommandBuilder()
-.setName("blackjack")
-.setDescription("Play Blackjack against the dealer.")
-.addIntegerOption(o =>
-    o.setName("bet")
-    .setDescription("Amount of WL to bet")
-    .setRequired(true)
-),
-new SlashCommandBuilder()
   .setName("daily")
   .setDescription("Claim 10-50 WL once every 24 hours"),
 
