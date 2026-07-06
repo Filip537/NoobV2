@@ -709,18 +709,6 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
     .setName("bdaylist")
     .setDescription("Show birthday list"),
-new SlashCommandBuilder()
-  .setName("createprofile")
-  .setDescription("Create your profile"),
-  new SlashCommandBuilder()
-  .setName("viewprofile")
-  .setDescription("View another user's profile")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Select a user")
-      .setRequired(true)
-  ),
   new SlashCommandBuilder()
   .setName("sendinfo")
   .setDescription("Send the server info panel")

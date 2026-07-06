@@ -3252,16 +3252,8 @@ const percent = Math.floor(Math.random() * 500) + 1;
   });
 }
 
- if (interaction.isChatInputCommand() && interaction.commandName === "createprofile") {
-  return profileFeature.executeCreateProfile(interaction);
-}
-
 if (interaction.isChatInputCommand() && interaction.commandName === "profile") {
   return profileFeature.executeProfile(interaction);
-}
-
-if (interaction.isChatInputCommand() && interaction.commandName === "viewprofile") {
-  return profileFeature.executeViewProfile(interaction);
 }
 
 if (interaction.commandName === "scanblist") {
@@ -4680,8 +4672,7 @@ story.comments.push({
     ephemeral: true
   });
 }
-  const handled = await profileFeature.handleModal(interaction);
-  if (handled) return;
+
 const handledSocialModal = await socialFeature.handleModal(interaction);
 if (handledSocialModal !== false) return;
   return settings.handleModal(interaction);
