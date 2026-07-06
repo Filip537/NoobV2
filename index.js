@@ -5182,9 +5182,6 @@ if (interaction.customId.startsWith("highlight_")) {
 
   const handledSocialButton = await socialFeature.handleButton(interaction);
 if (handledSocialButton !== false) return;
-const handledProfileButton = await profileFeature.handleButton(interaction, client);
-
-if (handledProfileButton) return;
 
 if (interaction.customId.startsWith("view_note_")) {
   const storyId = interaction.customId.replace("view_note_", "");
