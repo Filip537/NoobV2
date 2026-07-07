@@ -137,7 +137,7 @@ function buildCustomizeMenus(userId) {
 
   const transparencyMenu = new StringSelectMenuBuilder()
     .setCustomId(`profile_transparency_${userId}`)
-    .setPlaceholder("Choose rectangle transparency")
+    .setPlaceholder("Choose panel transparency")
     .addOptions(
       [10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(num => ({
         label: `${num}% Transparency`,
