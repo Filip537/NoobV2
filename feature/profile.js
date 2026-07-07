@@ -36,9 +36,9 @@ const COLORS = {
   purple: "rgba(138, 43, 226, ALPHA)"
 };
 
-const DECOR_COSTS = {
-  "wlz.png": 50,
-  "dirt.png": 2
+const DECOR_ITEMS = {
+  "wlz.png": { name: "World Locks", cost: 50 },
+  "dirt.png": { name: "Dirt", cost: 2 }
 };
 
 function ensureFolder(folder) {
@@ -82,7 +82,11 @@ function cleanLabel(file) {
 }
 
 function getDecorCost(file) {
-  return DECOR_COSTS[file] ?? 10;
+  return DECOR_ITEMS[file]?.cost ?? 10;
+}
+
+function getDecorName(file) {
+  return DECOR_ITEMS[file]?.name || cleanLabel(file);
 }
 
 function getUserProfileSettings(data) {
@@ -114,7 +118,7 @@ async function drawAvatar(ctx, data) {
   if (head) ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
 }
 
-async function drawDecoration(ctx, data) {
+async function drawDecoration(ctx, data, offsetX = 0, offsetY = 0) {
   const settings = getUserProfileSettings(data);
   if (!settings.decoration || settings.decoration === "none") return;
 
@@ -124,30 +128,34 @@ async function drawDecoration(ctx, data) {
   const decor = await loadImage(decorPath).catch(() => null);
   if (!decor) return;
 
-  ctx.save();
+  const size = 145;
 
-  ctx.translate(55, 292);
+  ctx.save();
+  ctx.translate(offsetX + 22, offsetY + 295);
   ctx.rotate(-0.35);
-  ctx.drawImage(decor, -55, -55, 125, 125);
-
+  ctx.drawImage(decor, -size / 2, -size / 2, size, size);
   ctx.restore();
+
   ctx.save();
-
-  ctx.translate(1120, 38);
+  ctx.translate(offsetX + 1178, offsetY + 38);
   ctx.rotate(0.35);
-  ctx.drawImage(decor, -55, -55, 125, 125);
-
+  ctx.drawImage(decor, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 
 async function createProfileCard(member, data) {
-  const canvas = createCanvas(1200, 335);
+  const canvas = createCanvas(1280, 415);
   const ctx = canvas.getContext("2d");
+
+  const offsetX = 40;
+  const offsetY = 40;
 
   const settings = getUserProfileSettings(data);
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   ctx.fillStyle = "#7fd6ea";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(offsetX, offsetY, 1200, 335);
 
   let bgPath = defaultBgPath;
 
@@ -157,13 +165,16 @@ async function createProfileCard(member, data) {
   }
 
   const bg = await loadImage(bgPath).catch(() => null);
-  if (bg) ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+  if (bg) ctx.drawImage(bg, offsetX, offsetY, 1200, 335);
 
   const alpha = Math.max(1, Math.min(settings.transparency, 100)) / 100;
   const colorTemplate = COLORS[settings.rectangleColor] || COLORS.blue;
 
   ctx.fillStyle = colorTemplate.replace("ALPHA", alpha);
-  ctx.fillRect(30, 30, 1140, 275);
+  ctx.fillRect(offsetX + 30, offsetY + 30, 1140, 275);
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
 
   await drawAvatar(ctx, data);
 
@@ -185,7 +196,9 @@ async function createProfileCard(member, data) {
   ctx.fillText(`XP: ${xp}`, 410, 275);
   ctx.fillText(`WL: ${wl}`, 620, 275);
 
-  await drawDecoration(ctx, data);
+  ctx.restore();
+
+  await drawDecoration(ctx, data, offsetX, offsetY);
 
   return canvas.encode("png");
 }
@@ -266,8 +279,9 @@ function buildAvatarMenu(userId) {
   return [new ActionRowBuilder().addComponents(avatarMenu)];
 }
 
-function buildDecorMenu(userId) {
+function buildDecorMenu(userId, data = {}) {
   const decors = getImageFiles(decorFolder);
+  const owned = Array.isArray(data.ownedDecorations) ? data.ownedDecorations : [];
 
   const decorMenu = new StringSelectMenuBuilder()
     .setCustomId(`profile_decor_${userId}`)
@@ -276,11 +290,17 @@ function buildDecorMenu(userId) {
       [
         { label: "Remove Decoration", value: "none", description: "Free" },
         ...(decors.length
-          ? decors.map(file => ({
-              label: cleanLabel(file),
-              value: file,
-              description: `${getDecorCost(file)} World Locks`
-            }))
+          ? decors.map(file => {
+              const alreadyOwned = owned.includes(file);
+
+              return {
+                label: getDecorName(file),
+                value: file,
+                description: alreadyOwned
+                  ? "Owned - equip for free"
+                  : `${getDecorCost(file)} World Locks`
+              };
+            })
           : [{ label: "No decorations found", value: "no_decor", description: "Add images to /decor" }])
       ].slice(0, 25)
     );
@@ -340,19 +360,22 @@ async function handleButton(interaction) {
   }
 
   if (type === "decor") {
+    const levels = loadLevels();
+    const data = levels[ownerId] || { level: 1, xp: 0, wl: 0 };
+
     const embed = new EmbedBuilder()
       .setTitle("Add Profile Decoration")
       .setColor("Gold")
       .setDescription(
         "Decorations are bought using your World Locks.\n\n" +
-        "`wlz.png` costs **50 WL**\n" +
-        "`dirt.png` costs **2 WL**\n\n" +
-        "After buying, the decoration will appear on your profile card."
+        "**World Locks** costs **50 WL**\n" +
+        "**Dirt** costs **2 WL**\n\n" +
+        "Once you buy a decoration, you can equip it again for free."
       );
 
     await interaction.reply({
       embeds: [embed],
-      components: buildDecorMenu(ownerId),
+      components: buildDecorMenu(ownerId, data),
       ephemeral: true
     });
 
@@ -446,17 +469,26 @@ async function handleSelect(interaction) {
         return true;
       }
 
-      const cost = getDecorCost(value);
-
-      if ((data.wl || 0) < cost) {
-        await interaction.reply({
-          content: `❌ You need **${cost} World Locks** to buy this decoration.\nYou currently have **${data.wl || 0} WL**.`,
-          ephemeral: true
-        });
-        return true;
+      if (!Array.isArray(data.ownedDecorations)) {
+        data.ownedDecorations = [];
       }
 
-      data.wl = (data.wl || 0) - cost;
+      const alreadyOwned = data.ownedDecorations.includes(value);
+      const cost = getDecorCost(value);
+
+      if (!alreadyOwned) {
+        if ((data.wl || 0) < cost) {
+          await interaction.reply({
+            content: `❌ You need **${cost} World Locks** to buy **${getDecorName(value)}**.\nYou currently have **${data.wl || 0} WL**.`,
+            ephemeral: true
+          });
+          return true;
+        }
+
+        data.wl = (data.wl || 0) - cost;
+        data.ownedDecorations.push(value);
+      }
+
       data.cardDecoration = value;
     }
   }
