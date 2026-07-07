@@ -12,6 +12,7 @@ process.on("uncaughtException", (err) => {
 const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
+const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
@@ -1592,7 +1593,19 @@ client.on("interactionCreate", async (interaction) => {
   const handled = await call.handleCommand(interaction);
   if (handled) return;
 }
+if (interaction.isChatInputCommand() && interaction.commandName === "renderworld") {
+  return renderWorld.execute(interaction);
+}
 
+if (interaction.isButton()) {
+  const handled = await renderWorld.handleButton(interaction);
+  if (handled) return;
+}
+
+if (interaction.isModalSubmit()) {
+  const handled = await renderWorld.handleModal(interaction);
+  if (handled) return;
+}
 if (interaction.isStringSelectMenu()) {
   const handled = await call.handleSelect(interaction);
   if (handled) return;

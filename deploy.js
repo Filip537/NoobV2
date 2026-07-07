@@ -718,6 +718,15 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+    .setName("renderworld")
+    .setDescription("Render a Growtopia world")
+    .addStringOption(option =>
+        option
+            .setName("world")
+            .setDescription("World name")
+            .setRequired(true)
+    ),
+  new SlashCommandBuilder()
   .setName("call")
   .setDescription("Use the old Growtopia telephone"),
   new SlashCommandBuilder()
