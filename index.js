@@ -4728,6 +4728,7 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  
   if (interaction.customId === "wiki_add_button") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
@@ -4760,6 +4761,11 @@ if (interaction.isButton()) {
   );
 
   return interaction.showModal(modal);
+}
+
+if (interaction.isButton()) {
+  const handled = await inventoryFeature.handleButton(interaction);
+  if (handled) return;
 }
 
 if (interaction.customId.startsWith("wiki_confirm_add_")) {
