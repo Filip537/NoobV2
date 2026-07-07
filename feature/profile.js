@@ -174,7 +174,7 @@ function buildProfileButtons(userId) {
 
     new ButtonBuilder()
       .setCustomId(`profile_customize_avatar_${userId}`)
-      .setLabel("Choose Avatar Head")
+      .setLabel("Choose Avatar")
       .setStyle(ButtonStyle.Secondary)
   );
 }
