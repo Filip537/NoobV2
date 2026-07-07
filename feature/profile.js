@@ -1,3 +1,4 @@
+// feature/profile.js
 const fs = require("fs");
 const path = require("path");
 const {
@@ -17,6 +18,8 @@ const defaultBgPath = path.join(__dirname, "..", "images", "profilebg.png");
 const headPath = path.join(__dirname, "..", "images", "gthead.png");
 const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
 
+const maskFolder = path.join(__dirname, "..", "faceitem");
+
 try {
   GlobalFonts.registerFromPath(fontPath, "Nourd");
 } catch {}
@@ -31,6 +34,10 @@ const COLORS = {
   pink: "rgba(255, 105, 180, ALPHA)",
   purple: "rgba(138, 43, 226, ALPHA)"
 };
+
+function ensureFolder(folder) {
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+}
 
 function loadLevels() {
   if (!fs.existsSync(levelsFile)) fs.writeFileSync(levelsFile, "{}");
@@ -52,20 +59,60 @@ function shorten(text, max = 18) {
   return text.length > max ? text.slice(0, max - 2) + ".." : text;
 }
 
-function getBackgroundFiles() {
-  if (!fs.existsSync(bgFolder)) fs.mkdirSync(bgFolder);
+function getPngFiles(folder) {
+  ensureFolder(folder);
 
-  return fs.readdirSync(bgFolder)
+  return fs.readdirSync(folder)
     .filter(file => file.toLowerCase().endsWith(".png"))
     .slice(0, 25);
+}
+
+function getBackgroundFiles() {
+  ensureFolder(bgFolder);
+  return getPngFiles(bgFolder);
+}
+
+function getMaskFiles() {
+  ensureFolder(maskFolder);
+  return getPngFiles(maskFolder).slice(0, 24);
+}
+
+function cleanLabel(file) {
+  return file
+    .replace(".png", "")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .slice(0, 100);
 }
 
 function getUserProfileSettings(data) {
   return {
     background: data.cardBackground || null,
     rectangleColor: data.cardRectangleColor || "blue",
-    transparency: Number(data.cardTransparency || 72)
+    transparency: Number(data.cardTransparency || 72),
+    mask: data.avatarMask || null
   };
+}
+
+async function drawAvatar(ctx, data) {
+  const settings = getUserProfileSettings(data);
+
+  const avatarX = 75;
+  const avatarY = 75;
+  const avatarW = 260;
+  const avatarH = 190;
+
+  const head = await loadImage(headPath).catch(() => null);
+  if (head) ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
+
+  if (settings.mask) {
+    const maskPath = path.join(maskFolder, settings.mask);
+    const mask = await loadImage(maskPath).catch(() => null);
+
+    if (mask) {
+      ctx.drawImage(mask, avatarX, avatarY, avatarW, avatarH);
+    }
+  }
 }
 
 async function createProfileCard(member, data) {
@@ -85,9 +132,7 @@ async function createProfileCard(member, data) {
   }
 
   const bg = await loadImage(bgPath).catch(() => null);
-  if (bg) {
-    ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-  }
+  if (bg) ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
 
   const alpha = Math.max(1, Math.min(settings.transparency, 100)) / 100;
   const colorTemplate = COLORS[settings.rectangleColor] || COLORS.blue;
@@ -95,8 +140,7 @@ async function createProfileCard(member, data) {
   ctx.fillStyle = colorTemplate.replace("ALPHA", alpha);
   ctx.fillRect(30, 30, 1140, 275);
 
-  const head = await loadImage(headPath).catch(() => null);
-  if (head) ctx.drawImage(head, 75, 75, 260, 190);
+  await drawAvatar(ctx, data);
 
   const name = shorten(member.displayName || member.user.username, 22).toUpperCase();
   const level = data.level || 1;
@@ -127,8 +171,8 @@ function buildProfileButtons(userId) {
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`profile_customize_avatar_${userId}`)
-      .setLabel("Customize Avatar")
+      .setCustomId(`profile_customize_mask_${userId}`)
+      .setLabel("Equip Mask")
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -162,7 +206,7 @@ function buildCustomizeMenus(userId) {
     .addOptions(
       bgFiles.length
         ? bgFiles.map(file => ({
-            label: file.replace(".png", "").slice(0, 100),
+            label: cleanLabel(file),
             value: file
           }))
         : [{ label: "No backgrounds found", value: "none" }]
@@ -172,6 +216,29 @@ function buildCustomizeMenus(userId) {
     new ActionRowBuilder().addComponents(transparencyMenu),
     new ActionRowBuilder().addComponents(bgMenu),
     new ActionRowBuilder().addComponents(colorMenu)
+  ];
+}
+
+function buildMaskMenu(userId) {
+  const masks = getMaskFiles();
+
+  const maskMenu = new StringSelectMenuBuilder()
+    .setCustomId(`profile_mask_${userId}`)
+    .setPlaceholder("Equip mask")
+    .addOptions(
+      [
+        { label: "Remove Mask", value: "none" },
+        ...(masks.length
+          ? masks.map(file => ({
+              label: cleanLabel(file),
+              value: file
+            }))
+          : [{ label: "No masks found", value: "no_mask" }])
+      ].slice(0, 25)
+    );
+
+  return [
+    new ActionRowBuilder().addComponents(maskMenu)
   ];
 }
 
@@ -211,11 +278,21 @@ async function handleButton(interaction) {
     return true;
   }
 
-  if (type === "avatar") {
+  if (type === "mask") {
+    const embed = new EmbedBuilder()
+      .setTitle("Equip a Mask")
+      .setColor("Purple")
+      .setDescription(
+        "Choose a mask to equip on your Growtopia character.\n\n" +
+        "All mask PNG files are loaded automatically from the `/faceitem` folder."
+      );
+
     await interaction.reply({
-      content: "Customize Avatar is coming soon.",
+      embeds: [embed],
+      components: buildMaskMenu(ownerId),
       ephemeral: true
     });
+
     return true;
   }
 
@@ -225,7 +302,7 @@ async function handleButton(interaction) {
     .setDescription(
       "Which part of your profile card would you like to customize?\n\n" +
       "**Transparency** changes the see-through rectangle over your background.\n" +
-      "**Card Background** changes the weather/background image.\n" +
+      "**Card Background** changes the background image.\n" +
       "**Glow Panel Color** changes the rectangle color."
     );
 
@@ -259,16 +336,25 @@ async function handleSelect(interaction) {
 
   const value = interaction.values[0];
 
+  if (value === "no_mask") {
+    await interaction.reply({
+      content: "❌ No masks found in `/faceitem`.",
+      ephemeral: true
+    });
+    return true;
+  }
+
   if (type === "transparency") {
     data.cardTransparency = Number(value);
   }
 
   if (type === "background") {
     if (value === "none") {
-      return interaction.reply({
+      await interaction.reply({
         content: "❌ No card backgrounds found in `/cardbg`.",
         ephemeral: true
       });
+      return true;
     }
 
     data.cardBackground = value;
@@ -278,11 +364,15 @@ async function handleSelect(interaction) {
     data.cardRectangleColor = value;
   }
 
+  if (type === "mask") {
+    data.avatarMask = value === "none" ? null : value;
+  }
+
   levels[ownerId] = data;
   saveLevels(levels);
 
   await interaction.reply({
-    content: "✅ Profile card updated. Use `/profile` again to see the new card.",
+    content: "✅ Profile updated. Use `/profile` again to see the new look.",
     ephemeral: true
   });
 
