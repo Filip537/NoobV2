@@ -1613,7 +1613,15 @@ if (interaction.isButton()) {
   const handled = await casino.handleCommand(interaction);
   if (handled) return;
 }
+if (interaction.isButton()) {
+  const handled = await profileFeature.handleButton(interaction);
+  if (handled) return;
+}
 
+if (interaction.isStringSelectMenu()) {
+  const handled = await profileFeature.handleSelect(interaction);
+  if (handled) return;
+}
 if (interaction.isButton()) {
   const handled = await casino.handleButton(interaction);
   if (handled) return;
