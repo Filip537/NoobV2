@@ -5,7 +5,8 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  AttachmentBuilder
 } = require("discord.js");
 
 function cleanWorldName(name) {
@@ -16,18 +17,33 @@ function buildWorldUrl(world) {
   return `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png`;
 }
 
-function buildEmbed(world, user) {
-  const clean = cleanWorldName(world);
-  const imageUrl = buildWorldUrl(clean);
+async function fetchWorldImage(world) {
+  const url = buildWorldUrl(world);
 
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0"
+    }
+  });
+
+  if (!res.ok) return null;
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+
+  return new AttachmentBuilder(buffer, {
+    name: `${world}.png`
+  });
+}
+
+function buildEmbed(world, user) {
   return new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle(`🌍 World: ${clean.toUpperCase()}`)
+    .setTitle(`🌍 World: ${world.toUpperCase()}`)
     .setDescription(
-      `**Rendered world image below**\n\n` +
+      `**Last rendered:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
       `Powered by Growtopia World Renderer`
     )
-    .setImage(imageUrl)
+    .setImage(`attachment://${world}.png`)
     .setFooter({
       text: `Requested by ${user.username} • NoobV2`
     })
@@ -35,15 +51,12 @@ function buildEmbed(world, user) {
 }
 
 function buildRows(world) {
-  const clean = cleanWorldName(world);
-  const imageUrl = buildWorldUrl(clean);
-
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setLabel("Download")
         .setEmoji("📥")
-        .setURL(imageUrl)
+        .setURL(buildWorldUrl(world))
         .setStyle(ButtonStyle.Link),
 
       new ButtonBuilder()
@@ -55,20 +68,36 @@ function buildRows(world) {
   ];
 }
 
-async function execute(interaction) {
-  const world = cleanWorldName(interaction.options.getString("world"));
+async function sendWorld(interaction, world, isModal = false) {
+  const clean = cleanWorldName(world);
 
-  if (!world) {
+  if (!clean) {
     return interaction.reply({
       content: "❌ Please enter a valid world name.",
       ephemeral: true
     });
   }
 
-  return interaction.reply({
-    embeds: [buildEmbed(world, interaction.user)],
-    components: buildRows(world)
+  await interaction.deferReply();
+
+  const attachment = await fetchWorldImage(clean);
+
+  if (!attachment) {
+    return interaction.editReply({
+      content: `❌ Could not render **${clean.toUpperCase()}**. The world may not exist or Growtopia has not generated the render yet.`
+    });
+  }
+
+  return interaction.editReply({
+    embeds: [buildEmbed(clean, interaction.user)],
+    files: [attachment],
+    components: buildRows(clean)
   });
+}
+
+async function execute(interaction) {
+  const world = interaction.options.getString("world");
+  return sendWorld(interaction, world);
 }
 
 async function handleButton(interaction) {
@@ -96,22 +125,8 @@ async function handleButton(interaction) {
 async function handleModal(interaction) {
   if (interaction.customId !== "render_search_modal") return false;
 
-  const world = cleanWorldName(
-    interaction.fields.getTextInputValue("render_world_input")
-  );
-
-  if (!world) {
-    await interaction.reply({
-      content: "❌ Please enter a valid world name.",
-      ephemeral: true
-    });
-    return true;
-  }
-
-  await interaction.reply({
-    embeds: [buildEmbed(world, interaction.user)],
-    components: buildRows(world)
-  });
+  const world = interaction.fields.getTextInputValue("render_world_input");
+  await sendWorld(interaction, world, true);
 
   return true;
 }
