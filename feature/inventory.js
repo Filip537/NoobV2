@@ -120,20 +120,30 @@ function getAllInventoryItems(data) {
     });
   }
 
-  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+ const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
 
-  for (const fish of fishes) {
-    if (!fish.file) continue;
+// Merge duplicate fish into one inventory slot
+const mergedFish = new Map();
 
-    const amount = fish.amount || 1;
-    if (amount <= 0) continue;
+for (const fish of fishes) {
+  if (!fish?.file) continue;
 
-    items.push({
-      type: "image",
-      imagePath: path.join(fishFolder, fish.file),
-      amount
-    });
-  }
+  const amount = Number(fish.amount || 1);
+  if (amount <= 0) continue;
+
+  mergedFish.set(
+    fish.file,
+    (mergedFish.get(fish.file) || 0) + amount
+  );
+}
+
+for (const [file, amount] of mergedFish) {
+  items.push({
+    type: "image",
+    imagePath: path.join(fishFolder, file),
+    amount
+  });
+}
 
   return items;
 }
