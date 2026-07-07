@@ -17,6 +17,7 @@ const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
+const salesman = require("./commands/salesman");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
@@ -1593,6 +1594,9 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.isChatInputCommand()) {
   const handled = await call.handleCommand(interaction);
   if (handled) return;
+}
+if (interaction.commandName === "salesman") {
+    return salesman.execute(interaction);
 }
 if (interaction.isChatInputCommand()) {
   const handled = await fishing.handleCommand(interaction);

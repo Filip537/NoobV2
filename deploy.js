@@ -727,6 +727,9 @@ new SlashCommandBuilder()
             .setRequired(true)
     ),
     new SlashCommandBuilder()
+  .setName("salesman")
+  .setDescription("Exchange your stuffs for World Locks"),
+    new SlashCommandBuilder()
   .setName("shop")
   .setDescription("Open the item shop"),
 
