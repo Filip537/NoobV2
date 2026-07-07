@@ -12,14 +12,12 @@ function cleanWorldName(name) {
   return name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }
 
-function buildWorldUrl(world, refresh = false) {
-  const base = `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png`;
-  return refresh ? `${base}?t=${Date.now()}` : base;
+function buildWorldUrl(world) {
+  return `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png?t=${Date.now()}`;
 }
 
-function buildEmbed(world, user, refresh = true) {
+function buildEmbed(world, user) {
   const clean = cleanWorldName(world);
-  const imageUrl = buildWorldUrl(clean, refresh);
 
   return new EmbedBuilder()
     .setColor(0x3498db)
@@ -28,7 +26,7 @@ function buildEmbed(world, user, refresh = true) {
       `**Last rendered:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
       `Powered by Growtopia World Renderer`
     )
-    .setImage(imageUrl)
+    .setImage(buildWorldUrl(clean))
     .setFooter({
       text: `Requested by ${user.username} • NoobV2`
     })
@@ -37,43 +35,22 @@ function buildEmbed(world, user, refresh = true) {
 
 function buildRows(world) {
   const clean = cleanWorldName(world);
-  const url = buildWorldUrl(clean, false);
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`render_refresh_${clean}`)
-      .setLabel("Refresh Render")
-      .setEmoji("🖼️")
-      .setStyle(ButtonStyle.Primary),
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel("Download")
+        .setEmoji("📥")
+        .setURL(buildWorldUrl(clean))
+        .setStyle(ButtonStyle.Link),
 
-    new ButtonBuilder()
-      .setLabel("Open in Browser")
-      .setEmoji("🌐")
-      .setURL(url)
-      .setStyle(ButtonStyle.Link)
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel("Download")
-      .setEmoji("📥")
-      .setURL(url)
-      .setStyle(ButtonStyle.Link),
-
-    new ButtonBuilder()
-      .setCustomId("render_search_again")
-      .setLabel("Search Again")
-      .setEmoji("🔍")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId(`render_copy_${clean}`)
-      .setLabel("Copy URL")
-      .setEmoji("📋")
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  return [row1, row2];
+      new ButtonBuilder()
+        .setCustomId("render_search_again")
+        .setLabel("Search Again")
+        .setEmoji("🔍")
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
 }
 
 async function execute(interaction) {
@@ -86,60 +63,32 @@ async function execute(interaction) {
     });
   }
 
-  const embed = buildEmbed(world, interaction.user, true);
-
-  return interaction.reply({
-    embeds: [embed],
+  await interaction.reply({
+    embeds: [buildEmbed(world, interaction.user)],
     components: buildRows(world)
   });
 }
 
 async function handleButton(interaction) {
-  if (!interaction.customId.startsWith("render_")) return false;
+  if (interaction.customId !== "render_search_again") return false;
 
-  if (interaction.customId.startsWith("render_refresh_")) {
-    const world = interaction.customId.replace("render_refresh_", "");
-    const embed = buildEmbed(world, interaction.user, true);
+  const modal = new ModalBuilder()
+    .setCustomId("render_search_modal")
+    .setTitle("Search Another World");
 
-    await interaction.update({
-      embeds: [embed],
-      components: buildRows(world)
-    });
+  const input = new TextInputBuilder()
+    .setCustomId("render_world_input")
+    .setLabel("World Name")
+    .setPlaceholder("Example: NOOBV2")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
 
-    return true;
-  }
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(input)
+  );
 
-  if (interaction.customId.startsWith("render_copy_")) {
-    const world = interaction.customId.replace("render_copy_", "");
-    const url = buildWorldUrl(world, false);
-
-    await interaction.reply({
-      content: url,
-      ephemeral: true
-    });
-
-    return true;
-  }
-
-  if (interaction.customId === "render_search_again") {
-    const modal = new ModalBuilder()
-      .setCustomId("render_search_modal")
-      .setTitle("Search Another World");
-
-    const input = new TextInputBuilder()
-      .setCustomId("render_world_input")
-      .setLabel("World Name")
-      .setPlaceholder("Example: NOOBV2")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(input));
-
-    await interaction.showModal(modal);
-    return true;
-  }
-
-  return false;
+  await interaction.showModal(modal);
+  return true;
 }
 
 async function handleModal(interaction) {
@@ -157,10 +106,8 @@ async function handleModal(interaction) {
     return true;
   }
 
-  const embed = buildEmbed(world, interaction.user, true);
-
   await interaction.reply({
-    embeds: [embed],
+    embeds: [buildEmbed(world, interaction.user)],
     components: buildRows(world)
   });
 
