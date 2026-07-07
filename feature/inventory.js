@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const dev = require("./dev.js");
 const {
   AttachmentBuilder,
   ActionRowBuilder,
@@ -244,9 +245,11 @@ async function sendInventory(interaction, targetUser, page = 1, update = false) 
     interaction.member;
 
   const levels = loadLevels();
-  const data = levels[targetUser.id] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
+const data = levels[targetUser.id] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
 
-  const totalSlots = getTotalSlots(data);
+dev.applyDeveloperPerks(targetUser.id, data);
+
+const totalSlots = getTotalSlots(data);
   const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
   page = Math.min(Math.max(page, 1), maxPage);
 
@@ -267,6 +270,7 @@ async function sendInventory(interaction, targetUser, page = 1, update = false) 
 
   if (update) return interaction.update(payload);
   return interaction.editReply(payload);
+  
 }
 
 async function executeInventory(interaction) {

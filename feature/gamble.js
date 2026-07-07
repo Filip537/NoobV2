@@ -2,7 +2,7 @@ const fs = require("fs");
 const { EmbedBuilder } = require("discord.js");
 
 const LEVELS_FILE = "./levels.json";
-
+const dev = require("./dev.js");
 const cooldowns = {
   daily: 24 * 60 * 60 * 1000,
   work: 60 * 60 * 1000,
@@ -40,7 +40,7 @@ function ensureUser(levels, userId) {
 
   if (!levels[userId].cooldowns) levels[userId].cooldowns = {};
   if (typeof levels[userId].wl !== "number") levels[userId].wl = 0;
-
+dev.applyDeveloperPerks(userId, levels[userId]);
   return levels[userId];
 }
 
@@ -192,7 +192,12 @@ async function handleCommand(interaction) {
 
   if (command === "rob") {
     const target = interaction.options.getUser("user");
-
+if (!dev.canBeRobbed(target.id)) {
+  return interaction.reply({
+    content: "❌ This user has an elevated role and cannot be robbed.",
+    ephemeral: true
+  });
+}
     if (!target || target.bot || target.id === interaction.user.id) {
       return interaction.reply({
         content: "❌ You cannot rob this user.",
