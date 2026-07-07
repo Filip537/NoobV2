@@ -7,6 +7,7 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
+const dlPath = path.join(__dirname, "..", "images", "dl.png");
 const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
 
 try {
@@ -29,6 +30,15 @@ function shorten(text, max = 14) {
   return text.length > max ? text.slice(0, max - 2) + ".." : text;
 }
 
+function drawAmount(ctx, amount, x, y) {
+  ctx.font = '30px "Nourd", Arial';
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "#5f5f5f";
+  ctx.strokeText(String(amount), x, y);
+  ctx.fillText(String(amount), x, y);
+}
+
 async function createInventoryCard(member, data) {
   const canvas = createCanvas(900, 515);
   const ctx = canvas.getContext("2d");
@@ -37,7 +47,10 @@ async function createInventoryCard(member, data) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const username = shorten(member.displayName || member.user.username, 14).toUpperCase();
-  const wl = data.wl || 0;
+
+  const totalWl = data.wl || 0;
+  const dl = Math.floor(totalWl / 100);
+  const wl = totalWl % 100;
 
   const totalSlots = 11;
 
@@ -56,6 +69,7 @@ async function createInventoryCard(member, data) {
 
   const itemBox = await loadImage(itemBoxPath);
   const wlImage = await loadImage(wlPath);
+  const dlImage = await loadImage(dlPath);
 
   const slotSize = 120;
   const gap = 7;
@@ -91,17 +105,18 @@ async function createInventoryCard(member, data) {
   ctx.fillStyle = "#f29b2f";
   ctx.fillText("+", plusSlot.x + 36, plusSlot.y + 88);
 
+  let itemIndex = 0;
+
+  if (dl > 0) {
+    const slot = slots[itemIndex++];
+    ctx.drawImage(dlImage, slot.x + 14, slot.y + 12, 92, 92);
+    drawAmount(ctx, dl, slot.x + 78, slot.y + 102);
+  }
+
   if (wl > 0) {
-    const firstSlot = slots[0];
-
-    ctx.drawImage(wlImage, firstSlot.x + 14, firstSlot.y + 12, 92, 92);
-
-    ctx.font = '30px "Nourd", Arial';
-    ctx.fillStyle = "#ffffff";
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = "#5f5f5f";
-    ctx.strokeText(String(wl), firstSlot.x + 78, firstSlot.y + 102);
-    ctx.fillText(String(wl), firstSlot.x + 78, firstSlot.y + 102);
+    const slot = slots[itemIndex++];
+    ctx.drawImage(wlImage, slot.x + 14, slot.y + 12, 92, 92);
+    drawAmount(ctx, wl, slot.x + 78, slot.y + 102);
   }
 
   return canvas.encode("png");
