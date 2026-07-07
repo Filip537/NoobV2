@@ -15,10 +15,10 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const bgFolder = path.join(__dirname, "..", "cardbg");
 
 const defaultBgPath = path.join(__dirname, "..", "images", "profilebg.png");
-const headPath = path.join(__dirname, "..", "images", "gthead.png");
-const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
+const originalHeadPath = path.join(__dirname, "..", "images", "gthead.png");
+const avatarFolder = path.join(__dirname, "..", "avatarz");
 
-const maskFolder = path.join(__dirname, "..", "maskitem");
+const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
 
 try {
   GlobalFonts.registerFromPath(fontPath, "Nourd");
@@ -64,7 +64,7 @@ function getPngFiles(folder) {
 
   return fs.readdirSync(folder)
     .filter(file => file.toLowerCase().endsWith(".png"))
-    .slice(0, 25);
+    .slice(0, 24);
 }
 
 function getBackgroundFiles() {
@@ -72,9 +72,9 @@ function getBackgroundFiles() {
   return getPngFiles(bgFolder);
 }
 
-function getMaskFiles() {
-  ensureFolder(maskFolder);
-  return getPngFiles(maskFolder).slice(0, 24);
+function getAvatarFiles() {
+  ensureFolder(avatarFolder);
+  return getPngFiles(avatarFolder);
 }
 
 function cleanLabel(file) {
@@ -90,7 +90,7 @@ function getUserProfileSettings(data) {
     background: data.cardBackground || null,
     rectangleColor: data.cardRectangleColor || "blue",
     transparency: Number(data.cardTransparency || 72),
-    mask: data.avatarMask || null
+    avatarHead: data.avatarHead || "original"
   };
 }
 
@@ -102,16 +102,18 @@ async function drawAvatar(ctx, data) {
   const avatarW = 260;
   const avatarH = 190;
 
-  const head = await loadImage(headPath).catch(() => null);
-  if (head) ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
+  let headPath = originalHeadPath;
 
-  if (settings.mask) {
-    const maskPath = path.join(maskFolder, settings.mask);
-    const mask = await loadImage(maskPath).catch(() => null);
-
-    if (mask) {
-      ctx.drawImage(mask, avatarX, avatarY, avatarW, avatarH);
+  if (settings.avatarHead && settings.avatarHead !== "original") {
+    const customAvatarPath = path.join(avatarFolder, settings.avatarHead);
+    if (fs.existsSync(customAvatarPath)) {
+      headPath = customAvatarPath;
     }
+  }
+
+  const head = await loadImage(headPath).catch(() => null);
+  if (head) {
+    ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
   }
 }
 
@@ -171,8 +173,8 @@ function buildProfileButtons(userId) {
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`profile_customize_mask_${userId}`)
-      .setLabel("Equip Mask")
+      .setCustomId(`profile_customize_avatar_${userId}`)
+      .setLabel("Choose Avatar Head")
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -190,16 +192,6 @@ function buildCustomizeMenus(userId) {
       }))
     );
 
-  const colorMenu = new StringSelectMenuBuilder()
-    .setCustomId(`profile_color_${userId}`)
-    .setPlaceholder("Choose glow panel color")
-    .addOptions(
-      Object.keys(COLORS).map(color => ({
-        label: color.charAt(0).toUpperCase() + color.slice(1),
-        value: color
-      }))
-    );
-
   const bgMenu = new StringSelectMenuBuilder()
     .setCustomId(`profile_background_${userId}`)
     .setPlaceholder("Choose card background")
@@ -212,6 +204,16 @@ function buildCustomizeMenus(userId) {
         : [{ label: "No backgrounds found", value: "none" }]
     );
 
+  const colorMenu = new StringSelectMenuBuilder()
+    .setCustomId(`profile_color_${userId}`)
+    .setPlaceholder("Choose glow panel color")
+    .addOptions(
+      Object.keys(COLORS).map(color => ({
+        label: color.charAt(0).toUpperCase() + color.slice(1),
+        value: color
+      }))
+    );
+
   return [
     new ActionRowBuilder().addComponents(transparencyMenu),
     new ActionRowBuilder().addComponents(bgMenu),
@@ -219,26 +221,26 @@ function buildCustomizeMenus(userId) {
   ];
 }
 
-function buildMaskMenu(userId) {
-  const masks = getMaskFiles();
+function buildAvatarMenu(userId) {
+  const avatars = getAvatarFiles();
 
-  const maskMenu = new StringSelectMenuBuilder()
-    .setCustomId(`profile_mask_${userId}`)
-    .setPlaceholder("Equip mask")
+  const avatarMenu = new StringSelectMenuBuilder()
+    .setCustomId(`profile_avatar_${userId}`)
+    .setPlaceholder("Choose avatar head")
     .addOptions(
       [
-        { label: "Remove Mask", value: "none" },
-        ...(masks.length
-          ? masks.map(file => ({
+        { label: "Original", value: "original" },
+        ...(avatars.length
+          ? avatars.map(file => ({
               label: cleanLabel(file),
               value: file
             }))
-          : [{ label: "No masks found", value: "no_mask" }])
+          : [{ label: "No avatar heads found", value: "no_avatar" }])
       ].slice(0, 25)
     );
 
   return [
-    new ActionRowBuilder().addComponents(maskMenu)
+    new ActionRowBuilder().addComponents(avatarMenu)
   ];
 }
 
@@ -278,18 +280,19 @@ async function handleButton(interaction) {
     return true;
   }
 
-  if (type === "mask") {
+  if (type === "avatar") {
     const embed = new EmbedBuilder()
-      .setTitle("Equip a Mask")
+      .setTitle("Choose Avatar Head")
       .setColor("Purple")
       .setDescription(
-        "Choose a mask to equip on your Growtopia character.\n\n" +
-        "All mask PNG files are loaded automatically from the `/maskitem` folder."
+        "Choose which character head you want to display on your profile card.\n\n" +
+        "**Original** will use the default `gthead.png`.\n" +
+        "Other avatar PNG files are loaded from the `/avatarz` folder."
       );
 
     await interaction.reply({
       embeds: [embed],
-      components: buildMaskMenu(ownerId),
+      components: buildAvatarMenu(ownerId),
       ephemeral: true
     });
 
@@ -336,9 +339,9 @@ async function handleSelect(interaction) {
 
   const value = interaction.values[0];
 
-  if (value === "no_mask") {
+  if (value === "no_avatar") {
     await interaction.reply({
-      content: "❌ No masks found in `/maskitem`.",
+      content: "❌ No avatar heads found in `/avatarz`.",
       ephemeral: true
     });
     return true;
@@ -364,8 +367,8 @@ async function handleSelect(interaction) {
     data.cardRectangleColor = value;
   }
 
-  if (type === "mask") {
-    data.avatarMask = value === "none" ? null : value;
+  if (type === "avatar") {
+    data.avatarHead = value;
   }
 
   levels[ownerId] = data;
