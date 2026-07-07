@@ -115,18 +115,22 @@ function taskEmbed(taskData) {
   const endsAt = Math.floor(taskData.endsAt / 1000);
 
   return new EmbedBuilder()
-    .setTitle("Daily Task")
-    .setColor("Gold")
+    .setColor(0xFFD54A)
+    .setTitle("📋 Today's Delivery Task")
     .setDescription(
-      `Turn in these items to receive **10 Diamond Locks**:\n\n` +
-      `🪱 **25x Wiggly Worms**\n` +
-      `🐋 **50x Whale**\n` +
-      `🐟 **5x Gar**\n` +
-      `🦈 **10x Alpha Shark**\n\n` +
-      `Reward: **10 DL**\n` +
-      `Ends: <t:${endsAt}:R>\n\n` +
-      `You can only complete this task **once**.`
+      "The Salesman has a special delivery order today!\n\n" +
+      "**Required Items**\n\n" +
+      "<:wigglyworm:1524016362727542784> **25× Wiggly Worms**\n" +
+      "<:Whale:1524016299695542292> **50× Whale**\n" +
+      "<:Gar:1524016311590588597> **5× Gar**\n" +
+      "<:AlphaShark:1524016301989691392> **10× Alpha Shark**\n\n" +
+      "**Reward:** **10 Diamond Locks**\n\n" +
+      `**Ends:** <t:${endsAt}:R>\n` +
+      "**Each player can complete this task only once.**"
     )
+    .setFooter({
+      text: "Complete all requirements before turning them in."
+    })
     .setTimestamp();
 }
 
@@ -216,16 +220,15 @@ async function handleButton(interaction) {
   const userData = ensureUser(levels, interaction.user.id);
 
   if (!hasRequirements(userData)) {
-    await interaction.reply({
-      content:
-        `❌ You don't have enough items.\n\n` +
-        `Required:\n` +
-        `25 Wiggly Worms | You have: ${userData.items?.wigglyWorm || 0}\n` +
-        `50 Whale | You have: ${getFishAmount(userData, "whale")}\n` +
-        `5 Gar | You have: ${getFishAmount(userData, "gar")}\n` +
-        `10 Alpha Shark | You have: ${getFishAmount(userData, "alpha_shark")}`,
-      ephemeral: true
-    });
+await interaction.reply({
+  ephemeral: true,
+  content:
+    "❌ You don't have all the required items.\n\n" +
+    `<:wigglyworm:1524016362727542784> **25 Wiggly Worms** • You have: **${userData.items?.wigglyWorm || 0}**\n` +
+    `<:Whale:1524016299695542292> **50 Whale** • You have: **${getFishAmount(userData, "whale")}**\n` +
+    `<:Gar:1524016311590588597> **5 Gar** • You have: **${getFishAmount(userData, "gar")}**\n` +
+    `<:AlphaShark:1524016301989691392> **10 Alpha Shark** • You have: **${getFishAmount(userData, "alpha_shark")}**`
+});
     return true;
   }
 
@@ -242,10 +245,17 @@ async function handleButton(interaction) {
   saveJson(levelsFile, levels);
   saveJson(taskFile, taskData);
 
-  await interaction.reply({
-    content: "✅ Task completed! You received **10 Diamond Locks**.",
-    ephemeral: true
-  });
+await interaction.reply({
+  ephemeral: true,
+  content:
+    "✅ **Delivery Complete!**\n\n" +
+    "You handed over:\n" +
+    "<:wigglyworm:1524016362727542784> **25 Wiggly Worms**\n" +
+    "<:Whale:1524016299695542292> **50 Whale**\n" +
+    "<:Gar:1524016311590588597> **5 Gar**\n" +
+    "<:AlphaShark:1524016301989691392> **10 Alpha Shark**\n\n" +
+    "**Reward:** **10 Diamond Locks**"
+});
 
   return true;
 }
