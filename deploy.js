@@ -726,6 +726,13 @@ new SlashCommandBuilder()
             .setDescription("World name")
             .setRequired(true)
     ),
+    new SlashCommandBuilder()
+  .setName("shop")
+  .setDescription("Open the item shop"),
+
+new SlashCommandBuilder()
+  .setName("fish")
+  .setDescription("Go fishing with your fishing rod"),
   new SlashCommandBuilder()
   .setName("call")
   .setDescription("Use the old Growtopia telephone"),
