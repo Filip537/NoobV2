@@ -28,7 +28,8 @@ const COLORS = {
   green: "rgba(40, 170, 80, ALPHA)",
   black: "rgba(0, 0, 0, ALPHA)",
   white: "rgba(255, 255, 255, ALPHA)",
-  pink: "rgba(255, 105, 180, ALPHA)"
+  pink: "rgba(255, 105, 180, ALPHA)",
+  purple: "rgba(138, 43, 226, ALPHA)"
 };
 
 function loadLevels() {
