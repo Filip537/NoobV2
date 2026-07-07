@@ -1,6 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const { AttachmentBuilder } = require("discord.js");
+const {
+  AttachmentBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require("discord.js");
 const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
 
 const levelsFile = path.join(__dirname, "..", "levels.json");
@@ -74,6 +79,20 @@ async function createProfileCard(member, data) {
   return canvas.encode("png");
 }
 
+function buildProfileButtons(userId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`profile_customize_card_${userId}`)
+      .setLabel("Customize Card")
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId(`profile_customize_avatar_${userId}`)
+      .setLabel("Customize Avatar")
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 async function executeProfile(interaction) {
   await interaction.deferReply();
 
@@ -93,12 +112,49 @@ async function executeProfile(interaction) {
   return interaction.editReply({
     content: `Hello ${interaction.user},`,
     files: [attachment],
+    components: [buildProfileButtons(interaction.user.id)],
     allowedMentions: {
       users: [interaction.user.id]
     }
   });
 }
 
+async function handleButton(interaction) {
+  if (!interaction.isButton()) return false;
+  if (!interaction.customId.startsWith("profile_customize_")) return false;
+
+  const parts = interaction.customId.split("_");
+  const type = parts[2];
+  const ownerId = parts[3];
+
+  if (interaction.user.id !== ownerId) {
+    await interaction.reply({
+      content: "❌ This is not your profile card.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  if (type === "card") {
+    await interaction.reply({
+      content: "Customize Card is coming soon.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  if (type === "avatar") {
+    await interaction.reply({
+      content: "Customize Avatar is coming soon.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  return false;
+}
+
 module.exports = {
-  executeProfile
+  executeProfile,
+  handleButton
 };
