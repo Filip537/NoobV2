@@ -18,7 +18,10 @@ const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
 const fishFolder = path.join(__dirname, "..", "fish");
 
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
-const EXTRA_SLOT_COST = 500;
+
+const BASE_EXTRA_SLOT_COST = 100;
+const SLOTS_PER_PAGE = 11;
+const SLOTS_PER_UPGRADE = 11;
 
 try {
   GlobalFonts.registerFromPath(fontPath, "Grobold");
@@ -46,6 +49,16 @@ function shorten(text, max = 14) {
   return text.length > max ? text.slice(0, max - 2) + ".." : text;
 }
 
+function getTotalSlots(data) {
+  const upgradeLevel = Number(data.extraBackpackLevel || 0);
+  return SLOTS_PER_PAGE + upgradeLevel * SLOTS_PER_UPGRADE;
+}
+
+function getNextUpgradeCost(data) {
+  const upgradeLevel = Number(data.extraBackpackLevel || 0);
+  return BASE_EXTRA_SLOT_COST + upgradeLevel * 100;
+}
+
 function drawAmount(ctx, amount, x, y) {
   ctx.font = '30px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
@@ -55,29 +68,33 @@ function drawAmount(ctx, amount, x, y) {
   ctx.fillText(String(amount), x, y);
 }
 
-function buildButtons(userId, page, hasExtraBag) {
+function buildButtons(userId, page, data) {
+  const totalSlots = getTotalSlots(data);
+  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+  const nextCost = getNextUpgradeCost(data);
+
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`inv_buy_${userId}`)
-      .setLabel("Buy Extra Slots")
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(hasExtraBag),
+      .setCustomId(`inv_buy_${userId}_${page}`)
+      .setLabel(`Upgrade Slots - ${nextCost} WL`)
+      .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
-      .setCustomId(`inv_prev_${userId}`)
+      .setCustomId(`inv_prev_${userId}_${page}`)
       .setLabel("<")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page === 1),
+      .setDisabled(page <= 1),
 
     new ButtonBuilder()
-      .setCustomId(`inv_next_${userId}`)
+      .setCustomId(`inv_next_${userId}_${page}`)
       .setLabel(">")
       .setStyle(ButtonStyle.Primary)
+      .setDisabled(page >= maxPage)
   );
 }
 
 async function safeLoadImage(imagePath) {
-  if (!fs.existsSync(imagePath)) return null;
+  if (!imagePath || !fs.existsSync(imagePath)) return null;
   return await loadImage(imagePath).catch(() => null);
 }
 
@@ -120,30 +137,29 @@ function getAllInventoryItems(data) {
     });
   }
 
- const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
 
-// Merge duplicate fish into one inventory slot
-const mergedFish = new Map();
+  const mergedFish = new Map();
 
-for (const fish of fishes) {
-  if (!fish?.file) continue;
+  for (const fish of fishes) {
+    if (!fish?.file) continue;
 
-  const amount = Number(fish.amount || 1);
-  if (amount <= 0) continue;
+    const amount = Number(fish.amount || 1);
+    if (amount <= 0) continue;
 
-  mergedFish.set(
-    fish.file,
-    (mergedFish.get(fish.file) || 0) + amount
-  );
-}
+    mergedFish.set(
+      fish.file,
+      (mergedFish.get(fish.file) || 0) + amount
+    );
+  }
 
-for (const [file, amount] of mergedFish) {
-  items.push({
-    type: "image",
-    imagePath: path.join(fishFolder, file),
-    amount
-  });
-}
+  for (const [file, amount] of mergedFish) {
+    items.push({
+      type: "image",
+      imagePath: path.join(fishFolder, file),
+      amount
+    });
+  }
 
   return items;
 }
@@ -152,13 +168,14 @@ async function createInventoryCard(member, data, page = 1) {
   const canvas = createCanvas(900, 515);
   const ctx = canvas.getContext("2d");
 
+  const totalSlots = getTotalSlots(data);
+  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+  page = Math.min(Math.max(page, 1), maxPage);
+
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const username = shorten(member.displayName || member.user.username, 14).toUpperCase();
-
-  const hasExtraBag = data.extraBackpack === true;
-  const totalSlots = hasExtraBag ? 22 : 11;
 
   ctx.font = '58px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
@@ -166,6 +183,9 @@ async function createInventoryCard(member, data, page = 1) {
 
   ctx.font = '40px "Grobold", Arial';
   ctx.fillText(`BP SLOTS: ${totalSlots}`, 37, 124);
+
+  ctx.font = '28px "Grobold", Arial';
+  ctx.fillText(`PAGE ${page}/${maxPage}`, 650, 124);
 
   ctx.fillStyle = "#8edbf0";
   ctx.fillRect(0, 162, 900, 350);
@@ -191,33 +211,13 @@ async function createInventoryCard(member, data, page = 1) {
     slots.push({ x: startX + i * (slotSize + gap), y: row2Y });
   }
 
-  const plusSlot = {
-    x: startX + 5 * (slotSize + gap),
-    y: row2Y
-  };
-
   for (const slot of slots) {
     ctx.drawImage(itemBox, slot.x, slot.y, slotSize, slotSize);
   }
 
-  if (!hasExtraBag && page === 1) {
-    ctx.drawImage(itemBox, plusSlot.x, plusSlot.y, slotSize, slotSize);
-
-    ctx.fillStyle = "#b8ff70";
-    ctx.fillRect(plusSlot.x + 12, plusSlot.y + 12, slotSize - 24, slotSize - 24);
-
-    ctx.font = '92px "Grobold", Arial';
-    ctx.fillStyle = "#f29b2f";
-    ctx.fillText("+", plusSlot.x + 36, plusSlot.y + 88);
-  } else {
-    ctx.drawImage(itemBox, plusSlot.x, plusSlot.y, slotSize, slotSize);
-    slots.push(plusSlot);
-  }
-
   const allItems = getAllInventoryItems(data);
-
-  const startIndex = page === 1 ? 0 : 11;
-  const pageItems = allItems.slice(startIndex, startIndex + 11);
+  const startIndex = (page - 1) * SLOTS_PER_PAGE;
+  const pageItems = allItems.slice(startIndex, startIndex + SLOTS_PER_PAGE);
 
   let itemIndex = 0;
 
@@ -244,7 +244,11 @@ async function sendInventory(interaction, targetUser, page = 1, update = false) 
     interaction.member;
 
   const levels = loadLevels();
-  const data = levels[targetUser.id] || { wl: 0 };
+  const data = levels[targetUser.id] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
+
+  const totalSlots = getTotalSlots(data);
+  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+  page = Math.min(Math.max(page, 1), maxPage);
 
   const image = await createInventoryCard(member, data, page);
 
@@ -255,7 +259,7 @@ async function sendInventory(interaction, targetUser, page = 1, update = false) 
   const payload = {
     content: `${targetUser}, here's your inventory,`,
     files: [attachment],
-    components: [buildButtons(targetUser.id, page, data.extraBackpack === true)],
+    components: [buildButtons(targetUser.id, page, data)],
     allowedMentions: {
       users: [targetUser.id]
     }
@@ -280,6 +284,7 @@ async function handleButton(interaction) {
   const parts = interaction.customId.split("_");
   const action = parts[1];
   const ownerId = parts[2];
+  const currentPage = Number(parts[3] || 1);
 
   if (interaction.user.id !== ownerId) {
     await interaction.reply({
@@ -290,49 +295,45 @@ async function handleButton(interaction) {
   }
 
   const levels = loadLevels();
-  const data = levels[ownerId] || { wl: 0, level: 1, xp: 0 };
+  const data = levels[ownerId] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
+
+  if (!data.items) data.items = {};
+  if (!Array.isArray(data.fishBackpack)) data.fishBackpack = [];
 
   if (action === "next") {
-    if (!data.extraBackpack) {
-      await interaction.reply({
-        content: "❌ You don't have extra backpack slots yet. The extra backpack costs **500 World Locks**.",
-        ephemeral: true
-      });
-      return true;
-    }
+    const totalSlots = getTotalSlots(data);
+    const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+    const nextPage = Math.min(currentPage + 1, maxPage);
 
-    return sendInventory(interaction, interaction.user, 2, true);
+    return sendInventory(interaction, interaction.user, nextPage, true);
   }
 
   if (action === "prev") {
-    return sendInventory(interaction, interaction.user, 1, true);
+    const prevPage = Math.max(currentPage - 1, 1);
+
+    return sendInventory(interaction, interaction.user, prevPage, true);
   }
 
   if (action === "buy") {
-    if (data.extraBackpack) {
+    const cost = getNextUpgradeCost(data);
+
+    if ((data.wl || 0) < cost) {
       await interaction.reply({
-        content: "❌ You already bought extra backpack slots.",
+        content: `❌ You need **${cost} World Locks** to upgrade your backpack.\nYou currently have **${data.wl || 0} WL**.`,
         ephemeral: true
       });
       return true;
     }
 
-    if ((data.wl || 0) < EXTRA_SLOT_COST) {
-      await interaction.reply({
-        content: `❌ You need **500 World Locks** to buy extra backpack slots.\nYou currently have **${data.wl || 0} WL**.`,
-        ephemeral: true
-      });
-      return true;
-    }
-
-    data.wl -= EXTRA_SLOT_COST;
+    data.wl -= cost;
+    data.extraBackpackLevel = Number(data.extraBackpackLevel || 0) + 1;
     data.extraBackpack = true;
 
     levels[ownerId] = data;
     saveLevels(levels);
 
     await interaction.reply({
-      content: "✅ You bought extra backpack slots for **500 WL**.",
+      content: `✅ Backpack upgraded for **${cost} WL**!\nYou now have **${getTotalSlots(data)} slots**.`,
       ephemeral: true
     });
 
