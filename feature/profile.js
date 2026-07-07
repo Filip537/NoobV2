@@ -59,22 +59,25 @@ function shorten(text, max = 18) {
   return text.length > max ? text.slice(0, max - 2) + ".." : text;
 }
 
-function getPngFiles(folder) {
+function getImageFiles(folder) {
   ensureFolder(folder);
 
   return fs.readdirSync(folder)
-    .filter(file => file.toLowerCase().endsWith(".png"))
-    .slice(0, 24);
+    .filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return [".png", ".jpg", ".jpeg", ".webp"].includes(ext);
+    })
+    .slice(0, 25);
 }
 
 function getBackgroundFiles() {
   ensureFolder(bgFolder);
-  return getPngFiles(bgFolder);
+  return getImageFiles(bgFolder);
 }
 
 function getAvatarFiles() {
   ensureFolder(avatarFolder);
-  return getPngFiles(avatarFolder);
+  return getImageFiles(avatarFolder);
 }
 
 function cleanLabel(file) {
