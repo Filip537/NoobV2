@@ -35,43 +35,43 @@ const FISH_DATA = {
     name: "Bass",
     file: "Bass.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   catfish: {
     name: "Catfish",
     file: "Catfish.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   dogfish: {
     name: "Dogfish",
     file: "Dogfish.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   gar: {
     name: "Gar",
     file: "Gar.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   goldfish: {
     name: "Goldfish",
     file: "Goldfish.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   mahi: {
     name: "Mahi",
     file: "Mahi.webp",
     rarity: "Common",
-    sellNeed: 4,
-    sellReward: 1
+    sellNeed: 2,
+    sellReward: 2
   },
   whale: {
     name: "Whale",
