@@ -13,6 +13,7 @@ const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
 
 const levelsFile = path.join(__dirname, "..", "levels.json");
 const bgFolder = path.join(__dirname, "..", "cardbg");
+const decorFolder = path.join(__dirname, "..", "decor");
 
 const defaultBgPath = path.join(__dirname, "..", "images", "profilebg.png");
 const originalHeadPath = path.join(__dirname, "..", "images", "gthead.png");
@@ -33,6 +34,11 @@ const COLORS = {
   white: "rgba(255, 255, 255, ALPHA)",
   pink: "rgba(255, 105, 180, ALPHA)",
   purple: "rgba(138, 43, 226, ALPHA)"
+};
+
+const DECOR_COSTS = {
+  "wlz.png": 50,
+  "dirt.png": 2
 };
 
 function ensureFolder(folder) {
@@ -63,29 +69,20 @@ function getImageFiles(folder) {
   ensureFolder(folder);
 
   return fs.readdirSync(folder)
-    .filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return [".png", ".jpg", ".jpeg", ".webp"].includes(ext);
-    })
-    .slice(0, 25);
-}
-
-function getBackgroundFiles() {
-  ensureFolder(bgFolder);
-  return getImageFiles(bgFolder);
-}
-
-function getAvatarFiles() {
-  ensureFolder(avatarFolder);
-  return getImageFiles(avatarFolder);
+    .filter(file => [".png", ".jpg", ".jpeg", ".webp"].includes(path.extname(file).toLowerCase()))
+    .slice(0, 24);
 }
 
 function cleanLabel(file) {
   return file
-    .replace(".png", "")
+    .replace(/\.(png|jpg|jpeg|webp)$/i, "")
     .replace(/_/g, " ")
     .replace(/-/g, " ")
-    .slice(0, 100);
+    .slice(0, 80);
+}
+
+function getDecorCost(file) {
+  return DECOR_COSTS[file] ?? 10;
 }
 
 function getUserProfileSettings(data) {
@@ -93,7 +90,8 @@ function getUserProfileSettings(data) {
     background: data.cardBackground || null,
     rectangleColor: data.cardRectangleColor || "blue",
     transparency: Number(data.cardTransparency || 72),
-    avatarHead: data.avatarHead || "original"
+    avatarHead: data.avatarHead || "original",
+    decoration: data.cardDecoration || "none"
   };
 }
 
@@ -109,15 +107,37 @@ async function drawAvatar(ctx, data) {
 
   if (settings.avatarHead && settings.avatarHead !== "original") {
     const customAvatarPath = path.join(avatarFolder, settings.avatarHead);
-    if (fs.existsSync(customAvatarPath)) {
-      headPath = customAvatarPath;
-    }
+    if (fs.existsSync(customAvatarPath)) headPath = customAvatarPath;
   }
 
   const head = await loadImage(headPath).catch(() => null);
-  if (head) {
-    ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
-  }
+  if (head) ctx.drawImage(head, avatarX, avatarY, avatarW, avatarH);
+}
+
+async function drawDecoration(ctx, data) {
+  const settings = getUserProfileSettings(data);
+  if (!settings.decoration || settings.decoration === "none") return;
+
+  const decorPath = path.join(decorFolder, settings.decoration);
+  if (!fs.existsSync(decorPath)) return;
+
+  const decor = await loadImage(decorPath).catch(() => null);
+  if (!decor) return;
+
+  ctx.save();
+
+  ctx.translate(55, 292);
+  ctx.rotate(-0.35);
+  ctx.drawImage(decor, -55, -55, 125, 125);
+
+  ctx.restore();
+  ctx.save();
+
+  ctx.translate(1120, 38);
+  ctx.rotate(0.35);
+  ctx.drawImage(decor, -55, -55, 125, 125);
+
+  ctx.restore();
 }
 
 async function createProfileCard(member, data) {
@@ -165,6 +185,8 @@ async function createProfileCard(member, data) {
   ctx.fillText(`XP: ${xp}`, 410, 275);
   ctx.fillText(`WL: ${wl}`, 620, 275);
 
+  await drawDecoration(ctx, data);
+
   return canvas.encode("png");
 }
 
@@ -178,12 +200,17 @@ function buildProfileButtons(userId) {
     new ButtonBuilder()
       .setCustomId(`profile_customize_avatar_${userId}`)
       .setLabel("Choose Avatar")
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId(`profile_customize_decor_${userId}`)
+      .setLabel("Add Decoration")
+      .setStyle(ButtonStyle.Success)
   );
 }
 
 function buildCustomizeMenus(userId) {
-  const bgFiles = getBackgroundFiles();
+  const bgFiles = getImageFiles(bgFolder);
 
   const transparencyMenu = new StringSelectMenuBuilder()
     .setCustomId(`profile_transparency_${userId}`)
@@ -200,10 +227,7 @@ function buildCustomizeMenus(userId) {
     .setPlaceholder("Choose card background")
     .addOptions(
       bgFiles.length
-        ? bgFiles.map(file => ({
-            label: cleanLabel(file),
-            value: file
-          }))
+        ? bgFiles.map(file => ({ label: cleanLabel(file), value: file }))
         : [{ label: "No backgrounds found", value: "none" }]
     );
 
@@ -225,7 +249,7 @@ function buildCustomizeMenus(userId) {
 }
 
 function buildAvatarMenu(userId) {
-  const avatars = getAvatarFiles();
+  const avatars = getImageFiles(avatarFolder);
 
   const avatarMenu = new StringSelectMenuBuilder()
     .setCustomId(`profile_avatar_${userId}`)
@@ -234,17 +258,34 @@ function buildAvatarMenu(userId) {
       [
         { label: "Original", value: "original" },
         ...(avatars.length
-          ? avatars.map(file => ({
-              label: cleanLabel(file),
-              value: file
-            }))
+          ? avatars.map(file => ({ label: cleanLabel(file), value: file }))
           : [{ label: "No avatar heads found", value: "no_avatar" }])
       ].slice(0, 25)
     );
 
-  return [
-    new ActionRowBuilder().addComponents(avatarMenu)
-  ];
+  return [new ActionRowBuilder().addComponents(avatarMenu)];
+}
+
+function buildDecorMenu(userId) {
+  const decors = getImageFiles(decorFolder);
+
+  const decorMenu = new StringSelectMenuBuilder()
+    .setCustomId(`profile_decor_${userId}`)
+    .setPlaceholder("Choose profile decoration")
+    .addOptions(
+      [
+        { label: "Remove Decoration", value: "none", description: "Free" },
+        ...(decors.length
+          ? decors.map(file => ({
+              label: cleanLabel(file),
+              value: file,
+              description: `${getDecorCost(file)} World Locks`
+            }))
+          : [{ label: "No decorations found", value: "no_decor", description: "Add images to /decor" }])
+      ].slice(0, 25)
+    );
+
+  return [new ActionRowBuilder().addComponents(decorMenu)];
 }
 
 async function executeProfile(interaction) {
@@ -287,11 +328,7 @@ async function handleButton(interaction) {
     const embed = new EmbedBuilder()
       .setTitle("Choose Avatar Head")
       .setColor("Purple")
-      .setDescription(
-        "Choose which character head you want to display on your profile card.\n\n" +
-        "**Original** will use the default `gthead.png`.\n" +
-        "Other avatar PNG files are loaded from the `/avatarz` folder."
-      );
+      .setDescription("Choose which character head you want to display on your profile card.");
 
     await interaction.reply({
       embeds: [embed],
@@ -302,12 +339,31 @@ async function handleButton(interaction) {
     return true;
   }
 
+  if (type === "decor") {
+    const embed = new EmbedBuilder()
+      .setTitle("Add Profile Decoration")
+      .setColor("Gold")
+      .setDescription(
+        "Decorations are bought using your World Locks.\n\n" +
+        "`wlz.png` costs **50 WL**\n" +
+        "`dirt.png` costs **2 WL**\n\n" +
+        "After buying, the decoration will appear on your profile card."
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: buildDecorMenu(ownerId),
+      ephemeral: true
+    });
+
+    return true;
+  }
+
   const embed = new EmbedBuilder()
     .setTitle("Customize Your Profile Card")
     .setColor("Blue")
     .setDescription(
-      "Which part of your profile card would you like to customize?\n\n" +
-      "**Transparency** changes the see-through rectangle over your background.\n" +
+      "**Transparency** changes the see-through rectangle.\n" +
       "**Card Background** changes the background image.\n" +
       "**Glow Panel Color** changes the rectangle color."
     );
@@ -350,9 +406,15 @@ async function handleSelect(interaction) {
     return true;
   }
 
-  if (type === "transparency") {
-    data.cardTransparency = Number(value);
+  if (value === "no_decor") {
+    await interaction.reply({
+      content: "❌ No decorations found in `/decor`.",
+      ephemeral: true
+    });
+    return true;
   }
+
+  if (type === "transparency") data.cardTransparency = Number(value);
 
   if (type === "background") {
     if (value === "none") {
@@ -366,12 +428,37 @@ async function handleSelect(interaction) {
     data.cardBackground = value;
   }
 
-  if (type === "color") {
-    data.cardRectangleColor = value;
-  }
+  if (type === "color") data.cardRectangleColor = value;
 
-  if (type === "avatar") {
-    data.avatarHead = value;
+  if (type === "avatar") data.avatarHead = value;
+
+  if (type === "decor") {
+    if (value === "none") {
+      data.cardDecoration = "none";
+    } else {
+      const decorPath = path.join(decorFolder, value);
+
+      if (!fs.existsSync(decorPath)) {
+        await interaction.reply({
+          content: "❌ This decoration file no longer exists.",
+          ephemeral: true
+        });
+        return true;
+      }
+
+      const cost = getDecorCost(value);
+
+      if ((data.wl || 0) < cost) {
+        await interaction.reply({
+          content: `❌ You need **${cost} World Locks** to buy this decoration.\nYou currently have **${data.wl || 0} WL**.`,
+          ephemeral: true
+        });
+        return true;
+      }
+
+      data.wl = (data.wl || 0) - cost;
+      data.cardDecoration = value;
+    }
   }
 
   levels[ownerId] = data;
