@@ -38,21 +38,6 @@ function buildEmbed(world, user, refresh = true) {
 function buildRows(world) {
   const clean = cleanWorldName(world);
   const url = buildWorldUrl(clean, false);
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`render_refresh_${clean}`)
-      .setLabel("Refresh Render")
-      .setEmoji("🖼️")
-      .setStyle(ButtonStyle.Primary),
-
-    new ButtonBuilder()
-      .setLabel("Open in Browser")
-      .setEmoji("🌐")
-      .setURL(url)
-      .setStyle(ButtonStyle.Link)
-  );
-
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setLabel("Download")
