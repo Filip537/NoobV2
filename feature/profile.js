@@ -18,7 +18,7 @@ const defaultBgPath = path.join(__dirname, "..", "images", "profilebg.png");
 const headPath = path.join(__dirname, "..", "images", "gthead.png");
 const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
 
-const maskFolder = path.join(__dirname, "..", "faceitem");
+const maskFolder = path.join(__dirname, "..", "maskitem");
 
 try {
   GlobalFonts.registerFromPath(fontPath, "Nourd");
@@ -284,7 +284,7 @@ async function handleButton(interaction) {
       .setColor("Purple")
       .setDescription(
         "Choose a mask to equip on your Growtopia character.\n\n" +
-        "All mask PNG files are loaded automatically from the `/faceitem` folder."
+        "All mask PNG files are loaded automatically from the `/maskitem` folder."
       );
 
     await interaction.reply({
@@ -338,7 +338,7 @@ async function handleSelect(interaction) {
 
   if (value === "no_mask") {
     await interaction.reply({
-      content: "❌ No masks found in `/faceitem`.",
+      content: "❌ No masks found in `/maskitem`.",
       ephemeral: true
     });
     return true;
