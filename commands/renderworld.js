@@ -38,7 +38,7 @@ function buildEmbed(world, user, refresh = true) {
 function buildRows(world) {
   const clean = cleanWorldName(world);
   const url = buildWorldUrl(clean, false);
-  const row2 = new ActionRowBuilder().addComponents(
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setLabel("Download")
       .setEmoji("📥")
@@ -58,7 +58,7 @@ function buildRows(world) {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  return [row1, row2];
+  return [row1];
 }
 
 async function execute(interaction) {
