@@ -1604,6 +1604,10 @@ if (interaction.isButton()) {
   const handled = await fishing.handleButton(interaction);
   if (handled) return;
 }
+if (interaction.isStringSelectMenu()) {
+  const handled = await fishing.handleSelect(interaction);
+  if (handled) return;
+}
 if (interaction.isChatInputCommand() && interaction.commandName === "renderworld") {
   return renderWorld.execute(interaction);
 }

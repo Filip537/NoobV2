@@ -35,42 +35,42 @@ const FISH_DATA = {
     name: "Bass",
     file: "Bass.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   catfish: {
     name: "Catfish",
     file: "Catfish.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   dogfish: {
     name: "Dogfish",
     file: "Dogfish.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   gar: {
     name: "Gar",
     file: "Gar.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   goldfish: {
     name: "Goldfish",
     file: "Goldfish.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   mahi: {
     name: "Mahi",
     file: "Mahi.webp",
     rarity: "Common",
-    sellNeed: 50,
+    sellNeed: 4,
     sellReward: 1
   },
   whale: {
@@ -176,34 +176,77 @@ function addFish(data, fishKey) {
 
 function removeFish(data, fishKey, amount) {
   const fishInfo = FISH_DATA[fishKey];
-  const realFile = getFishFile(fishInfo.file);
+  if (!fishInfo) return false;
 
-  const fish = data.fishBackpack.find(item =>
-    item.key === fishKey ||
-    item.file === realFile ||
-    item.name?.toLowerCase() === fishInfo.name.toLowerCase()
-  );
+  const targetKey = normalizeFishName(fishKey);
+  const targetName = normalizeFishName(fishInfo.name);
+  const targetFile = normalizeFishName(fishInfo.file);
 
-  if (!fish || (fish.amount || 0) < amount) return false;
+  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
 
-  fish.amount -= amount;
+  let remaining = amount;
 
-  data.fishBackpack = data.fishBackpack.filter(item => (item.amount || 0) > 0);
+  for (const fish of fishes) {
+    const fishKeyNorm = normalizeFishName(fish.key);
+    const fishNameNorm = normalizeFishName(fish.name);
+    const fishFileNorm = normalizeFishName(fish.file);
 
+    const matches =
+      fishKeyNorm === targetKey ||
+      fishNameNorm === targetName ||
+      fishFileNorm === targetFile;
+
+    if (!matches) continue;
+
+    const currentAmount = Number(fish.amount || 1);
+    const take = Math.min(currentAmount, remaining);
+
+    fish.amount = currentAmount - take;
+    remaining -= take;
+
+    if (remaining <= 0) break;
+  }
+
+  if (remaining > 0) return false;
+
+  data.fishBackpack = fishes.filter(fish => Number(fish.amount || 0) > 0);
   return true;
+}
+
+function normalizeFishName(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/\.(webp|png|jpg|jpeg)$/i, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function getFishAmount(data, fishKey) {
   const fishInfo = FISH_DATA[fishKey];
-  const realFile = getFishFile(fishInfo.file);
+  if (!fishInfo) return 0;
 
-  const fish = data.fishBackpack.find(item =>
-    item.key === fishKey ||
-    item.file === realFile ||
-    item.name?.toLowerCase() === fishInfo.name.toLowerCase()
-  );
+  const targetKey = normalizeFishName(fishKey);
+  const targetName = normalizeFishName(fishInfo.name);
+  const targetFile = normalizeFishName(fishInfo.file);
 
-  return fish?.amount || 0;
+  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+
+  let total = 0;
+
+  for (const fish of fishes) {
+    const fishKeyNorm = normalizeFishName(fish.key);
+    const fishNameNorm = normalizeFishName(fish.name);
+    const fishFileNorm = normalizeFishName(fish.file);
+
+    if (
+      fishKeyNorm === targetKey ||
+      fishNameNorm === targetName ||
+      fishFileNorm === targetFile
+    ) {
+      total += Number(fish.amount || 1);
+    }
+  }
+
+  return total;
 }
 
 function pickFish() {
@@ -526,10 +569,10 @@ async function handleButton(interaction) {
   }
 
   if (interaction.customId.startsWith("salesman_sell_")) {
-    const parts = interaction.customId.split("_");
-    const fishKey = parts[2];
-    const ownerId = parts[3];
-
+const raw = interaction.customId.replace("salesman_sell_", "");
+const lastUnderscore = raw.lastIndexOf("_");
+const fishKey = raw.slice(0, lastUnderscore);
+const ownerId = raw.slice(lastUnderscore + 1);
     if (interaction.user.id !== ownerId) {
       await interaction.reply({
         content: "❌ This salesman menu is not for you.",
