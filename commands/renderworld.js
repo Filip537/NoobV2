@@ -5,45 +5,30 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle,
-  AttachmentBuilder
+  TextInputStyle
 } = require("discord.js");
 
 function cleanWorldName(name) {
   return name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }
 
-function buildWorldUrl(world) {
-  return `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png`;
+function buildWorldUrl(world, refresh = false) {
+  const base = `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png`;
+  return refresh ? `${base}?t=${Date.now()}` : base;
 }
 
-async function fetchWorldImage(world) {
-  const url = buildWorldUrl(world);
+function buildEmbed(world, user, refresh = true) {
+  const clean = cleanWorldName(world);
+  const imageUrl = buildWorldUrl(clean, refresh);
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0"
-    }
-  });
-
-  if (!res.ok) return null;
-
-  const buffer = Buffer.from(await res.arrayBuffer());
-
-  return new AttachmentBuilder(buffer, {
-    name: `${world}.png`
-  });
-}
-
-function buildEmbed(world, user) {
   return new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle(`🌍 World: ${world.toUpperCase()}`)
+    .setTitle(`🌍 World: ${clean.toUpperCase()}`)
     .setDescription(
       `**Last rendered:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
       `Powered by Growtopia World Renderer`
     )
-    .setImage(`attachment://${world}.png`)
+    .setImage(imageUrl)
     .setFooter({
       text: `Requested by ${user.username} • NoobV2`
     })
@@ -51,82 +36,133 @@ function buildEmbed(world, user) {
 }
 
 function buildRows(world) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel("Download")
-        .setEmoji("📥")
-        .setURL(buildWorldUrl(world))
-        .setStyle(ButtonStyle.Link),
+  const clean = cleanWorldName(world);
+  const url = buildWorldUrl(clean, false);
 
-      new ButtonBuilder()
-        .setCustomId("render_search_again")
-        .setLabel("Search Again")
-        .setEmoji("🔍")
-        .setStyle(ButtonStyle.Secondary)
-    )
-  ];
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`render_refresh_${clean}`)
+      .setLabel("Refresh Render")
+      .setEmoji("🖼️")
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setLabel("Open in Browser")
+      .setEmoji("🌐")
+      .setURL(url)
+      .setStyle(ButtonStyle.Link)
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel("Download")
+      .setEmoji("📥")
+      .setURL(url)
+      .setStyle(ButtonStyle.Link),
+
+    new ButtonBuilder()
+      .setCustomId("render_search_again")
+      .setLabel("Search Again")
+      .setEmoji("🔍")
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId(`render_copy_${clean}`)
+      .setLabel("Copy URL")
+      .setEmoji("📋")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return [row1, row2];
 }
 
-async function sendWorld(interaction, world, isModal = false) {
-  const clean = cleanWorldName(world);
+async function execute(interaction) {
+  const world = cleanWorldName(interaction.options.getString("world"));
 
-  if (!clean) {
+  if (!world) {
     return interaction.reply({
       content: "❌ Please enter a valid world name.",
       ephemeral: true
     });
   }
 
-  await interaction.deferReply();
+  const embed = buildEmbed(world, interaction.user, true);
 
-  const attachment = await fetchWorldImage(clean);
-
-  if (!attachment) {
-    return interaction.editReply({
-      content: `❌ Could not render **${clean.toUpperCase()}**. The world may not exist or Growtopia has not generated the render yet.`
-    });
-  }
-
-  return interaction.editReply({
-    embeds: [buildEmbed(clean, interaction.user)],
-    files: [attachment],
-    components: buildRows(clean)
+  return interaction.reply({
+    embeds: [embed],
+    components: buildRows(world)
   });
 }
 
-async function execute(interaction) {
-  const world = interaction.options.getString("world");
-  return sendWorld(interaction, world);
-}
-
 async function handleButton(interaction) {
-  if (interaction.customId !== "render_search_again") return false;
+  if (!interaction.customId.startsWith("render_")) return false;
 
-  const modal = new ModalBuilder()
-    .setCustomId("render_search_modal")
-    .setTitle("Search Another World");
+  if (interaction.customId.startsWith("render_refresh_")) {
+    const world = interaction.customId.replace("render_refresh_", "");
+    const embed = buildEmbed(world, interaction.user, true);
 
-  const input = new TextInputBuilder()
-    .setCustomId("render_world_input")
-    .setLabel("World Name")
-    .setPlaceholder("Example: NOOBV2")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
+    await interaction.update({
+      embeds: [embed],
+      components: buildRows(world)
+    });
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(input)
-  );
+    return true;
+  }
 
-  await interaction.showModal(modal);
-  return true;
+  if (interaction.customId.startsWith("render_copy_")) {
+    const world = interaction.customId.replace("render_copy_", "");
+    const url = buildWorldUrl(world, false);
+
+    await interaction.reply({
+      content: url,
+      ephemeral: true
+    });
+
+    return true;
+  }
+
+  if (interaction.customId === "render_search_again") {
+    const modal = new ModalBuilder()
+      .setCustomId("render_search_modal")
+      .setTitle("Search Another World");
+
+    const input = new TextInputBuilder()
+      .setCustomId("render_world_input")
+      .setLabel("World Name")
+      .setPlaceholder("Example: NOOBV2")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+    await interaction.showModal(modal);
+    return true;
+  }
+
+  return false;
 }
 
 async function handleModal(interaction) {
   if (interaction.customId !== "render_search_modal") return false;
 
-  const world = interaction.fields.getTextInputValue("render_world_input");
-  await sendWorld(interaction, world, true);
+  const world = cleanWorldName(
+    interaction.fields.getTextInputValue("render_world_input")
+  );
+
+  if (!world) {
+    await interaction.reply({
+      content: "❌ Please enter a valid world name.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  const embed = buildEmbed(world, interaction.user, true);
+
+  await interaction.reply({
+    embeds: [embed],
+    components: buildRows(world)
+  });
 
   return true;
 }
