@@ -13,6 +13,9 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
+const fishingRodPath = path.join(__dirname, "..", "images", "fish-rod.png");
+const fishFolder = path.join(__dirname, "..", "fish");
+
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 const EXTRA_SLOT_COST = 500;
 
@@ -72,6 +75,11 @@ function buildButtons(userId, page, hasExtraBag) {
   );
 }
 
+async function safeLoadImage(imagePath) {
+  if (!fs.existsSync(imagePath)) return null;
+  return await loadImage(imagePath).catch(() => null);
+}
+
 async function createInventoryCard(member, data, page = 1) {
   const canvas = createCanvas(900, 515);
   const ctx = canvas.getContext("2d");
@@ -104,6 +112,7 @@ async function createInventoryCard(member, data, page = 1) {
   const itemBox = await loadImage(itemBoxPath);
   const wlImage = await loadImage(wlPath);
   const dlImage = await loadImage(dlPath);
+  const fishingRodImage = await safeLoadImage(fishingRodPath);
 
   const slotSize = 120;
   const gap = 7;
@@ -144,19 +153,40 @@ async function createInventoryCard(member, data, page = 1) {
     slots.push(plusSlot);
   }
 
-  if (page === 1) {
-    let itemIndex = 0;
+  let itemIndex = 0;
 
-    if (dl > 0) {
-      const slot = slots[itemIndex++];
-      ctx.drawImage(dlImage, slot.x + 14, slot.y + 12, 92, 92);
-      drawAmount(ctx, dl, slot.x + 78, slot.y + 102);
+  function drawInvImage(image, amount = null) {
+    if (!image) return;
+    if (!slots[itemIndex]) return;
+
+    const slot = slots[itemIndex++];
+    ctx.drawImage(image, slot.x + 14, slot.y + 12, 92, 92);
+
+    if (amount !== null && amount > 1) {
+      drawAmount(ctx, amount, slot.x + 78, slot.y + 102);
+    }
+  }
+
+  if (page === 1) {
+    if (dl > 0) drawInvImage(dlImage, dl);
+    if (wl > 0) drawInvImage(wlImage, wl);
+
+    if (data.items?.fishingRod && fishingRodImage) {
+      drawInvImage(fishingRodImage, data.items.fishingRod);
     }
 
-    if (wl > 0) {
-      const slot = slots[itemIndex++];
-      ctx.drawImage(wlImage, slot.x + 14, slot.y + 12, 92, 92);
-      drawAmount(ctx, wl, slot.x + 78, slot.y + 102);
+    const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+
+    for (const fish of fishes) {
+      if (!slots[itemIndex]) break;
+      if (!fish.file) continue;
+
+      const fishPath = path.join(fishFolder, fish.file);
+      const fishImage = await safeLoadImage(fishPath);
+
+      if (!fishImage) continue;
+
+      drawInvImage(fishImage, 1);
     }
   }
 
