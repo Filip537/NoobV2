@@ -20,7 +20,7 @@ const activeFishing = new Map();
 const ROD_COST = 1;
 const WORM_PRICE_WL = 1;
 const WORM_AMOUNT_PER_BUY = 25;
-const ROD_BREAK_CHANCE = 0.75;
+const ROD_BREAK_CHANCE = 0.10;
 const BONUS_WL_CHANCE = 0.20;
 
 const FISH_DATA = {
@@ -261,6 +261,12 @@ function pickFish() {
   if (roll < 96) return "whale";
 
   return null;
+}
+
+function getReelTime(fishKey) {
+  if (fishKey === "whale") return Math.floor(Math.random() * 1000) + 1000; // 1-2 sec
+  if (fishKey === "alpha_shark") return Math.floor(Math.random() * 2000) + 1000; // 1-3 sec
+  return 7000; // common fish
 }
 
 function shopEmbed() {
@@ -653,11 +659,14 @@ const ownerId = raw.slice(lastUnderscore + 1);
     userData.items.wigglyWorm -= 1;
     levels[ownerId] = userData;
     saveLevels(levels);
-
-    activeFishing.set(ownerId, {
-      bait,
-      startedAt: Date.now()
-    });
+const pendingFish = pickFish();
+const reelTime = pendingFish ? getReelTime(pendingFish) : 7000;
+activeFishing.set(ownerId, {
+  bait,
+  pendingFish,
+  reelTime,
+  startedAt: Date.now()
+});
 
     await interaction.update({
       embeds: [
@@ -708,8 +717,7 @@ const ownerId = raw.slice(lastUnderscore + 1);
             components: []
           }).catch(() => {});
         }
-      }, 7000);
-    }, waitTime);
+}, activeFishing.get(ownerId)?.reelTime || 7000);    }, waitTime);
 
     return true;
   }
@@ -733,10 +741,13 @@ const ownerId = raw.slice(lastUnderscore + 1);
       return true;
     }
 
-    activeFishing.delete(ownerId);
+const session = activeFishing.get(ownerId);
+const pickedKey = session?.pendingFish || null;
 
-    const levels = loadLevels();
-    const userData = ensureUser(levels, ownerId);
+activeFishing.delete(ownerId);
+
+const levels = loadLevels();
+const userData = ensureUser(levels, ownerId);
 
     if (Math.random() < ROD_BREAK_CHANCE) {
       userData.items.fishingRod = Math.max(0, (userData.items.fishingRod || 0) - 1);
@@ -759,8 +770,6 @@ const ownerId = raw.slice(lastUnderscore + 1);
 
       return true;
     }
-
-    const pickedKey = pickFish();
 
     if (!pickedKey) {
       levels[ownerId] = userData;
