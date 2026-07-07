@@ -13,20 +13,21 @@ function cleanWorldName(name) {
 }
 
 function buildWorldUrl(world) {
-  return `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png?t=${Date.now()}`;
+  return `https://growtopiagame.com/worlds/${encodeURIComponent(world)}.png`;
 }
 
 function buildEmbed(world, user) {
   const clean = cleanWorldName(world);
+  const imageUrl = buildWorldUrl(clean);
 
   return new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle(`🌍 World: ${clean.toUpperCase()}`)
     .setDescription(
-      `**Last rendered:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
+      `**Rendered world image below**\n\n` +
       `Powered by Growtopia World Renderer`
     )
-    .setImage(buildWorldUrl(clean))
+    .setImage(imageUrl)
     .setFooter({
       text: `Requested by ${user.username} • NoobV2`
     })
@@ -35,13 +36,14 @@ function buildEmbed(world, user) {
 
 function buildRows(world) {
   const clean = cleanWorldName(world);
+  const imageUrl = buildWorldUrl(clean);
 
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setLabel("Download")
         .setEmoji("📥")
-        .setURL(buildWorldUrl(clean))
+        .setURL(imageUrl)
         .setStyle(ButtonStyle.Link),
 
       new ButtonBuilder()
@@ -63,7 +65,7 @@ async function execute(interaction) {
     });
   }
 
-  await interaction.reply({
+  return interaction.reply({
     embeds: [buildEmbed(world, interaction.user)],
     components: buildRows(world)
   });
