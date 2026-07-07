@@ -13,6 +13,7 @@ const testLevelCommand = require("./commands/testlevelup.js");const wyr = requir
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const call = require("./feature/call.js");
+const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
@@ -1699,23 +1700,8 @@ if (interaction.commandName === "editwiki") {
     ephemeral: true
   });
 }
-  if (interaction.commandName === "inventory") {
-  const target = interaction.options.getUser("user") || interaction.user;
-  const levels = loadLevelsData();
-  const data = levels[target.id] || {};
-
-  const wl = data.wl || 0;
-  const level = data.level || 1;
-  const xp = data.xp || 0;
-
-  return interaction.reply({
-    content:
-      `🎒 **${target.username}'s Inventory**\n` +
-      `World Locks: **${wl} WL**\n` +
-      `Level: **${level}**\n` +
-      `XP: **${xp}**`,
-    allowedMentions: { parse: [] }
-  });
+ if (interaction.isChatInputCommand() && interaction.commandName === "inventory") {
+  return inventoryFeature.executeInventory(interaction);
 }
 
 if (interaction.commandName === "tellstory") {
