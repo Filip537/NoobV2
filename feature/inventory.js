@@ -17,8 +17,10 @@ const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 const EXTRA_SLOT_COST = 500;
 
 try {
-
-} catch {}
+  GlobalFonts.registerFromPath(fontPath, "Grobold");
+} catch (err) {
+  console.log("Failed to load Grobold font:", err);
+}
 
 function loadLevels() {
   if (!fs.existsSync(levelsFile)) fs.writeFileSync(levelsFile, "{}");
