@@ -732,7 +732,28 @@ new SlashCommandBuilder()
     new SlashCommandBuilder()
   .setName("shop")
   .setDescription("Open the item shop"),
+new SlashCommandBuilder()
+  .setName("sendtask")
+  .setDescription("Send the daily task panel"),
 
+new SlashCommandBuilder()
+  .setName("trade")
+  .setDescription("Trade items with another user")
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("User to trade with")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("give")
+      .setDescription("Example: 25 wiggly, 5 gar, 1 whale")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("receive")
+      .setDescription("Example: 10 wl, 1 alpha shark")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),

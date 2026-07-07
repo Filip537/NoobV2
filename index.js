@@ -17,6 +17,8 @@ const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
+const task = require("./feature/task.js");
+const trade = require("./feature/trade.js");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
@@ -1595,6 +1597,25 @@ client.on("interactionCreate", async (interaction) => {
   if (handled) return;
 }
 
+if (interaction.isChatInputCommand()) {
+  const handled = await task.handleCommand(interaction, client);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await task.handleButton(interaction);
+  if (handled) return;
+}
+
+if (interaction.isChatInputCommand()) {
+  const handled = await trade.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await trade.handleButton(interaction);
+  if (handled) return;
+}
 if (interaction.isChatInputCommand()) {
   const handled = await fishing.handleCommand(interaction);
   if (handled) return;
