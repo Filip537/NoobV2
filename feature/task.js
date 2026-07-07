@@ -11,7 +11,7 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const taskFile = path.join(__dirname, "..", "taskData.json");
 
 const TASK_CHANNEL = "1522730887081623684";
-const TASK_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
+const TASK_DURATION_MS = 6 * 24 * 60 * 60 * 1000;
 
 const TASK_REQUIREMENTS = {
   wigglyWorm: 25,
@@ -20,7 +20,7 @@ const TASK_REQUIREMENTS = {
   alpha_shark: 10
 };
 
-const TASK_REWARD_WL = 1000; // 10 DL
+const TASK_REWARD_WL = 2000; // 10 DL
 
 function loadJson(file, fallback) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify(fallback, null, 2));
@@ -124,7 +124,7 @@ function taskEmbed(taskData) {
       "<:Whale:1524016299695542292> **50× Whale**\n" +
       "<:Gar:1524016311590588597> **5× Gar**\n" +
       "<:AlphaShark:1524016301989691392> **10× Alpha Shark**\n\n" +
-      "**Reward:** **10 Diamond Locks**\n\n" +
+      "**Reward:** **20 Diamond Locks**\n\n" +
       `**Ends:** <t:${endsAt}:R>\n` +
       "**Each player can complete this task only once.**"
     )
@@ -254,7 +254,7 @@ await interaction.reply({
     "<:Whale:1524016299695542292> **50 Whale**\n" +
     "<:Gar:1524016311590588597> **5 Gar**\n" +
     "<:AlphaShark:1524016301989691392> **10 Alpha Shark**\n\n" +
-    "**Reward:** **10 Diamond Locks**"
+    "**Reward:** **20 Diamond Locks**"
 });
 
   return true;
