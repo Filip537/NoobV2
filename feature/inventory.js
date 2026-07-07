@@ -14,6 +14,7 @@ const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
 const fishingRodPath = path.join(__dirname, "..", "images", "fish-rod.png");
+const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
 const fishFolder = path.join(__dirname, "..", "fish");
 
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
@@ -80,6 +81,63 @@ async function safeLoadImage(imagePath) {
   return await loadImage(imagePath).catch(() => null);
 }
 
+function getAllInventoryItems(data) {
+  const items = [];
+
+  const totalWl = data.wl || 0;
+  const dl = Math.floor(totalWl / 100);
+  const wl = totalWl % 100;
+
+  if (dl > 0) {
+    items.push({
+      type: "image",
+      imagePath: dlPath,
+      amount: dl
+    });
+  }
+
+  if (wl > 0) {
+    items.push({
+      type: "image",
+      imagePath: wlPath,
+      amount: wl
+    });
+  }
+
+  if ((data.items?.fishingRod || 0) > 0) {
+    items.push({
+      type: "image",
+      imagePath: fishingRodPath,
+      amount: data.items.fishingRod
+    });
+  }
+
+  if ((data.items?.wigglyWorm || 0) > 0) {
+    items.push({
+      type: "image",
+      imagePath: wigglyWormPath,
+      amount: data.items.wigglyWorm
+    });
+  }
+
+  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+
+  for (const fish of fishes) {
+    if (!fish.file) continue;
+
+    const amount = fish.amount || 1;
+    if (amount <= 0) continue;
+
+    items.push({
+      type: "image",
+      imagePath: path.join(fishFolder, fish.file),
+      amount
+    });
+  }
+
+  return items;
+}
+
 async function createInventoryCard(member, data, page = 1) {
   const canvas = createCanvas(900, 515);
   const ctx = canvas.getContext("2d");
@@ -88,10 +146,6 @@ async function createInventoryCard(member, data, page = 1) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const username = shorten(member.displayName || member.user.username, 14).toUpperCase();
-
-  const totalWl = data.wl || 0;
-  const dl = Math.floor(totalWl / 100);
-  const wl = totalWl % 100;
 
   const hasExtraBag = data.extraBackpack === true;
   const totalSlots = hasExtraBag ? 22 : 11;
@@ -110,9 +164,6 @@ async function createInventoryCard(member, data, page = 1) {
   ctx.fillRect(6, 168, 888, 340);
 
   const itemBox = await loadImage(itemBoxPath);
-  const wlImage = await loadImage(wlPath);
-  const dlImage = await loadImage(dlPath);
-  const fishingRodImage = await safeLoadImage(fishingRodPath);
 
   const slotSize = 120;
   const gap = 7;
@@ -153,40 +204,24 @@ async function createInventoryCard(member, data, page = 1) {
     slots.push(plusSlot);
   }
 
+  const allItems = getAllInventoryItems(data);
+
+  const startIndex = page === 1 ? 0 : 11;
+  const pageItems = allItems.slice(startIndex, startIndex + 11);
+
   let itemIndex = 0;
 
-  function drawInvImage(image, amount = null) {
-    if (!image) return;
-    if (!slots[itemIndex]) return;
+  for (const item of pageItems) {
+    if (!slots[itemIndex]) break;
+
+    const image = await safeLoadImage(item.imagePath);
+    if (!image) continue;
 
     const slot = slots[itemIndex++];
     ctx.drawImage(image, slot.x + 14, slot.y + 12, 92, 92);
 
-    if (amount !== null && amount > 1) {
-      drawAmount(ctx, amount, slot.x + 78, slot.y + 102);
-    }
-  }
-
-  if (page === 1) {
-    if (dl > 0) drawInvImage(dlImage, dl);
-    if (wl > 0) drawInvImage(wlImage, wl);
-
-    if (data.items?.fishingRod && fishingRodImage) {
-      drawInvImage(fishingRodImage, data.items.fishingRod);
-    }
-
-    const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
-
-    for (const fish of fishes) {
-      if (!slots[itemIndex]) break;
-      if (!fish.file) continue;
-
-      const fishPath = path.join(fishFolder, fish.file);
-      const fishImage = await safeLoadImage(fishPath);
-
-      if (!fishImage) continue;
-
-      drawInvImage(fishImage, 1);
+    if ((item.amount || 0) > 1) {
+      drawAmount(ctx, item.amount, slot.x + 78, slot.y + 102);
     }
   }
 
