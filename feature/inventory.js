@@ -13,12 +13,11 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
-const fontPath = path.join(__dirname, "..", "fonts", "Nourd.ttf");
-
+const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 const EXTRA_SLOT_COST = 500;
 
 try {
-  GlobalFonts.registerFromPath(fontPath, "Nourd");
+
 } catch {}
 
 function loadLevels() {
@@ -42,7 +41,7 @@ function shorten(text, max = 14) {
 }
 
 function drawAmount(ctx, amount, x, y) {
-  ctx.font = '30px "Nourd", Arial';
+  ctx.font = '30px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
   ctx.lineWidth = 5;
   ctx.strokeStyle = "#5f5f5f";
@@ -87,15 +86,12 @@ async function createInventoryCard(member, data, page = 1) {
   const hasExtraBag = data.extraBackpack === true;
   const totalSlots = hasExtraBag ? 22 : 11;
 
-  ctx.font = '58px "Nourd", Arial';
+  ctx.font = '58px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
   ctx.fillText(`@${username} INV`, 30, 70);
 
-  ctx.font = '40px "Nourd", Arial';
+  ctx.font = '40px "Grobold", Arial';
   ctx.fillText(`BP SLOTS: ${totalSlots}`, 37, 124);
-
-  ctx.font = '28px "Nourd", Arial';
-  ctx.fillText(`PAGE ${page}`, 720, 124);
 
   ctx.fillStyle = "#8edbf0";
   ctx.fillRect(0, 162, 900, 350);
@@ -138,7 +134,7 @@ async function createInventoryCard(member, data, page = 1) {
     ctx.fillStyle = "#b8ff70";
     ctx.fillRect(plusSlot.x + 12, plusSlot.y + 12, slotSize - 24, slotSize - 24);
 
-    ctx.font = '92px "Nourd", Arial';
+    ctx.font = '92px "Grobold", Arial';
     ctx.fillStyle = "#f29b2f";
     ctx.fillText("+", plusSlot.x + 36, plusSlot.y + 88);
   } else {
