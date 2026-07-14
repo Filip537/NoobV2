@@ -1057,60 +1057,81 @@ async function cleanUnknownBirthdays(guild, birthdays) {
 async function checkBirthdays() {
   const now = getGMT8DateParts();
 
+  // Birthday messages are sent at 9:00 AM GMT+8.
   if (now.hour !== 9) return;
 
   const birthdays = loadBirthdays();
-  const channel = await client.channels.fetch(birthdayChannel).catch(() => null);
 
-  if (!channel || !channel.guild) return;
+  const channel = await client.channels
+    .fetch(birthdayChannel)
+    .catch(() => null);
+
+  if (!channel || !channel.isTextBased() || !channel.guild) {
+    console.log("Birthday channel was not found.");
+    return;
+  }
 
   await cleanUnknownBirthdays(channel.guild, birthdays);
 
   for (const userId of Object.keys(birthdays)) {
     const birthday = birthdays[userId];
 
-    if (!birthday || !birthday.day || !birthday.month) continue;
+    if (!birthday?.day || !birthday?.month) {
+      continue;
+    }
 
-    const member = await channel.guild.members.fetch(userId).catch(() => null);
+    const member = await channel.guild.members
+      .fetch(userId)
+      .catch(() => null);
 
     if (!member || member.user.bot) {
       delete birthdays[userId];
       continue;
     }
 
-    if (
-      birthday.day === now.day &&
-      birthday.month === now.month &&
-      birthday.lastBirthdaySent !== now.dateKey
-    ) {
-      await channel.send({
-        content: `🎉 Happy Birthday ${member}! Hope you have an amazing day!`
-      });
+    const birthdayDay = Number(birthday.day);
+    const birthdayMonth = Number(birthday.month);
 
-      await member.send({
-        content:
-`🎉 Happy Birthday!
+    const isBirthday =
+      birthdayDay === Number(now.day) &&
+      birthdayMonth === Number(now.month);
 
-Hello ${member}, today is your birthday!
+    const alreadySent =
+      birthday.lastBirthdaySent === now.dateKey;
 
-We hope you have an amazing day. Enjoy your special day 🎂`
-      }).catch(() => {});
-
-      await member.roles.add(birthdayRole).catch(() => {});
-
-      setTimeout(async () => {
-        const freshMember = await channel.guild.members.fetch(userId).catch(() => null);
-        if (freshMember) {
-          await freshMember.roles.remove(birthdayRole).catch(() => {});
-        }
-      }, 24 * 60 * 60 * 1000);
-
-      birthday.lastBirthdaySent = now.dateKey;
+    if (!isBirthday || alreadySent) {
+      continue;
     }
-  }
 
-  saveBirthdays(birthdays);
+    const nickname =
+      member.displayName ||
+      member.user.globalName ||
+      member.user.username;
+
+    await channel.send({
+      content:
+        `🎉 Happy Birthday <@${member.id}>!\n\n` +
+        `Today is **${nickname}'s birthday**! ` +
+        "We hope you have an amazing day filled with happiness and fun! 🎂",
+      allowedMentions: {
+        users: [member.id]
+      }
+    }).catch(err => {
+      console.error("Failed to send birthday notification:", err);
+    });
+
+    await member.send({
+      content:
+        `🎉 Happy Birthday, ${nickname}!\n\n` +
+        "We hope you have an amazing birthday. Enjoy your special day! 🎂"
+    }).catch(() => {});
+
+    await member.roles.add(birthdayRole).catch(() => {});
+
+    birthday.lastBirthdaySent = now.dateKey;
+  }
 }
+
 function clone(board) {
   return board.map(r => [...r]);
 }

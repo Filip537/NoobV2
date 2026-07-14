@@ -2,19 +2,45 @@ require("dotenv").config();
 const testLevelCommand = require("./commands/testlevelup.js");const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const commands = [
-
-  new SlashCommandBuilder()
-    .setName("addbirthday")
-    .setDescription("Add your birthday")
-    .addIntegerOption(o =>
-      o.setName("day").setDescription("Day").setRequired(true)
-    )
-    .addIntegerOption(o =>
-      o.setName("month").setDescription("Month").setRequired(true)
-    )
-    .addIntegerOption(o =>
-      o.setName("year").setDescription("Year").setRequired(true)
-    ),
+new SlashCommandBuilder()
+  .setName("addbirthday")
+  .setDescription("Add your birthday")
+  .addIntegerOption(option =>
+    option
+      .setName("date")
+      .setDescription("Birth date (1-31)")
+      .setRequired(true)
+      .setMinValue(1)
+      .setMaxValue(31)
+  )
+  .addStringOption(option =>
+    option
+      .setName("month")
+      .setDescription("Birth month")
+      .setRequired(true)
+      .addChoices(
+        { name: "January", value: "01" },
+        { name: "February", value: "02" },
+        { name: "March", value: "03" },
+        { name: "April", value: "04" },
+        { name: "May", value: "05" },
+        { name: "June", value: "06" },
+        { name: "July", value: "07" },
+        { name: "August", value: "08" },
+        { name: "September", value: "09" },
+        { name: "October", value: "10" },
+        { name: "November", value: "11" },
+        { name: "December", value: "12" }
+      )
+  )
+  .addIntegerOption(option =>
+    option
+      .setName("year")
+      .setDescription("Type your birth year (e.g. 2005)")
+      .setRequired(true)
+      .setMinValue(1900)
+      .setMaxValue(new Date().getFullYear())
+  ),
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")
