@@ -972,6 +972,30 @@ async function scanBlacklistChannel() {
     saved: blacklist.length
   };
 }
+const worldCupCommand = require('./feature/worldcup');
+
+client.once('ready', () => {
+    console.log(`${client.user.tag} is online.`);
+
+    // Check completed matches every five minutes.
+    setInterval(async () => {
+        try {
+            const result =
+                await worldCupCommand.settleWorldCupBets(client);
+
+            if (result.settled > 0) {
+                console.log(
+                    `[World Cup] Settled ${result.settled} bets.`
+                );
+            }
+        } catch (error) {
+            console.error(
+                '[World Cup settlement error]',
+                error
+            );
+        }
+    }, 5 * 60 * 1000);
+});
 async function cleanupExpiredStories() {
   const stories = loadStories();
   const now = Date.now();
@@ -1625,6 +1649,12 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "worldcup"
+) {
+  return worldCupCommand.execute(interaction, client);
+}
   if (interaction.isChatInputCommand()) {
   const handled = await call.handleCommand(interaction);
   if (handled) return;

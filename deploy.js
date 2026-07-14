@@ -1,5 +1,8 @@
 require("dotenv").config();
-const testLevelCommand = require("./commands/testlevelup.js");const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+
+const testLevelCommand = require("./commands/testlevelup.js");
+const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+const worldcup = require("./feature/worldcup");
 
 const commands = [
 new SlashCommandBuilder()
@@ -41,6 +44,7 @@ new SlashCommandBuilder()
       .setMinValue(1900)
       .setMaxValue(new Date().getFullYear())
   ),
+  
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")
@@ -886,7 +890,8 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)"),
-testLevelCommand.data
+testLevelCommand.data,
+worldcup.data
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
