@@ -3730,7 +3730,6 @@ if (interaction.commandName === "wordbanlist") {
     ephemeral: true
   });
 }
-
 if (interaction.commandName === "bdaylist") {
   await interaction.deferReply();
 
@@ -3761,13 +3760,9 @@ if (interaction.commandName === "bdaylist") {
   const entries = [];
 
   for (const userId of Object.keys(birthdays)) {
-    const member =
-      interaction.guild.members.cache.get(userId) ||
-      await interaction.guild.members.fetch(userId).catch(() => null);
-
     const birthday = birthdays[userId];
 
-    if (!birthday?.day || !birthday?.month) {
+    if (!birthday?.day || !birthday?.month || !birthday?.year) {
       continue;
     }
 
@@ -3779,6 +3774,12 @@ if (interaction.commandName === "bdaylist") {
     ) {
       continue;
     }
+
+    const member =
+      interaction.guild.members.cache.get(userId) ||
+      await interaction.guild.members
+        .fetch(userId)
+        .catch(() => null);
 
     let displayName;
 
@@ -3815,46 +3816,76 @@ if (interaction.commandName === "bdaylist") {
   });
 
   if (entries.length === 0) {
-    const emptyText =
+    const emptyMessage =
       selectedMonthNumber === null
         ? "No birthdays have been saved."
         : `No birthdays were found in **${monthNames[selectedMonthNumber - 1]}**.`;
 
     return interaction.editReply({
-      content: emptyText
+      content: emptyMessage
     });
   }
 
-  const title =
-    selectedMonthNumber === null
-      ? "Birthday List — All Months"
-      : `Birthday List — ${monthNames[selectedMonthNumber - 1]}`;
+  let output = "";
 
-  const lines = entries.map(entry => {
-    return (
-      `**${entry.displayName}** → ` +
-      `${entry.day}/${entry.month}/${entry.year}`
-    );
-  });
+  // SHOW ALL: group birthdays under each month heading
+  if (selectedMonthNumber === null) {
+    output = "## 🎂 Birthday List — All Months\n\n";
 
-  const chunks = [];
-  let current = "";
+    for (let month = 1; month <= 12; month++) {
+      const monthEntries = entries.filter(entry => entry.month === month);
 
-  for (const line of lines) {
-    if ((current + line + "\n").length > 1800) {
-      chunks.push(current);
-      current = "";
+      output += `### ${monthNames[month - 1]}\n`;
+
+      if (monthEntries.length === 0) {
+        output += "No birthdays.\n\n";
+        continue;
+      }
+
+      for (const entry of monthEntries) {
+        output +=
+          `• **${entry.displayName}** → ` +
+          `${entry.day}/${entry.month}/${entry.year}\n`;
+      }
+
+      output += "\n";
     }
-
-    current += line + "\n";
   }
 
-  if (current) {
-    chunks.push(current);
+  // SINGLE MONTH: show only selected month
+  else {
+    output =
+      `## 🎂 Birthday List — ${monthNames[selectedMonthNumber - 1]}\n\n`;
+
+    for (const entry of entries) {
+      output +=
+        `• **${entry.displayName}** → ` +
+        `${entry.day}/${entry.month}/${entry.year}\n`;
+    }
+  }
+
+  const chunks = [];
+  let currentChunk = "";
+
+  const lines = output.split("\n");
+
+  for (const line of lines) {
+    const nextLine = line + "\n";
+
+    if ((currentChunk + nextLine).length > 1900) {
+      chunks.push(currentChunk);
+      currentChunk = "";
+    }
+
+    currentChunk += nextLine;
+  }
+
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk);
   }
 
   await interaction.editReply({
-    content: `## ${title}\n\n${chunks[0]}`,
+    content: chunks[0],
     allowedMentions: {
       parse: []
     }
