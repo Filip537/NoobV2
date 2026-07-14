@@ -11,8 +11,7 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const taskFile = path.join(__dirname, "..", "taskData.json");
 
 const TASK_CHANNEL = "1522730887081623684";
-const TASK_DURATION_MS = 6 * 24 * 60 * 60 * 1000;
-
+const TASK_DURATION_MS = 13 * 24 * 60 * 60 * 1000;
 const TASK_REQUIREMENTS = {
   wigglyWorm: 25,
   whale: 50,

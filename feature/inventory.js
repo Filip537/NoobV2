@@ -14,8 +14,7 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
-const fishingRodPath = path.join(__dirname, "..", "images", "fish-rod.png");
-const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
+const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
 const fishFolder = path.join(__dirname, "..", "fish");
 
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");

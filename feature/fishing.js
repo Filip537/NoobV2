@@ -119,7 +119,8 @@ function getFishFile(fileName) {
 }
 
 function getTotalSlots(data) {
-  return data.extraBackpack === true ? 22 : 11;
+  const upgradeLevel = Number(data.extraBackpackLevel || 0);
+  return 11 + upgradeLevel * 11;
 }
 
 function countUsedSlots(data) {
@@ -749,27 +750,34 @@ activeFishing.delete(ownerId);
 const levels = loadLevels();
 const userData = ensureUser(levels, ownerId);
 
-    if (Math.random() < ROD_BREAK_CHANCE) {
-      userData.items.fishingRod = Math.max(0, (userData.items.fishingRod || 0) - 1);
+if (Math.random() < ROD_BREAK_CHANCE) {
+  userData.items.fishingRod = Math.max(
+    0,
+    Number(userData.items.fishingRod || 0) - 1
+  );
 
-      levels[ownerId] = userData;
-      saveLevels(levels);
+  if (userData.items.fishingRod <= 0) {
+    delete userData.items.fishingRod;
+  }
 
-      await interaction.update({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("Fishing Rod Broke!")
-            .setColor("Red")
-            .setDescription(
-              "Your **Fishing Rod** snapped while fishing!\n\n" +
-              "**-1 Fishing Rod** removed from your inventory."
-            )
-        ],
-        components: []
-      });
+  levels[ownerId] = userData;
+  saveLevels(levels);
 
-      return true;
-    }
+  await interaction.update({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("Fishing Rod Broke!")
+        .setColor("Red")
+        .setDescription(
+          "Your **Fishing Rod** snapped while fishing!\n\n" +
+          "The broken rod has been removed from your backpack."
+        )
+    ],
+    components: []
+  });
+
+  return true;
+}
 
     if (!pickedKey) {
       levels[ownerId] = userData;
