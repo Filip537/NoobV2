@@ -757,6 +757,15 @@ new SlashCommandBuilder()
       )
   ),
   new SlashCommandBuilder()
+    .setName("checkbirthday")
+    .setDescription("Check a user's birthday")
+    .addUserOption(option =>
+        option
+            .setName("user")
+            .setDescription("User to check")
+            .setRequired(true)
+    ),
+  new SlashCommandBuilder()
   .setName("sendinfo")
   .setDescription("Send the server info panel")
   .addChannelOption(option =>

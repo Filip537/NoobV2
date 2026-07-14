@@ -3902,6 +3902,77 @@ if (interaction.commandName === "bdaylist") {
 
   return;
 }
+if (interaction.commandName === "checkbirthday") {
+    const target = interaction.options.getUser("user");
+
+    const birthdays = loadBirthdays();
+
+    const birthday = birthdays[target.id];
+
+    if (!birthday) {
+        return interaction.reply({
+            content: `❌ **${target.username}** hasn't added their birthday yet.`,
+            ephemeral: true
+        });
+    }
+
+    const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+    ];
+
+    const member =
+        interaction.guild.members.cache.get(target.id) ||
+        await interaction.guild.members.fetch(target.id).catch(() => null);
+
+    const displayName =
+        member?.displayName ||
+        target.globalName ||
+        target.username;
+
+    const today = new Date();
+
+    let nextBirthday = new Date(
+        today.getFullYear(),
+        Number(birthday.month) - 1,
+        Number(birthday.day)
+    );
+
+    if (nextBirthday < today) {
+        nextBirthday.setFullYear(today.getFullYear() + 1);
+    }
+
+    const diffDays = Math.ceil(
+        (nextBirthday - today) / (1000 * 60 * 60 * 24)
+    );
+
+    await interaction.reply({
+        embeds: [
+            new EmbedBuilder()
+                .setColor(0xF6A5C0)
+                .setTitle("🎂 Birthday Information")
+                .setDescription(
+                    `**User:** ${displayName}\n\n` +
+                    `**Birthday:** ${birthday.day} ${monthNames[Number(birthday.month) - 1]} ${birthday.year}\n` +
+                    `**Next Birthday:** <t:${Math.floor(nextBirthday.getTime() / 1000)}:D>\n` +
+                    `**Countdown:** **${diffDays} day${diffDays === 1 ? "" : "s"}**`
+                )
+                .setThumbnail(target.displayAvatarURL())
+        ]
+    });
+
+    return;
+}
 if (interaction.commandName === "testbday") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
