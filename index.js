@@ -648,7 +648,7 @@ function getRandomMessages() {
 }
 
 const birthdayFile = "./birthdays.json";
-const birthdayChannel = "1444902597730504725";
+const birthdayChannel = "1411995708403486780";
 const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
 const PENDING_CHANNEL = "1481767733304623235";
@@ -1053,25 +1053,27 @@ async function cleanUnknownBirthdays(guild, birthdays) {
 
   return removed;
 }
-
-async function checkBirthdays() {
+async function checkBirthdays(forceCheck = false) {
   const now = getGMT8DateParts();
 
-  // Birthday messages are sent at 9:00 AM GMT+8.
-  if (now.hour !== 9) return;
-
-  const birthdays = loadBirthdays();
-
-  const channel = await client.channels
-    .fetch(birthdayChannel)
-    .catch(() => null);
-
-  if (!channel || !channel.isTextBased() || !channel.guild) {
-    console.log("Birthday channel was not found.");
+  if (!forceCheck && now.hour !== 9) {
     return;
   }
 
-  await cleanUnknownBirthdays(channel.guild, birthdays);
+  const birthdays = loadBirthdays();
+
+  const birthdayChatChannel = await client.channels
+    .fetch(birthdayChannel)
+    .catch(() => null);
+
+  if (
+    !birthdayChatChannel ||
+    !birthdayChatChannel.isTextBased() ||
+    !birthdayChatChannel.guild
+  ) {
+    console.log("Birthday chat channel was not found.");
+    return;
+  }
 
   for (const userId of Object.keys(birthdays)) {
     const birthday = birthdays[userId];
@@ -1080,21 +1082,17 @@ async function checkBirthdays() {
       continue;
     }
 
-    const member = await channel.guild.members
+    const member = await birthdayChatChannel.guild.members
       .fetch(userId)
       .catch(() => null);
 
     if (!member || member.user.bot) {
-      delete birthdays[userId];
       continue;
     }
 
-    const birthdayDay = Number(birthday.day);
-    const birthdayMonth = Number(birthday.month);
-
     const isBirthday =
-      birthdayDay === Number(now.day) &&
-      birthdayMonth === Number(now.month);
+      Number(birthday.day) === Number(now.day) &&
+      Number(birthday.month) === Number(now.month);
 
     const alreadySent =
       birthday.lastBirthdaySent === now.dateKey;
@@ -1108,28 +1106,42 @@ async function checkBirthdays() {
       member.user.globalName ||
       member.user.username;
 
-    await channel.send({
+    await birthdayChatChannel.send({
       content:
-        `🎉 Happy Birthday <@${member.id}>!\n\n` +
-        `Today is **${nickname}'s birthday**! ` +
-        "We hope you have an amazing day filled with happiness and fun! 🎂",
+        `🎉 Today is <@${member.id}>'s birthday!\n\n` +
+        `Happy Birthday, **${nickname}**! ` +
+        `Everyone please wish them an amazing birthday! 🎂`,
       allowedMentions: {
         users: [member.id]
       }
     }).catch(err => {
-      console.error("Failed to send birthday notification:", err);
+      console.error("Birthday message failed:", err);
     });
 
     await member.send({
       content:
         `🎉 Happy Birthday, ${nickname}!\n\n` +
-        "We hope you have an amazing birthday. Enjoy your special day! 🎂"
+        `Today is your special day. We hope you have an amazing birthday! 🎂`
     }).catch(() => {});
 
     await member.roles.add(birthdayRole).catch(() => {});
 
+    setTimeout(async () => {
+      const freshMember = await birthdayChatChannel.guild.members
+        .fetch(userId)
+        .catch(() => null);
+
+      if (freshMember) {
+        await freshMember.roles
+          .remove(birthdayRole)
+          .catch(() => {});
+      }
+    }, 24 * 60 * 60 * 1000);
+
     birthday.lastBirthdaySent = now.dateKey;
   }
+
+  saveBirthdays(birthdays);
 }
 
 function clone(board) {
@@ -3720,41 +3732,115 @@ if (interaction.commandName === "wordbanlist") {
 }
 
 if (interaction.commandName === "bdaylist") {
-  await interaction.deferReply(); // visible to everyone
+  await interaction.deferReply();
+
+  const selectedMonth =
+    interaction.options.getString("month") || "all";
+
+  const selectedMonthNumber =
+    selectedMonth === "all"
+      ? null
+      : Number(selectedMonth);
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
 
   const birthdays = loadBirthdays();
   const entries = [];
-  let removed = 0;
 
   for (const userId of Object.keys(birthdays)) {
     const member =
       interaction.guild.members.cache.get(userId) ||
       await interaction.guild.members.fetch(userId).catch(() => null);
 
-    if (!member || member.user.bot) {
-      delete birthdays[userId];
-      removed++;
+    const birthday = birthdays[userId];
+
+    if (!birthday?.day || !birthday?.month) {
       continue;
     }
 
-    const b = birthdays[userId];
-    entries.push(`<@${member.id}> → ${b.day}/${b.month}/${b.year}`);
-  }
+    const birthdayMonth = Number(birthday.month);
 
-  if (removed > 0) {
-    saveBirthdays(birthdays);
-  }
+    if (
+      selectedMonthNumber !== null &&
+      birthdayMonth !== selectedMonthNumber
+    ) {
+      continue;
+    }
 
-  if (entries.length === 0) {
-    return interaction.editReply({
-      content: "No birthdays saved."
+    let displayName;
+
+    if (member && !member.user.bot) {
+      displayName =
+        member.displayName ||
+        member.user.globalName ||
+        member.user.username;
+    } else {
+      displayName =
+        birthday.savedName ||
+        birthday.username ||
+        "Former Member";
+    }
+
+    entries.push({
+      displayName,
+      day: Number(birthday.day),
+      month: birthdayMonth,
+      year: Number(birthday.year)
     });
   }
+
+  entries.sort((a, b) => {
+    if (a.month !== b.month) {
+      return a.month - b.month;
+    }
+
+    if (a.day !== b.day) {
+      return a.day - b.day;
+    }
+
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  if (entries.length === 0) {
+    const emptyText =
+      selectedMonthNumber === null
+        ? "No birthdays have been saved."
+        : `No birthdays were found in **${monthNames[selectedMonthNumber - 1]}**.`;
+
+    return interaction.editReply({
+      content: emptyText
+    });
+  }
+
+  const title =
+    selectedMonthNumber === null
+      ? "Birthday List — All Months"
+      : `Birthday List — ${monthNames[selectedMonthNumber - 1]}`;
+
+  const lines = entries.map(entry => {
+    return (
+      `**${entry.displayName}** → ` +
+      `${entry.day}/${entry.month}/${entry.year}`
+    );
+  });
 
   const chunks = [];
   let current = "";
 
-  for (const line of entries) {
+  for (const line of lines) {
     if ((current + line + "\n").length > 1800) {
       chunks.push(current);
       current = "";
@@ -3763,17 +3849,23 @@ if (interaction.commandName === "bdaylist") {
     current += line + "\n";
   }
 
-  if (current) chunks.push(current);
+  if (current) {
+    chunks.push(current);
+  }
 
   await interaction.editReply({
-    content: `## Birthday List\n\n${chunks[0]}`,
-    allowedMentions: { parse: [] }
+    content: `## ${title}\n\n${chunks[0]}`,
+    allowedMentions: {
+      parse: []
+    }
   });
 
   for (let i = 1; i < chunks.length; i++) {
     await interaction.followUp({
       content: chunks[i],
-      allowedMentions: { parse: [] }
+      allowedMentions: {
+        parse: []
+      }
     });
   }
 
@@ -3999,9 +4091,11 @@ if (interaction.commandName === "report") {
 }
 // ================= ADD BIRTHDAY =================
 if (interaction.commandName === "addbirthday") {
-  const day = interaction.options.getInteger("day");
-  const month = interaction.options.getInteger("month");
+  const day = interaction.options.getInteger("date");
+  const monthInput = interaction.options.getString("month");
   const year = interaction.options.getInteger("year");
+
+  const month = Number(monthInput);
 
   if (!isValidBirthday(day, month, year)) {
     return interaction.reply({
@@ -4012,23 +4106,53 @@ if (interaction.commandName === "addbirthday") {
 
   const birthdays = loadBirthdays();
 
+  const member =
+    interaction.member ||
+    await interaction.guild.members
+      .fetch(interaction.user.id)
+      .catch(() => null);
+
+  const savedName =
+    member?.displayName ||
+    interaction.user.globalName ||
+    interaction.user.username;
+
   birthdays[interaction.user.id] = {
     day,
     month,
     year,
-    lastBirthdaySent: birthdays[interaction.user.id]?.lastBirthdaySent || null,
+    savedName,
+    username: interaction.user.username,
+    lastBirthdaySent:
+      birthdays[interaction.user.id]?.lastBirthdaySent || null,
     updatedAt: Date.now()
   };
 
   saveBirthdays(birthdays);
 
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
   return interaction.reply({
-    content: `✅ Your birthday has been saved: **${day}/${month}/${year}**`,
+    content:
+      `✅ Your birthday has been saved as ` +
+      `**${day} ${monthNames[month - 1]} ${year}**.`,
     ephemeral: true
   });
 }
   }
-
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
   if (interaction.customId === "wiki_select") {
