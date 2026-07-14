@@ -3103,36 +3103,78 @@ if (interaction.commandName === "sayas") {
     });
   }
 }
-if (interaction.commandName === "dms") {
-  const SAYAS_ROLE = "1491399898237501530";
+if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
+  const DMS_ROLE = "1491399898237501530";
 
-  if (!interaction.member.roles.cache.has(SAYAS_ROLE) && interaction.user.id !== OWNER_ID) {
+  const executorMember = await interaction.guild.members
+    .fetch(interaction.user.id)
+    .catch(() => null);
+
+  const hasPermission =
+    interaction.user.id === OWNER_ID ||
+    executorMember?.roles.cache.has(DMS_ROLE);
+
+  if (!hasPermission) {
     return interaction.reply({
       content: "❌ You do not have permission to use this command.",
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
   await interaction.deferReply({ ephemeral: true });
 
-  const user = interaction.options.getUser("user");
+  const selectedUser = interaction.options.getUser("user", true);
   const message = interaction.options.getString("message");
-  const file = interaction.options.getAttachment("file");
+  const attachment = interaction.options.getAttachment("file");
 
-  if (!message && !file) {
+  if (!message && !attachment) {
     return interaction.editReply("❌ Please provide a message or attachment.");
   }
 
-  try {
-    await user.send({
-      content: message || null,
-      files: file ? [file.url] : []
-    });
+  // Make sure the user is actually in this server
+  const targetMember = await interaction.guild.members
+    .fetch(selectedUser.id)
+    .catch(() => null);
 
-    return interaction.editReply(`✅ Successfully sent a DM to ${user.tag}`);
+  if (!targetMember) {
+    return interaction.editReply("❌ That user is not in this server.");
+  }
+
+  if (targetMember.user.bot) {
+    return interaction.editReply("❌ You cannot DM a bot.");
+  }
+
+  try {
+    const payload = {};
+
+    if (message) payload.content = message;
+
+    if (attachment) {
+      payload.files = [
+        {
+          attachment: attachment.url,
+          name: attachment.name,
+        },
+      ];
+    }
+
+    await targetMember.send(payload);
+
+    return interaction.editReply(
+      `✅ Successfully sent a DM to **${targetMember.user.tag}**`
+    );
   } catch (err) {
     console.error("DM Error:", err);
-    return interaction.editReply("❌ Failed to send DM. The user may have DMs closed.");
+
+    if (err.code === 50007) {
+      return interaction.editReply(
+        "❌ That user has DMs disabled or has blocked the bot."
+      );
+    }
+
+    return interaction.editReply(
+      "❌ Failed to send the DM. Check the console for the error."
+    );
   }
 }
 if (interaction.commandName === "sendupdates") {
