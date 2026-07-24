@@ -90,6 +90,21 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
 
+  new SlashCommandBuilder()
+  .setName("searchmessage")
+  .setDescription("Search for a message or word in the server")
+  .addStringOption(option =>
+    option
+      .setName("message")
+      .setDescription("Specific message, phrase, or word to search for")
+      .setRequired(true)
+  )
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Only search messages from this user")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("tellstory")
   .setDescription("Tell a story for 5 World Locks")
