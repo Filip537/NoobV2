@@ -14,8 +14,40 @@ const levelsFile = path.join(__dirname, "..", "levels.json");
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
-const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
-const fishFolder = path.join(__dirname, "..", "fish");
+const fishingRodPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "rod.webp"
+);
+
+const rainbowRodPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "rainbowrod.webp"
+);
+
+const pristineRodPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "pristinerod.webp"
+);
+
+const goldenRodPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "goldenrod.webp"
+);
+
+const wigglyWormPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "wiggly-worm.webp"
+);const fishFolder = path.join(__dirname, "..", "fish");
 
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 
@@ -129,6 +161,29 @@ function getAllInventoryItems(data) {
     });
   }
 
+  if ((data.items?.rainbowRod || 0) > 0) {
+  items.push({
+    type: "image",
+    imagePath: rainbowRodPath,
+    amount: data.items.rainbowRod
+  });
+}
+
+if ((data.items?.pristineRod || 0) > 0) {
+  items.push({
+    type: "image",
+    imagePath: pristineRodPath,
+    amount: data.items.pristineRod
+  });
+}
+
+if ((data.items?.goldenRod || 0) > 0) {
+  items.push({
+    type: "image",
+    imagePath: goldenRodPath,
+    amount: data.items.goldenRod
+  });
+}
   if ((data.items?.wigglyWorm || 0) > 0) {
     items.push({
       type: "image",
