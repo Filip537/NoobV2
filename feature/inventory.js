@@ -47,7 +47,8 @@ const wigglyWormPath = path.join(
   "..",
   "images",
   "wiggly-worm.webp"
-);const fishFolder = path.join(__dirname, "..", "fish");
+);
+const fishFolder = path.join(__dirname, "..", "fish");
 
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 
