@@ -12,6 +12,7 @@ process.on("uncaughtException", (err) => {
 const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
+const searchMessage = require("./feature/searchmessage.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
@@ -1649,6 +1650,12 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "searchmessage"
+) {
+  return searchMessage.execute(interaction);
+}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "worldcup"
