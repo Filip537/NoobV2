@@ -631,10 +631,17 @@ function salesmanRows(userId) {
       .setStyle(ButtonStyle.Success)
   );
 
-  return [
-    new ActionRowBuilder().addComponents(buttons.slice(0, 4)),
-    new ActionRowBuilder().addComponents(buttons.slice(4, 8))
-  ];
+  const rows = [];
+
+  for (let i = 0; i < buttons.length; i += 5) {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        buttons.slice(i, i + 5)
+      )
+    );
+  }
+
+  return rows;
 }
 
 async function handleCommand(interaction) {
@@ -975,6 +982,27 @@ if (!equippedRod) {
   return true;
 }
 
+if (
+  bait !== "wigglyWorm" ||
+  Number(userData.items.wigglyWorm || 0) <= 0
+) {
+  await interaction.reply({
+    content: "❌ You do not have enough **Wiggly Worm bait**.",
+    ephemeral: true
+  });
+
+  return true;
+}
+
+if (activeFishing.has(ownerId)) {
+  await interaction.reply({
+    content: "❌ You are already fishing.",
+    ephemeral: true
+  });
+
+  return true;
+}
+
 let baitRefunded = false;
 
 if (Math.random() < equippedRod.baitRefundChance) {
@@ -991,7 +1019,9 @@ const reelTime = pendingFish
   ? getReelTime(pendingFish, equippedRod)
   : getReelTime(null, equippedRod);
 
+const sessionId = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
 activeFishing.set(ownerId, {
+  sessionId,
   bait,
   pendingFish,
   reelTime,
@@ -1021,47 +1051,60 @@ activeFishing.set(ownerId, {
 
     const waitTime = Math.floor(Math.random() * 4000) + 3000;
 
-    setTimeout(async () => {
-      if (!activeFishing.has(ownerId)) return;
+setTimeout(async () => {
+  const currentSession = activeFishing.get(ownerId);
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`fish_reel_${ownerId}`)
-          .setLabel("Reel In!")
-          .setStyle(ButtonStyle.Success)
-      );
+  if (currentSession?.sessionId !== sessionId) return;
 
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("A Fish Is Biting!")
-            .setColor("Yellow")
-            .setDescription("Quick! Click **Reel In!** before it escapes!")
-        ],
-        components: [row]
-      }).catch(() => {});
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`fish_reel_${ownerId}_${sessionId}`)
+      .setLabel("Reel In!")
+      .setStyle(ButtonStyle.Success)
+  );
 
-      setTimeout(async () => {
-        if (activeFishing.has(ownerId)) {
-          activeFishing.delete(ownerId);
+  await interaction.editReply({
+    embeds: [
+      new EmbedBuilder()
+        .setTitle("A Fish Is Biting!")
+        .setColor("Yellow")
+        .setDescription(
+          "Quick! Click **Reel In!** before it escapes!"
+        )
+    ],
+    components: [row]
+  }).catch(() => {});
 
-          await interaction.editReply({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle("The Fish Escaped")
-                .setColor("Red")
-                .setDescription("You waited too long and the fish escaped.")
-            ],
-            components: []
-          }).catch(() => {});
-        }
-}, activeFishing.get(ownerId)?.reelTime || 7000);    }, waitTime);
+  setTimeout(async () => {
+    const latestSession = activeFishing.get(ownerId);
+
+    if (latestSession?.sessionId !== sessionId) return;
+
+    activeFishing.delete(ownerId);
+
+    await interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("The Fish Escaped")
+          .setColor("Red")
+          .setDescription(
+            "You waited too long and the fish escaped."
+          )
+      ],
+      components: []
+    }).catch(() => {});
+  }, reelTime);
+}, waitTime);
 
     return true;
   }
 
 if (interaction.customId.startsWith("fish_reel_")) {
-  const ownerId = interaction.customId.replace("fish_reel_", "");
+  const raw = interaction.customId.replace("fish_reel_", "");
+  const firstUnderscore = raw.indexOf("_");
+
+  const ownerId = raw.slice(0, firstUnderscore);
+  const sessionId = raw.slice(firstUnderscore + 1);
 
   if (interaction.user.id !== ownerId) {
     await interaction.reply({
@@ -1072,17 +1115,18 @@ if (interaction.customId.startsWith("fish_reel_")) {
     return true;
   }
 
-  if (!activeFishing.has(ownerId)) {
-    await interaction.reply({
-      content: "❌ This fish already escaped.",
-      ephemeral: true
-    });
+const session = activeFishing.get(ownerId);
 
-    return true;
-  }
+if (!session || session.sessionId !== sessionId) {
+  await interaction.reply({
+    content: "❌ This fish already escaped.",
+    ephemeral: true
+  });
 
-  const session = activeFishing.get(ownerId);
-  activeFishing.delete(ownerId);
+  return true;
+}
+
+activeFishing.delete(ownerId);
 
   const levels = loadLevels();
   const userData = ensureUser(levels, ownerId);
@@ -1262,84 +1306,6 @@ if (interaction.customId.startsWith("fish_reel_")) {
 
   return true;
 }
-
-    if (!pickedKey) {
-      levels[ownerId] = userData;
-      saveLevels(levels);
-
-      await interaction.update({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("Nothing Caught")
-            .setColor("Grey")
-            .setDescription("You reeled in your line, but nothing was there.")
-        ],
-        components: []
-      });
-
-      return true;
-    }
-
-    const fishInfo = FISH_DATA[pickedKey];
-    const fishFile = getFishFile(fishInfo.file);
-
-    if (!hasSpaceForFish(userData, fishFile)) {
-      levels[ownerId] = userData;
-      saveLevels(levels);
-
-      await interaction.update({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("Backpack Full")
-            .setColor("Red")
-            .setDescription(
-              `You caught a **${fishInfo.name}**, but your backpack is full!\n\n` +
-              "Buy extra backpack slots from `/inventory` before catching more new fish."
-            )
-        ],
-        components: []
-      });
-
-      return true;
-    }
-
-    const caughtFish = addFish(userData, pickedKey);
-
-    let rewardText = "";
-
-    if (Math.random() < BONUS_WL_CHANCE) {
-      userData.wl = (userData.wl || 0) + 1;
-      rewardText = "\nYou also found **1 World Lock** while fishing!";
-    }
-
-    levels[ownerId] = userData;
-    saveLevels(levels);
-
-    const fishPath = path.join(fishFolder, caughtFish.file);
-    const attachment = fs.existsSync(fishPath)
-      ? new AttachmentBuilder(fishPath, { name: caughtFish.file })
-      : null;
-
-    const embed = new EmbedBuilder()
-      .setTitle("Fish Caught!")
-      .setColor("Green")
-      .setDescription(
-        `You caught a **${caughtFish.rarity} ${caughtFish.name}**!\n` +
-        "It has been added to your backpack." +
-        rewardText
-      );
-
-    if (attachment) embed.setThumbnail(`attachment://${caughtFish.file}`);
-
-    await interaction.update({
-      embeds: [embed],
-      files: attachment ? [attachment] : [],
-      components: []
-    });
-
-    return true;
-  }
-
   return false;
 }
 
