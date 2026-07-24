@@ -5907,7 +5907,7 @@ if (message.author.id === SHARKFIN_USER_ID && !message.author.bot) {
     sharkfinData[today] = 0;
   }
 
-  if (sharkfinData[today] < 3) {
+  if (sharkfinData[today] < 10) {
 
     sharkfinData[today]++;
 
