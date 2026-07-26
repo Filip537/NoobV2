@@ -12,7 +12,6 @@ process.on("uncaughtException", (err) => {
 const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
-const searchMessage = require("./feature/searchmessage.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
@@ -1652,9 +1651,371 @@ const LEGEND_QUESTS = {
 client.on("interactionCreate", async (interaction) => {
   if (
   interaction.isChatInputCommand() &&
-  interaction.commandName === "searchmessage"
+  interaction.commandName === "checkalt"
 ) {
-  return searchMessage.execute(interaction);
+  const CHECK_ALT_ROLE = "1491399898237501530";
+
+  const executor = await interaction.guild.members
+    .fetch(interaction.user.id)
+    .catch(() => null);
+
+  const hasPermission =
+    interaction.user.id === OWNER_ID ||
+    interaction.member.permissions.has("Administrator") ||
+    executor?.roles.cache.has(CHECK_ALT_ROLE);
+
+  if (!hasPermission) {
+    return interaction.reply({
+      content: "❌ You do not have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const targetUser = interaction.options.getUser("user", true);
+
+  if (targetUser.bot) {
+    return interaction.editReply({
+      content: "❌ Bot accounts cannot be checked."
+    });
+  }
+
+  const targetMember = await interaction.guild.members
+    .fetch(targetUser.id)
+    .catch(() => null);
+
+  if (!targetMember) {
+    return interaction.editReply({
+      content: "❌ That user is not currently in this server."
+    });
+  }
+
+  // Fetch server members so possible matches are not limited to cache.
+  await interaction.guild.members.fetch().catch(() => null);
+
+  const now = Date.now();
+
+  const accountAgeMs =
+    now - targetUser.createdTimestamp;
+
+  const serverAgeMs =
+    targetMember.joinedTimestamp
+      ? now - targetMember.joinedTimestamp
+      : null;
+
+  const accountAgeDays = Math.floor(
+    accountAgeMs / (24 * 60 * 60 * 1000)
+  );
+
+  const serverAgeDays =
+    serverAgeMs !== null
+      ? Math.floor(serverAgeMs / (24 * 60 * 60 * 1000))
+      : null;
+
+  function normalizeName(name) {
+    return String(name || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function similarity(first, second) {
+    const a = normalizeName(first);
+    const b = normalizeName(second);
+
+    if (!a || !b) return 0;
+    if (a === b) return 100;
+
+    if (a.includes(b) || b.includes(a)) {
+      return 80;
+    }
+
+    let matching = 0;
+    const shortest = Math.min(a.length, b.length);
+
+    for (let i = 0; i < shortest; i++) {
+      if (a[i] === b[i]) {
+        matching++;
+      }
+    }
+
+    return Math.round(
+      (matching / Math.max(a.length, b.length)) * 100
+    );
+  }
+
+  let riskScore = 0;
+  const riskReasons = [];
+
+  // Recently created account
+  if (accountAgeDays <= 3) {
+    riskScore += 35;
+    riskReasons.push(
+      "Account was created less than 3 days ago."
+    );
+  } else if (accountAgeDays <= 7) {
+    riskScore += 25;
+    riskReasons.push(
+      "Account was created less than 7 days ago."
+    );
+  } else if (accountAgeDays <= 30) {
+    riskScore += 15;
+    riskReasons.push(
+      "Account was created less than 30 days ago."
+    );
+  }
+
+  // Recently joined server
+  if (serverAgeDays !== null && serverAgeDays <= 1) {
+    riskScore += 20;
+    riskReasons.push(
+      "User joined the server less than 1 day ago."
+    );
+  } else if (
+    serverAgeDays !== null &&
+    serverAgeDays <= 7
+  ) {
+    riskScore += 10;
+    riskReasons.push(
+      "User joined the server less than 7 days ago."
+    );
+  }
+
+  // Default Discord avatar
+  if (!targetUser.avatar) {
+    riskScore += 15;
+    riskReasons.push(
+      "User is using the default Discord avatar."
+    );
+  }
+
+  // No server roles except @everyone
+  const normalRoles = targetMember.roles.cache.filter(
+    role => role.id !== interaction.guild.id
+  );
+
+  if (normalRoles.size === 0) {
+    riskScore += 10;
+    riskReasons.push(
+      "User has no server roles."
+    );
+  }
+
+  // Membership screening not completed
+  if (targetMember.pending) {
+    riskScore += 10;
+    riskReasons.push(
+      "User has not completed membership screening."
+    );
+  }
+
+  const possibleMatches = [];
+
+  for (const member of interaction.guild.members.cache.values()) {
+    if (
+      member.id === targetMember.id ||
+      member.user.bot
+    ) {
+      continue;
+    }
+
+    const usernameSimilarity = Math.max(
+      similarity(
+        targetUser.username,
+        member.user.username
+      ),
+      similarity(
+        targetMember.displayName,
+        member.displayName
+      )
+    );
+
+    const joinDifference =
+      targetMember.joinedTimestamp &&
+      member.joinedTimestamp
+        ? Math.abs(
+            targetMember.joinedTimestamp -
+            member.joinedTimestamp
+          )
+        : null;
+
+    const joinedCloseTogether =
+      joinDifference !== null &&
+      joinDifference <= 30 * 60 * 1000;
+
+    let matchScore = 0;
+    const matchReasons = [];
+
+    if (usernameSimilarity >= 80) {
+      matchScore += 50;
+      matchReasons.push(
+        `${usernameSimilarity}% similar name`
+      );
+    } else if (usernameSimilarity >= 60) {
+      matchScore += 25;
+      matchReasons.push(
+        `${usernameSimilarity}% similar name`
+      );
+    }
+
+    if (joinedCloseTogether) {
+      matchScore += 30;
+      matchReasons.push(
+        "joined within 30 minutes"
+      );
+    }
+
+    if (
+      !targetUser.avatar &&
+      !member.user.avatar
+    ) {
+      matchScore += 10;
+      matchReasons.push(
+        "both use default avatars"
+      );
+    }
+
+    const otherAccountAgeDays = Math.floor(
+      (now - member.user.createdTimestamp) /
+        (24 * 60 * 60 * 1000)
+    );
+
+    if (
+      accountAgeDays <= 30 &&
+      otherAccountAgeDays <= 30
+    ) {
+      matchScore += 10;
+      matchReasons.push(
+        "both accounts are recently created"
+      );
+    }
+
+    if (matchScore >= 30) {
+      possibleMatches.push({
+        member,
+        score: Math.min(matchScore, 100),
+        reasons: matchReasons
+      });
+    }
+  }
+
+  possibleMatches.sort(
+    (a, b) => b.score - a.score
+  );
+
+  const topMatches = possibleMatches.slice(0, 5);
+
+  if (topMatches.length > 0) {
+    riskScore += Math.min(
+      20,
+      Math.floor(topMatches[0].score / 5)
+    );
+
+    riskReasons.push(
+      "One or more similar server accounts were found."
+    );
+  }
+
+  riskScore = Math.min(riskScore, 100);
+
+  let riskLevel = "Low";
+  let riskColor = 0x57f287;
+
+  if (riskScore >= 70) {
+    riskLevel = "High";
+    riskColor = 0xed4245;
+  } else if (riskScore >= 40) {
+    riskLevel = "Medium";
+    riskColor = 0xfee75c;
+  }
+
+  const accountCreatedTimestamp = Math.floor(
+    targetUser.createdTimestamp / 1000
+  );
+
+  const joinedTimestamp =
+    targetMember.joinedTimestamp
+      ? Math.floor(
+          targetMember.joinedTimestamp / 1000
+        )
+      : null;
+
+  const matchesText =
+    topMatches.length > 0
+      ? topMatches
+          .map(
+            (match, index) =>
+              `**${index + 1}.** ${match.member.user}\n` +
+              `Match score: **${match.score}%**\n` +
+              `Signals: ${match.reasons.join(", ")}`
+          )
+          .join("\n\n")
+      : "No strongly similar accounts were found.";
+
+  const reasonsText =
+    riskReasons.length > 0
+      ? riskReasons
+          .map(reason => `• ${reason}`)
+          .join("\n")
+      : "• No major risk signals were found.";
+
+  const embed = new EmbedBuilder()
+    .setColor(riskColor)
+    .setTitle("Alt Account Risk Check")
+    .setThumbnail(
+      targetUser.displayAvatarURL({
+        size: 256
+      })
+    )
+    .setDescription(
+      `Checked account: ${targetUser}\n\n` +
+      `**Risk level:** ${riskLevel}\n` +
+      `**Risk score:** ${riskScore}/100\n\n` +
+      "This result is based on public account and server signals. " +
+      "It does not prove that the user owns another account."
+    )
+    .addFields(
+      {
+        name: "Account Information",
+        value:
+          `Created: <t:${accountCreatedTimestamp}:F>\n` +
+          `Account age: **${accountAgeDays} days**\n` +
+          `Joined server: ${
+            joinedTimestamp
+              ? `<t:${joinedTimestamp}:F>`
+              : "Unknown"
+          }\n` +
+          `Server membership: **${
+            serverAgeDays !== null
+              ? `${serverAgeDays} days`
+              : "Unknown"
+          }**\n` +
+          `Default avatar: **${
+            targetUser.avatar ? "No" : "Yes"
+          }**\n` +
+          `Roles: **${normalRoles.size}**`
+      },
+      {
+        name: "Risk Signals",
+        value: reasonsText.slice(0, 1024)
+      },
+      {
+        name: "Possible Related Accounts",
+        value: matchesText.slice(0, 1024)
+      }
+    )
+    .setFooter({
+      text:
+        "Risk indicators only — moderators should review evidence manually."
+    })
+    .setTimestamp();
+
+  return interaction.editReply({
+    embeds: [embed],
+    allowedMentions: {
+      parse: []
+    }
+  });
 }
   if (
   interaction.isChatInputCommand() &&
@@ -5907,7 +6268,7 @@ if (message.author.id === SHARKFIN_USER_ID && !message.author.bot) {
     sharkfinData[today] = 0;
   }
 
-  if (sharkfinData[today] < 10) {
+  if (sharkfinData[today] < 3) {
 
     sharkfinData[today]++;
 
