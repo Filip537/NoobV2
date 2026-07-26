@@ -868,14 +868,16 @@ new SlashCommandBuilder()
       .setDescription("Explain the feature")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
+new SlashCommandBuilder()
   .setName("checkalt")
-  .setDescription("Check a member for possible alt or fake accounts")
-  .addUserOption(option =>
+  .setDescription("Check a Discord user ID for possible alt accounts")
+  .addStringOption(option =>
     option
-      .setName("user")
-      .setDescription("User to investigate")
+      .setName("userid")
+      .setDescription("Discord user ID, including users who left the server")
       .setRequired(true)
+      .setMinLength(17)
+      .setMaxLength(20)
   ),
 new SlashCommandBuilder()
   .setName("legendquest")

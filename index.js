@@ -1649,7 +1649,7 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
-  if (
+ if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "checkalt"
 ) {
@@ -1671,9 +1671,37 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({
+    ephemeral: true
+  });
 
-  const targetUser = interaction.options.getUser("user", true);
+  const userId = interaction.options
+    .getString("userid", true)
+    .trim()
+    .replace(/[<@!>]/g, "");
+
+  if (!/^\d{17,20}$/.test(userId)) {
+    return interaction.editReply({
+      content:
+        "❌ Invalid Discord user ID.\n" +
+        "Enable Developer Mode, right-click the user, then press **Copy User ID**."
+    });
+  }
+
+  let targetUser;
+
+  try {
+    targetUser = await client.users.fetch(userId, {
+      force: true
+    });
+  } catch (error) {
+    console.error("Checkalt user fetch error:", error);
+
+    return interaction.editReply({
+      content:
+        "❌ I could not find that Discord account. Check that the user ID is correct."
+    });
+  }
 
   if (targetUser.bot) {
     return interaction.editReply({
@@ -1681,42 +1709,70 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
+  // The target may have already left the server.
   const targetMember = await interaction.guild.members
-    .fetch(targetUser.id)
+    .fetch(userId)
     .catch(() => null);
 
-  if (!targetMember) {
-    return interaction.editReply({
-      content: "❌ That user is not currently in this server."
-    });
-  }
-
-  // Fetch server members so possible matches are not limited to cache.
-  await interaction.guild.members.fetch().catch(() => null);
+  // Load all current server members for comparison.
+  await interaction.guild.members.fetch().catch(error => {
+    console.error("Checkalt member fetch error:", error);
+  });
 
   const now = Date.now();
-
-  const accountAgeMs =
-    now - targetUser.createdTimestamp;
-
-  const serverAgeMs =
-    targetMember.joinedTimestamp
-      ? now - targetMember.joinedTimestamp
-      : null;
+  const dayMs = 24 * 60 * 60 * 1000;
 
   const accountAgeDays = Math.floor(
-    accountAgeMs / (24 * 60 * 60 * 1000)
+    (now - targetUser.createdTimestamp) / dayMs
   );
 
   const serverAgeDays =
-    serverAgeMs !== null
-      ? Math.floor(serverAgeMs / (24 * 60 * 60 * 1000))
+    targetMember?.joinedTimestamp
+      ? Math.floor(
+          (now - targetMember.joinedTimestamp) / dayMs
+        )
       : null;
 
   function normalizeName(name) {
     return String(name || "")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
+  }
+
+  function levenshteinDistance(first, second) {
+    const a = normalizeName(first);
+    const b = normalizeName(second);
+
+    if (!a) return b.length;
+    if (!b) return a.length;
+
+    const matrix = Array.from(
+      { length: b.length + 1 },
+      () => Array(a.length + 1).fill(0)
+    );
+
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i][0] = i;
+    }
+
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        const cost =
+          b[i - 1] === a[j - 1] ? 0 : 1;
+
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[b.length][a.length];
   }
 
   function similarity(first, second) {
@@ -1726,142 +1782,157 @@ client.on("interactionCreate", async (interaction) => {
     if (!a || !b) return 0;
     if (a === b) return 100;
 
-    if (a.includes(b) || b.includes(a)) {
-      return 80;
-    }
-
-    let matching = 0;
-    const shortest = Math.min(a.length, b.length);
-
-    for (let i = 0; i < shortest; i++) {
-      if (a[i] === b[i]) {
-        matching++;
-      }
-    }
-
-    return Math.round(
-      (matching / Math.max(a.length, b.length)) * 100
+    const longestLength = Math.max(
+      a.length,
+      b.length
     );
+
+    const distance = levenshteinDistance(a, b);
+
+    return Math.max(
+      0,
+      Math.round(
+        (1 - distance / longestLength) * 100
+      )
+    );
+  }
+
+  function getAvatarHash(user) {
+    return user.avatar || null;
   }
 
   let riskScore = 0;
   const riskReasons = [];
 
-  // Recently created account
   if (accountAgeDays <= 3) {
     riskScore += 35;
     riskReasons.push(
-      "Account was created less than 3 days ago."
+      "The checked account was created less than 3 days ago."
     );
   } else if (accountAgeDays <= 7) {
     riskScore += 25;
     riskReasons.push(
-      "Account was created less than 7 days ago."
+      "The checked account was created less than 7 days ago."
     );
   } else if (accountAgeDays <= 30) {
     riskScore += 15;
     riskReasons.push(
-      "Account was created less than 30 days ago."
+      "The checked account was created less than 30 days ago."
     );
   }
 
-  // Recently joined server
-  if (serverAgeDays !== null && serverAgeDays <= 1) {
-    riskScore += 20;
-    riskReasons.push(
-      "User joined the server less than 1 day ago."
-    );
-  } else if (
-    serverAgeDays !== null &&
-    serverAgeDays <= 7
-  ) {
-    riskScore += 10;
-    riskReasons.push(
-      "User joined the server less than 7 days ago."
-    );
-  }
-
-  // Default Discord avatar
   if (!targetUser.avatar) {
-    riskScore += 15;
+    riskScore += 10;
     riskReasons.push(
-      "User is using the default Discord avatar."
+      "The checked account uses a default Discord avatar."
     );
   }
 
-  // No server roles except @everyone
-  const normalRoles = targetMember.roles.cache.filter(
-    role => role.id !== interaction.guild.id
-  );
-
-  if (normalRoles.size === 0) {
-    riskScore += 10;
+  if (!targetMember) {
     riskReasons.push(
-      "User has no server roles."
+      "The checked account is no longer inside this server."
     );
-  }
+  } else {
+    if (serverAgeDays !== null && serverAgeDays <= 1) {
+      riskScore += 20;
+      riskReasons.push(
+        "The checked account joined this server less than 1 day ago."
+      );
+    } else if (
+      serverAgeDays !== null &&
+      serverAgeDays <= 7
+    ) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account joined this server less than 7 days ago."
+      );
+    }
 
-  // Membership screening not completed
-  if (targetMember.pending) {
-    riskScore += 10;
-    riskReasons.push(
-      "User has not completed membership screening."
-    );
+    const normalRoles =
+      targetMember.roles.cache.filter(
+        role => role.id !== interaction.guild.id
+      );
+
+    if (normalRoles.size === 0) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account has no server roles."
+      );
+    }
+
+    if (targetMember.pending) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account has not completed membership screening."
+      );
+    }
   }
 
   const possibleMatches = [];
 
-  for (const member of interaction.guild.members.cache.values()) {
+  for (
+    const member of
+    interaction.guild.members.cache.values()
+  ) {
     if (
-      member.id === targetMember.id ||
+      member.id === targetUser.id ||
       member.user.bot
     ) {
       continue;
     }
 
-    const usernameSimilarity = Math.max(
-      similarity(
-        targetUser.username,
-        member.user.username
-      ),
-      similarity(
-        targetMember.displayName,
-        member.displayName
-      )
+    const usernameSimilarity = similarity(
+      targetUser.username,
+      member.user.username
     );
 
-    const joinDifference =
-      targetMember.joinedTimestamp &&
-      member.joinedTimestamp
-        ? Math.abs(
-            targetMember.joinedTimestamp -
-            member.joinedTimestamp
-          )
-        : null;
+    const globalNameSimilarity = similarity(
+      targetUser.globalName,
+      member.user.globalName
+    );
 
-    const joinedCloseTogether =
-      joinDifference !== null &&
-      joinDifference <= 30 * 60 * 1000;
+    const displayNameSimilarity = targetMember
+      ? similarity(
+          targetMember.displayName,
+          member.displayName
+        )
+      : 0;
+
+    const highestNameSimilarity = Math.max(
+      usernameSimilarity,
+      globalNameSimilarity,
+      displayNameSimilarity
+    );
 
     let matchScore = 0;
     const matchReasons = [];
 
-    if (usernameSimilarity >= 80) {
-      matchScore += 50;
+    if (highestNameSimilarity >= 90) {
+      matchScore += 55;
       matchReasons.push(
-        `${usernameSimilarity}% similar name`
+        `${highestNameSimilarity}% similar name`
       );
-    } else if (usernameSimilarity >= 60) {
-      matchScore += 25;
+    } else if (highestNameSimilarity >= 75) {
+      matchScore += 35;
       matchReasons.push(
-        `${usernameSimilarity}% similar name`
+        `${highestNameSimilarity}% similar name`
+      );
+    } else if (highestNameSimilarity >= 60) {
+      matchScore += 20;
+      matchReasons.push(
+        `${highestNameSimilarity}% similar name`
       );
     }
 
-    if (joinedCloseTogether) {
-      matchScore += 30;
+    const sameAvatar =
+      getAvatarHash(targetUser) &&
+      getAvatarHash(targetUser) ===
+        getAvatarHash(member.user);
+
+    if (sameAvatar) {
+      matchScore += 45;
       matchReasons.push(
-        "joined within 30 minutes"
+        "uses the exact same Discord avatar"
       );
     }
 
@@ -1869,7 +1940,7 @@ client.on("interactionCreate", async (interaction) => {
       !targetUser.avatar &&
       !member.user.avatar
     ) {
-      matchScore += 10;
+      matchScore += 5;
       matchReasons.push(
         "both use default avatars"
       );
@@ -1877,7 +1948,11 @@ client.on("interactionCreate", async (interaction) => {
 
     const otherAccountAgeDays = Math.floor(
       (now - member.user.createdTimestamp) /
-        (24 * 60 * 60 * 1000)
+        dayMs
+    );
+
+    const creationDifferenceDays = Math.abs(
+      accountAgeDays - otherAccountAgeDays
     );
 
     if (
@@ -1886,11 +1961,48 @@ client.on("interactionCreate", async (interaction) => {
     ) {
       matchScore += 10;
       matchReasons.push(
-        "both accounts are recently created"
+        "both accounts are newly created"
       );
     }
 
-    if (matchScore >= 30) {
+    if (creationDifferenceDays <= 1) {
+      matchScore += 15;
+      matchReasons.push(
+        "accounts were created within 1 day"
+      );
+    } else if (creationDifferenceDays <= 7) {
+      matchScore += 8;
+      matchReasons.push(
+        "accounts were created within 7 days"
+      );
+    }
+
+    if (
+      targetMember?.joinedTimestamp &&
+      member.joinedTimestamp
+    ) {
+      const joinDifference = Math.abs(
+        targetMember.joinedTimestamp -
+        member.joinedTimestamp
+      );
+
+      if (joinDifference <= 30 * 60 * 1000) {
+        matchScore += 30;
+        matchReasons.push(
+          "joined the server within 30 minutes"
+        );
+      } else if (
+        joinDifference <=
+        24 * 60 * 60 * 1000
+      ) {
+        matchScore += 15;
+        matchReasons.push(
+          "joined the server within 24 hours"
+        );
+      }
+    }
+
+    if (matchScore >= 25) {
       possibleMatches.push({
         member,
         score: Math.min(matchScore, 100),
@@ -1903,16 +2015,17 @@ client.on("interactionCreate", async (interaction) => {
     (a, b) => b.score - a.score
   );
 
-  const topMatches = possibleMatches.slice(0, 5);
+  const topMatches =
+    possibleMatches.slice(0, 5);
 
   if (topMatches.length > 0) {
     riskScore += Math.min(
-      20,
-      Math.floor(topMatches[0].score / 5)
+      25,
+      Math.floor(topMatches[0].score / 4)
     );
 
     riskReasons.push(
-      "One or more similar server accounts were found."
+      "Possible related accounts were found inside the server."
     );
   }
 
@@ -1934,23 +2047,17 @@ client.on("interactionCreate", async (interaction) => {
   );
 
   const joinedTimestamp =
-    targetMember.joinedTimestamp
+    targetMember?.joinedTimestamp
       ? Math.floor(
           targetMember.joinedTimestamp / 1000
         )
       : null;
 
-  const matchesText =
-    topMatches.length > 0
-      ? topMatches
-          .map(
-            (match, index) =>
-              `**${index + 1}.** ${match.member.user}\n` +
-              `Match score: **${match.score}%**\n` +
-              `Signals: ${match.reasons.join(", ")}`
-          )
-          .join("\n\n")
-      : "No strongly similar accounts were found.";
+  const normalRoleCount = targetMember
+    ? targetMember.roles.cache.filter(
+        role => role.id !== interaction.guild.id
+      ).size
+    : 0;
 
   const reasonsText =
     riskReasons.length > 0
@@ -1958,6 +2065,26 @@ client.on("interactionCreate", async (interaction) => {
           .map(reason => `• ${reason}`)
           .join("\n")
       : "• No major risk signals were found.";
+
+  const matchesText =
+    topMatches.length > 0
+      ? topMatches
+          .map((match, index) => {
+            const reasons =
+              match.reasons.length > 0
+                ? match.reasons.join(", ")
+                : "general account similarities";
+
+            return (
+              `**${index + 1}.** ` +
+              `<@${match.member.id}> ` +
+              `(\`${match.member.id}\`)\n` +
+              `Match score: **${match.score}%**\n` +
+              `Signals: ${reasons}`
+            );
+          })
+          .join("\n\n")
+      : "No strongly similar accounts were found inside the server.";
 
   const embed = new EmbedBuilder()
     .setColor(riskColor)
@@ -1968,45 +2095,51 @@ client.on("interactionCreate", async (interaction) => {
       })
     )
     .setDescription(
-      `Checked account: ${targetUser}\n\n` +
+      `**Checked user:** ${targetUser.username}\n` +
+      `**User ID:** \`${targetUser.id}\`\n` +
+      `**Currently in server:** ${
+        targetMember ? "Yes" : "No"
+      }\n\n` +
       `**Risk level:** ${riskLevel}\n` +
       `**Risk score:** ${riskScore}/100\n\n` +
-      "This result is based on public account and server signals. " +
-      "It does not prove that the user owns another account."
+      "This is only a public-account comparison. " +
+      "It cannot confirm that two accounts have the same owner."
     )
     .addFields(
       {
-        name: "Account Information",
+        name: "Checked Account",
         value:
+          `Username: **${targetUser.username}**\n` +
+          `Global name: **${
+            targetUser.globalName || "None"
+          }**\n` +
           `Created: <t:${accountCreatedTimestamp}:F>\n` +
           `Account age: **${accountAgeDays} days**\n` +
           `Joined server: ${
             joinedTimestamp
               ? `<t:${joinedTimestamp}:F>`
-              : "Unknown"
+              : "Not in server / unavailable"
           }\n` +
-          `Server membership: **${
-            serverAgeDays !== null
-              ? `${serverAgeDays} days`
-              : "Unknown"
-          }**\n` +
-          `Default avatar: **${
-            targetUser.avatar ? "No" : "Yes"
-          }**\n` +
-          `Roles: **${normalRoles.size}**`
+          `Server roles: **${
+            targetMember
+              ? normalRoleCount
+              : "Unavailable"
+          }**`
       },
       {
         name: "Risk Signals",
-        value: reasonsText.slice(0, 1024)
+        value:
+          reasonsText.slice(0, 1024)
       },
       {
-        name: "Possible Related Accounts",
-        value: matchesText.slice(0, 1024)
+        name: "Possible Alts Still in Server",
+        value:
+          matchesText.slice(0, 1024)
       }
     )
     .setFooter({
       text:
-        "Risk indicators only — moderators should review evidence manually."
+        "Do not punish users based only on this score."
     })
     .setTimestamp();
 
