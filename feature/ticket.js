@@ -66,6 +66,7 @@ Any use of **GenAI** is **strictly prohibited**. All responses must be your own 
 - GrowID:
 - Discord User:
 - Account Age:
+- Timezone (Specify it in GMT++)
 - Why would you like to become an admin?
 - How would you respond if you witnessed an admin raiding the world?
 - What actions would you take to help keep the world active and entertained?

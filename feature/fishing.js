@@ -9,7 +9,6 @@ const {
   StringSelectMenuBuilder
 } = require("discord.js");
 
-
 const levelsFile = path.join(__dirname, "..", "levels.json");
 const fishFolder = path.join(__dirname, "..", "fish");
 const imagesFolder = path.join(__dirname, "..", "images");
