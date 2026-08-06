@@ -309,18 +309,21 @@ new SlashCommandBuilder()
   ),
 new SlashCommandBuilder()
   .setName("dms")
-  .setDescription("Send a custom message to a user's DMs")
+  .setDescription("Send a direct message to a user")
   .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose the user")
+    option.setName("user")
+      .setDescription("User to DM")
       .setRequired(true)
   )
   .addStringOption(option =>
-    option
-      .setName("message")
-      .setDescription("Type the message to send")
-      .setRequired(true)
+    option.setName("message")
+      .setDescription("Message to send")
+      .setRequired(false)
+  )
+  .addAttachmentOption(option =>
+    option.setName("file")
+      .setDescription("Attach file/image (optional)")
+      .setRequired(false)
   ),
   new SlashCommandBuilder()
   .setName("report")

@@ -3604,55 +3604,80 @@ if (interaction.commandName === "sayas") {
     });
   }
 }
-
-if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "dms"
-) {
+if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
   const DMS_ROLE = "1491399898237501530";
+
+  const executorMember = await interaction.guild.members
+    .fetch(interaction.user.id)
+    .catch(() => null);
 
   const hasPermission =
     interaction.user.id === OWNER_ID ||
-    interaction.member.permissions.has("Administrator") ||
-    interaction.member.roles.cache.has(DMS_ROLE);
+    executorMember?.roles.cache.has(DMS_ROLE);
 
   if (!hasPermission) {
     return interaction.reply({
       content: "❌ You do not have permission to use this command.",
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
-  const targetUser = interaction.options.getUser("user", true);
-  const customMessage = interaction.options.getString("message", true);
+  await interaction.deferReply({ ephemeral: true });
 
-  if (targetUser.bot) {
-    return interaction.reply({
-      content: "❌ You cannot send a message to a bot.",
-      ephemeral: true
-    });
+  const selectedUser = interaction.options.getUser("user", true);
+  const message = interaction.options.getString("message");
+  const attachment = interaction.options.getAttachment("file");
+
+  if (!message && !attachment) {
+    return interaction.editReply("❌ Please provide a message or attachment.");
   }
 
-  await interaction.deferReply({
-    ephemeral: true
-  });
+  // Make sure the user is actually in this server
+  const targetMember = await interaction.guild.members
+    .fetch(selectedUser.id)
+    .catch(() => null);
+
+  if (!targetMember) {
+    return interaction.editReply("❌ That user is not in this server.");
+  }
+
+  if (targetMember.user.bot) {
+    return interaction.editReply("❌ You cannot DM a bot.");
+  }
 
   try {
-    await targetUser.send(customMessage);
+    const payload = {};
 
-    return interaction.editReply({
-      content: `✅ Message sent to **${targetUser.username}**.`
-    });
-  } catch (error) {
-    console.error("DMS ERROR:", error);
+    if (message) payload.content = message;
 
-    return interaction.editReply({
-      content:
-        "❌ The bot could not DM this user. They may have disabled DMs or blocked the bot."
-    });
+    if (attachment) {
+      payload.files = [
+        {
+          attachment: attachment.url,
+          name: attachment.name,
+        },
+      ];
+    }
+
+    await targetMember.send(payload);
+
+    return interaction.editReply(
+      `✅ Successfully sent a DM to **${targetMember.user.tag}**`
+    );
+  } catch (err) {
+    console.error("DM Error:", err);
+
+    if (err.code === 50007) {
+      return interaction.editReply(
+        "❌ That user has DMs disabled or has blocked the bot."
+      );
+    }
+
+    return interaction.editReply(
+      "❌ Failed to send the DM. Check the console for the error."
+    );
   }
 }
-
 if (interaction.commandName === "sendupdates") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
@@ -6361,31 +6386,52 @@ client.on("messageCreate", async (message) => {
   if (!message.guild) {
     return;
   }
-  // ================= AUTO REPLY: TUMMA / TUMMARATSU / NIRIEL =================
-
-// ================= SHARKFIN AUTO REPLY =================
+// ================= SHARKFIN WEBHOOK AUTO REPLY =================
 const SHARKFIN_USER_ID = "946556932636950528";
 
-if (message.author.id === SHARKFIN_USER_ID && !message.author.bot) {
-
+if (message.author.id === SHARKFIN_USER_ID) {
   const sharkfinData = loadSharkfinReplies();
-
   const today = new Date().toISOString().split("T")[0];
 
   if (!sharkfinData[today]) {
     sharkfinData[today] = 0;
   }
 
+  // Maximum 3 webhook messages per day
   if (sharkfinData[today] < 3) {
+    let webhook = null;
 
-    sharkfinData[today]++;
+    try {
+      sharkfinData[today]++;
+      saveSharkfinReplies(sharkfinData);
 
-    saveSharkfinReplies(sharkfinData);
+      webhook = await message.channel.createWebhook({
+        name: "NoobV2",
+        avatar: client.user.displayAvatarURL({
+          extension: "png",
+          size: 256
+        })
+      });
 
-    await message.reply({
-      content: "i love sharkfin soup",
-      allowedMentions: { repliedUser: false }
-    }).catch(() => {});
+      await webhook.send({
+        content: `<@${SHARKFIN_USER_ID}> i love sharkfin soup`,
+        allowedMentions: {
+          users: [SHARKFIN_USER_ID]
+        }
+      });
+
+    } catch (error) {
+      console.error("Sharkfin Webhook Error:", error);
+
+    } finally {
+      // Delete the temporary webhook after sending
+      if (webhook) {
+        await webhook.delete("Temporary NoobV2 sharkfin webhook")
+          .catch(error => {
+            console.error("Failed to delete Sharkfin webhook:", error);
+          });
+      }
+    }
   }
 }
   // ================= UPDATE BROADCAST DM SYSTEM =================
