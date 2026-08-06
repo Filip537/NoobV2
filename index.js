@@ -3604,20 +3604,17 @@ if (interaction.commandName === "sayas") {
     });
   }
 }
+
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "dms"
 ) {
   const DMS_ROLE = "1491399898237501530";
 
-  const executorMember = await interaction.guild.members
-    .fetch(interaction.user.id)
-    .catch(() => null);
-
   const hasPermission =
     interaction.user.id === OWNER_ID ||
     interaction.member.permissions.has("Administrator") ||
-    executorMember?.roles.cache.has(DMS_ROLE);
+    interaction.member.roles.cache.has(DMS_ROLE);
 
   if (!hasPermission) {
     return interaction.reply({
@@ -3626,123 +3623,32 @@ if (
     });
   }
 
+  const targetUser = interaction.options.getUser("user", true);
+  const customMessage = interaction.options.getString("message", true);
+
+  if (targetUser.bot) {
+    return interaction.reply({
+      content: "❌ You cannot send a message to a bot.",
+      ephemeral: true
+    });
+  }
+
   await interaction.deferReply({
     ephemeral: true
   });
 
-  const selectedUser =
-    interaction.options.getUser("user", true);
-
-  const message =
-    interaction.options.getString("message")?.trim();
-
-  const attachment =
-    interaction.options.getAttachment("file");
-
-  if (!message && !attachment) {
-    return interaction.editReply({
-      content: "❌ Please provide a message or attachment."
-    });
-  }
-
-  if (selectedUser.bot) {
-    return interaction.editReply({
-      content: "❌ You cannot send a DM to a bot."
-    });
-  }
-
-  const targetMember = await interaction.guild.members
-    .fetch(selectedUser.id, {
-      force: true
-    })
-    .catch(() => null);
-
-  if (!targetMember) {
-    return interaction.editReply({
-      content: "❌ That user is not currently inside this server."
-    });
-  }
-
   try {
-    const targetUser = await client.users.fetch(
-      selectedUser.id,
-      {
-        force: true
-      }
-    );
-
-    const dmChannel = await targetUser.createDM();
-
-    const payload = {
-      allowedMentions: {
-        parse: []
-      }
-    };
-
-    if (message) {
-      payload.content = message;
-    }
-
-    if (attachment) {
-      payload.files = [
-        {
-          attachment: attachment.url,
-          name: attachment.name || "attachment"
-        }
-      ];
-    }
-
-    const sentMessage = await dmChannel.send(payload);
-
-    console.log(
-      `[DMS] ${interaction.user.tag} sent a DM to ` +
-      `${targetUser.tag} (${targetUser.id}). ` +
-      `Message ID: ${sentMessage.id}`
-    );
+    await targetUser.send(customMessage);
 
     return interaction.editReply({
-      content:
-        `Successfully sent a DM to ` +
-        `**${targetUser.tag}**.\n` +
-        `User ID: \`${targetUser.id}\``
+      content: `✅ Message sent to **${targetUser.username}**.`
     });
   } catch (error) {
-    console.error("DMS COMMAND ERROR:", {
-      code: error?.code,
-      status: error?.status,
-      message: error?.message,
-      rawError: error?.rawError,
-      targetUserId: selectedUser.id
-    });
-
-    if (error?.code === 50007) {
-      return interaction.editReply({
-        content:
-          "❌ Discord refused the DM.\n\n" +
-          "The selected user must enable:\n" +
-          "**Server → Privacy Settings → Direct Messages**\n\n" +
-          "They may also have blocked the bot. Bots cannot bypass this Discord setting."
-      });
-    }
-
-    if (error?.code === 10013) {
-      return interaction.editReply({
-        content: "❌ Discord could not find that user."
-      });
-    }
-
-    if (error?.code === 50035) {
-      return interaction.editReply({
-        content:
-          "❌ The message or attachment was invalid. Try sending text only."
-      });
-    }
+    console.error("DMS ERROR:", error);
 
     return interaction.editReply({
       content:
-        `❌ Failed to send the DM.\n` +
-        `Discord error: \`${error?.code || "Unknown"}\`\n` +
-        `Message: \`${error?.message || "No error message"}\``
+        "❌ The bot could not DM this user. They may have disabled DMs or blocked the bot."
     });
   }
 }
