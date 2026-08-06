@@ -3604,7 +3604,10 @@ if (interaction.commandName === "sayas") {
     });
   }
 }
-if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "dms"
+) {
   const DMS_ROLE = "1491399898237501530";
 
   const executorMember = await interaction.guild.members
@@ -3613,71 +3616,137 @@ if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
 
   const hasPermission =
     interaction.user.id === OWNER_ID ||
+    interaction.member.permissions.has("Administrator") ||
     executorMember?.roles.cache.has(DMS_ROLE);
 
   if (!hasPermission) {
     return interaction.reply({
       content: "❌ You do not have permission to use this command.",
-      ephemeral: true,
+      ephemeral: true
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({
+    ephemeral: true
+  });
 
-  const selectedUser = interaction.options.getUser("user", true);
-  const message = interaction.options.getString("message");
-  const attachment = interaction.options.getAttachment("file");
+  const selectedUser =
+    interaction.options.getUser("user", true);
+
+  const message =
+    interaction.options.getString("message")?.trim();
+
+  const attachment =
+    interaction.options.getAttachment("file");
 
   if (!message && !attachment) {
-    return interaction.editReply("❌ Please provide a message or attachment.");
+    return interaction.editReply({
+      content: "❌ Please provide a message or attachment."
+    });
   }
 
-  // Make sure the user is actually in this server
+  if (selectedUser.bot) {
+    return interaction.editReply({
+      content: "❌ You cannot send a DM to a bot."
+    });
+  }
+
   const targetMember = await interaction.guild.members
-    .fetch(selectedUser.id)
+    .fetch(selectedUser.id, {
+      force: true
+    })
     .catch(() => null);
 
   if (!targetMember) {
-    return interaction.editReply("❌ That user is not in this server.");
-  }
-
-  if (targetMember.user.bot) {
-    return interaction.editReply("❌ You cannot DM a bot.");
+    return interaction.editReply({
+      content: "❌ That user is not currently inside this server."
+    });
   }
 
   try {
-    const payload = {};
+    const targetUser = await client.users.fetch(
+      selectedUser.id,
+      {
+        force: true
+      }
+    );
 
-    if (message) payload.content = message;
+    const dmChannel = await targetUser.createDM();
+
+    const payload = {
+      allowedMentions: {
+        parse: []
+      }
+    };
+
+    if (message) {
+      payload.content = message;
+    }
 
     if (attachment) {
       payload.files = [
         {
           attachment: attachment.url,
-          name: attachment.name,
-        },
+          name: attachment.name || "attachment"
+        }
       ];
     }
 
-    await targetMember.send(payload);
+    const sentMessage = await dmChannel.send(payload);
 
-    return interaction.editReply(
-      `✅ Successfully sent a DM to **${targetMember.user.tag}**`
+    console.log(
+      `[DMS] ${interaction.user.tag} sent a DM to ` +
+      `${targetUser.tag} (${targetUser.id}). ` +
+      `Message ID: ${sentMessage.id}`
     );
-  } catch (err) {
-    console.error("DM Error:", err);
 
-    if (err.code === 50007) {
-      return interaction.editReply(
-        "❌ That user has DMs disabled or has blocked the bot."
-      );
+    return interaction.editReply({
+      content:
+        `Successfully sent a DM to ` +
+        `**${targetUser.tag}**.\n` +
+        `User ID: \`${targetUser.id}\``
+    });
+  } catch (error) {
+    console.error("DMS COMMAND ERROR:", {
+      code: error?.code,
+      status: error?.status,
+      message: error?.message,
+      rawError: error?.rawError,
+      targetUserId: selectedUser.id
+    });
+
+    if (error?.code === 50007) {
+      return interaction.editReply({
+        content:
+          "❌ Discord refused the DM.\n\n" +
+          "The selected user must enable:\n" +
+          "**Server → Privacy Settings → Direct Messages**\n\n" +
+          "They may also have blocked the bot. Bots cannot bypass this Discord setting."
+      });
     }
 
-    return interaction.editReply(
-      "❌ Failed to send the DM. Check the console for the error."
-    );
+    if (error?.code === 10013) {
+      return interaction.editReply({
+        content: "❌ Discord could not find that user."
+      });
+    }
+
+    if (error?.code === 50035) {
+      return interaction.editReply({
+        content:
+          "❌ The message or attachment was invalid. Try sending text only."
+      });
+    }
+
+    return interaction.editReply({
+      content:
+        `❌ Failed to send the DM.\n` +
+        `Discord error: \`${error?.code || "Unknown"}\`\n` +
+        `Message: \`${error?.message || "No error message"}\``
+    });
   }
 }
+
 if (interaction.commandName === "sendupdates") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
