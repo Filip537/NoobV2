@@ -6387,9 +6387,12 @@ client.on("messageCreate", async (message) => {
     return;
   }
 // ================= SHARKFIN WEBHOOK AUTO REPLY =================
-const SHARKFIN_USER_ID = "946556932636950528";
+const SHARKFIN_USER_IDS = [
+  "946556932636950528",
+  "983212623573172236"
+];
 
-if (message.author.id === SHARKFIN_USER_ID) {
+if (SHARKFIN_USER_IDS.includes(message.author.id)) {
   const sharkfinData = loadSharkfinReplies();
   const today = new Date().toISOString().split("T")[0];
 
@@ -6414,10 +6417,10 @@ if (message.author.id === SHARKFIN_USER_ID) {
       });
 
       await webhook.send({
-        content: `<@${SHARKFIN_USER_ID}> i love sharkfin soup`,
-        allowedMentions: {
-          users: [SHARKFIN_USER_ID]
-        }
+content: `<@${message.author.id}> i love sharkfin soup`,
+allowedMentions: {
+  users: [message.author.id]
+}
       });
 
     } catch (error) {
