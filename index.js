@@ -3335,32 +3335,80 @@ if (interaction.isModalSubmit()) {
     interaction.isModalSubmit() &&
     interaction.customId.startsWith("niri_reply_modal_")
   ) {
+    const NIRI_ID = "1009567472577429515";
+    const NIRI_HELP_CHANNEL = "1455812353936588944";
+  
+    const NIRI_AVATAR =
+      "https://cdn.discordapp.com/avatars/1009567472577429515/559940cfde5fedf5e464c4122ad474b4.png?size=1024";
+  
+    // Security check
+    if (interaction.user.id !== NIRI_ID) {
+      return interaction.reply({
+        content: "Only Niri can submit this reply.",
+        ephemeral: true
+      });
+    }
+  
     const requesterId = interaction.customId.replace(
       "niri_reply_modal_",
       ""
     );
   
-    const reply = interaction.fields.getTextInputValue("reply");
+    const replyMessage =
+      interaction.fields.getTextInputValue("niri_reply_message");
+  
+    await interaction.deferReply({
+      ephemeral: true
+    });
   
     try {
-      const user = await client.users.fetch(requesterId);
+      const channel = await client.channels
+        .fetch(NIRI_HELP_CHANNEL)
+        .catch(() => null);
   
-      const embed = new EmbedBuilder()
+      if (!channel || !channel.isTextBased()) {
+        return interaction.editReply({
+          content: "Niri help channel could not be found."
+        });
+      }
+  
+      // Create temporary webhook
+      const webhook = await channel.createWebhook({
+        name: "Nirihelp",
+        avatar: NIRI_AVATAR,
+        reason: "Niri help reply"
+      });
+  
+      const replyEmbed = new EmbedBuilder()
         .setColor("Red")
-        .setTitle("Niri replied to your inquiry")
-        .setDescription(reply)
+        .setTitle("Niri Help Response")
+        .setDescription(replyMessage)
+        .setThumbnail(NIRI_AVATAR)
+        .setFooter({
+          text: "Nirihelp"
+        })
         .setTimestamp();
   
-      await user.send({ embeds: [embed] });
-  
-      await interaction.reply({
-        content: "Reply sent successfully.",
-        ephemeral: true
+      await webhook.send({
+        content: `<@${requesterId}>, Niri has replied to your inquiry.`,
+        embeds: [replyEmbed],
+        allowedMentions: {
+          users: [requesterId]
+        }
       });
-    } catch {
-      await interaction.reply({
-        content: "Unable to send the reply to the user.",
-        ephemeral: true
+  
+      // Delete webhook after sending
+      await webhook.delete("Niri help reply sent").catch(() => {});
+  
+      return interaction.editReply({
+        content: `Reply sent successfully in <#${NIRI_HELP_CHANNEL}>.`
+      });
+  
+    } catch (error) {
+      console.error("Niri reply error:", error);
+  
+      return interaction.editReply({
+        content: "Failed to send the Niri help reply."
       });
     }
   }
@@ -3569,6 +3617,7 @@ if (interaction.isButton()) {
   ) {
     const NIRI_ID = "1009567472577429515";
   
+    // Only Niri can press the Reply button
     if (interaction.user.id !== NIRI_ID) {
       return interaction.reply({
         content: "Only Niri can use this button.",
@@ -3576,21 +3625,26 @@ if (interaction.isButton()) {
       });
     }
   
-    const requesterId = interaction.customId.replace("niri_reply_", "");
+    const requesterId = interaction.customId.replace(
+      "niri_reply_",
+      ""
+    );
   
     const modal = new ModalBuilder()
       .setCustomId(`niri_reply_modal_${requesterId}`)
-      .setTitle("Reply to User");
+      .setTitle("Reply to Help Request");
   
     const replyInput = new TextInputBuilder()
-      .setCustomId("reply")
-      .setLabel("Your reply")
+      .setCustomId("niri_reply_message")
+      .setLabel("Reply")
+      .setPlaceholder("Type your reply here...")
       .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true);
+      .setRequired(true)
+      .setMaxLength(2000);
   
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(replyInput)
-    );
+    const row = new ActionRowBuilder().addComponents(replyInput);
+  
+    modal.addComponents(row);
   
     return interaction.showModal(modal);
   }
