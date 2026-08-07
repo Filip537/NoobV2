@@ -1,50 +1,72 @@
 require("dotenv").config();
 
-const testLevelCommand = require("./commands/testlevelup.js");
 const { REST, Routes, SlashCommandBuilder } = require("discord.js");
-const worldcup = require("./feature/worldcup");
 
 const commands = [
-new SlashCommandBuilder()
-  .setName("addbirthday")
-  .setDescription("Add your birthday")
-  .addIntegerOption(option =>
-    option
-      .setName("date")
-      .setDescription("Birth date (1-31)")
+
+  new SlashCommandBuilder()
+    .setName("addbirthday")
+    .setDescription("Add your birthday")
+    .addIntegerOption(o =>
+      o.setName("day").setDescription("Day").setRequired(true)
+    )
+    .addIntegerOption(o =>
+      o.setName("month").setDescription("Month").setRequired(true)
+    )
+    .addIntegerOption(o =>
+      o.setName("year").setDescription("Year").setRequired(true)
+    ),
+    new SlashCommandBuilder()
+  .setName("marketadd")
+  .setDescription("Create a marketplace listing")
+  .addStringOption(option =>
+    option.setName("itemname")
+      .setDescription("Item name")
       .setRequired(true)
-      .setMinValue(1)
-      .setMaxValue(31)
+  )
+  .addStringOption(option =>
+    option.setName("price")
+      .setDescription("Item price")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("world")
+      .setDescription("World name")
+      .setRequired(true)
+  )
+  .addIntegerOption(option =>
+    option.setName("amount")
+      .setDescription("Item amount")
+      .setRequired(true)
+  )
+  .addAttachmentOption(option =>
+    option.setName("image")
+      .setDescription("Item image optional")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
+  .setName("nirihelp")
+  .setDescription("Ask Niri for help")
+  .addStringOption(option =>
+    option
+      .setName("title")
+      .setDescription("Title of your inquiry")
+      .setRequired(false)
   )
   .addStringOption(option =>
     option
-      .setName("month")
-      .setDescription("Birth month")
-      .setRequired(true)
-      .addChoices(
-        { name: "January", value: "01" },
-        { name: "February", value: "02" },
-        { name: "March", value: "03" },
-        { name: "April", value: "04" },
-        { name: "May", value: "05" },
-        { name: "June", value: "06" },
-        { name: "July", value: "07" },
-        { name: "August", value: "08" },
-        { name: "September", value: "09" },
-        { name: "October", value: "10" },
-        { name: "November", value: "11" },
-        { name: "December", value: "12" }
-      )
-  )
-  .addIntegerOption(option =>
-    option
-      .setName("year")
-      .setDescription("Type your birth year (e.g. 2005)")
-      .setRequired(true)
-      .setMinValue(1900)
-      .setMaxValue(new Date().getFullYear())
+      .setName("inquiries")
+      .setDescription("Describe what you need help with")
+      .setRequired(false)
   ),
-  
+new SlashCommandBuilder()
+  .setName("marketsearch")
+  .setDescription("Search marketplace listings")
+  .addStringOption(option =>
+    option.setName("item")
+      .setDescription("Item name to search")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")
@@ -63,211 +85,11 @@ new SlashCommandBuilder()
       .setDescription("Proof by")
       .setRequired(true)
   )
-  .addStringOption(o =>
-    o.setName("duration")
-      .setDescription("Example: 1h, 1d, 7d or perma")
-      .setRequired(false)
-  )
   .addAttachmentOption(o =>
-    o.setName("image")
-      .setDescription("Upload proof (optional)")
-      .setRequired(false)
-  ),
-  new SlashCommandBuilder()
-  .setName("hownoob")
-  .setDescription("See how noob someone is")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("User to check")
-      .setRequired(false)
-  ),
-new SlashCommandBuilder()
-  .setName("inventory")
-  .setDescription("Check your or another member's World Locks")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("Member to check")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("tellstory")
-  .setDescription("Tell a story for 5 World Locks")
-  .addStringOption(option =>
-    option.setName("story")
-      .setDescription("Choose a story")
-      .setRequired(true)
-      .addChoices(
-        { name: "Story of Redratsu and Red Riding Hood", value: "redratsu" },
-        { name: "The Noob Who Found a BGL", value: "noob_bgl" },
-        { name: "The Admin and the Lost WL", value: "lost_wl" },
-        { name: "The Ghost in NoobV2", value: "ghost_noobv2" },
-        { name: "The Parkour King", value: "parkour_king" },
-        { name: "The Fake Pro Player", value: "fake_pro" },
-        { name: "The World Lock Wizard", value: "wl_wizard" },
-        { name: "The Dice Cave Mystery", value: "dice_cave" },
-        { name: "The Rich Noob", value: "rich_noob" },
-        { name: "The Dragon of Growtopia", value: "dragon_gt" },
-        { name: "The Lost GrowID", value: "lost_growid" },
-        { name: "The Final Admin Test", value: "admin_test" }
-      )
-  ),
-  new SlashCommandBuilder()
-  .setName("addsticker")
-  .setDescription("Submit a sticker/image for admin approval")
-  .addStringOption(o =>
-    o.setName("name")
-      .setDescription("Sticker name")
-      .setRequired(true)
-  )
-  .addAttachmentOption(o =>
-    o.setName("file")
-      .setDescription("Upload sticker/image")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("addgif")
-  .setDescription("Submit a GIF for admin approval")
-  .addStringOption(o =>
-    o.setName("name")
-      .setDescription("GIF name")
-      .setRequired(true)
-  )
-  .addAttachmentOption(o =>
-    o.setName("file")
-      .setDescription("Upload GIF")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("sendsticker")
-  .setDescription("Send a saved sticker")
-  .addStringOption(o =>
-    o.setName("name")
-      .setDescription("Sticker name")
-      .setRequired(true)
-      .setAutocomplete(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("sendgif")
-  .setDescription("Send a saved GIF")
-  .addStringOption(o =>
-    o.setName("name")
-      .setDescription("GIF name")
-      .setRequired(true)
-      .setAutocomplete(true)
-  ),
-  new SlashCommandBuilder()
-.setName("coinflip")
-.setDescription("Bet your WL on a coin flip.")
-.addIntegerOption(o =>
-    o.setName("bet")
-    .setDescription("Amount of WL to bet")
-    .setRequired(true)
-)
-.addStringOption(o =>
-    o.setName("side")
-    .setDescription("Heads or Tails")
-    .setRequired(true)
-    .addChoices(
-        { name: "Heads", value: "heads" },
-        { name: "Tails", value: "tails" }
-    )
+  o.setName("image")
+   .setDescription("Upload proof (optional)")
+   .setRequired(false)
 ),
-new SlashCommandBuilder()
-  .setName("daily")
-  .setDescription("Claim 10-50 WL once every 24 hours"),
-
-new SlashCommandBuilder()
-  .setName("work")
-  .setDescription("Work and earn 5-20 WL every hour"),
-
-new SlashCommandBuilder()
-  .setName("beg")
-  .setDescription("Beg for a small chance to get WL"),
-
-new SlashCommandBuilder()
-  .setName("crime")
-  .setDescription("Commit a risky crime for WL"),
-
-new SlashCommandBuilder()
-  .setName("rob")
-  .setDescription("Try to rob another user")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to rob")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("pay")
-  .setDescription("Pay WL to another user")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to pay")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("amount")
-      .setDescription("Amount of WL")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("rps")
-  .setDescription("Challenge someone to Rock Paper Scissors")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("bombpass")
-  .setDescription("Challenge someone to Bomb Pass")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("battle")
-  .setDescription("Challenge someone to an Arena Battle")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("slot")
-  .setDescription("Test your luck with the slot machine"),
-  new SlashCommandBuilder()
-  .setName("wiki")
-  .setDescription("Open the NoobV2 wiki menu"),
-
-new SlashCommandBuilder()
-  .setName("editwiki")
-  .setDescription("Add or remove wiki selectors"),
-new SlashCommandBuilder()
-  .setName("whatsmydare")
-  .setDescription("Get a random dare that will not repeat in 1 day"),
 new SlashCommandBuilder()
   .setName("leaderboard")
   .setDescription("View leaderboard")
@@ -275,29 +97,9 @@ new SlashCommandBuilder()
     option.setName("category")
       .setDescription("Choose leaderboard category")
       .setRequired(true)
-.addChoices(
-  { name: "Level", value: "level" },
-  { name: "World Locks", value: "wl" }
-)
-  ),
-  new SlashCommandBuilder()
-  .setName("business")
-  .setDescription("Invest WL into an interactive business")
-  .addStringOption(o =>
-    o.setName("type")
-      .setDescription("Choose business type")
-      .setRequired(true)
       .addChoices(
-        { name: "Restaurant", value: "restaurant" },
-        { name: "Mining Company", value: "mining" },
-        { name: "Delivery Company", value: "delivery" },
-        { name: "Fishing Boat", value: "fishing" }
+        { name: "Level", value: "level" }
       )
-  )
-  .addIntegerOption(o =>
-    o.setName("investment")
-      .setDescription("Amount of WL to invest")
-      .setRequired(true)
   ),
   new SlashCommandBuilder()
   .setName("sendupdates")
@@ -432,12 +234,10 @@ new SlashCommandBuilder()
     option.setName("command")
       .setDescription("Command to activate")
       .setRequired(false)
-.addChoices(
-  { name: "/howgay", value: "howgay" },
-  { name: "/howpro", value: "howpro" },
-  { name: "/whosmypartner", value: "whosmypartner" },
-  { name: "/fortuneteller", value: "fortuneteller" }
-)
+      .addChoices(
+        { name: "/howgay", value: "howgay" },
+        { name: "/howpro", value: "howpro" }
+      )
   )
   .addAttachmentOption(option =>
     option.setName("file")
@@ -736,123 +536,27 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("refreshticketpanel")
   .setDescription("Apply updates to the current ticket panel"),
-new SlashCommandBuilder()
-  .setName("bdaylist")
-  .setDescription("Show birthday list")
-  .addStringOption(option =>
-    option
-      .setName("month")
-      .setDescription("Choose a month to display")
-      .setRequired(true)
-      .addChoices(
-        { name: "Show All", value: "all" },
-        { name: "January", value: "01" },
-        { name: "February", value: "02" },
-        { name: "March", value: "03" },
-        { name: "April", value: "04" },
-        { name: "May", value: "05" },
-        { name: "June", value: "06" },
-        { name: "July", value: "07" },
-        { name: "August", value: "08" },
-        { name: "September", value: "09" },
-        { name: "October", value: "10" },
-        { name: "November", value: "11" },
-        { name: "December", value: "12" }
-      )
-  ),
   new SlashCommandBuilder()
-    .setName("checkbirthday")
-    .setDescription("Check a user's birthday")
-    .addUserOption(option =>
-        option
-            .setName("user")
-            .setDescription("User to check")
-            .setRequired(true)
-    ),
+    .setName("bdaylist")
+    .setDescription("Show birthday list"),
+new SlashCommandBuilder()
+  .setName("createprofile")
+  .setDescription("Create your profile"),
+  new SlashCommandBuilder()
+  .setName("viewprofile")
+  .setDescription("View another user's profile")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Select a user")
+      .setRequired(true)
+  ),
   new SlashCommandBuilder()
   .setName("sendinfo")
   .setDescription("Send the server info panel")
   .addChannelOption(option =>
     option.setName("channel")
       .setDescription("Channel to send the info panel")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-    .setName("renderworld")
-    .setDescription("Render a Growtopia world")
-    .addStringOption(option =>
-        option
-            .setName("world")
-            .setDescription("World name")
-            .setRequired(true)
-    ),
-    new SlashCommandBuilder()
-  .setName("salesman")
-  .setDescription("Exchange your stuffs for World Locks"),
-    new SlashCommandBuilder()
-  .setName("shop")
-  .setDescription("Open the item shop"),
-new SlashCommandBuilder()
-  .setName("sendtask")
-  .setDescription("Send the daily task panel"),
-
-new SlashCommandBuilder()
-  .setName("trade")
-  .setDescription("Trade items with another user")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("User to trade with")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("give")
-      .setDescription("Example: 25 wiggly, 5 gar, 1 whale")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("receive")
-      .setDescription("Example: 10 wl, 1 alpha shark")
-      .setRequired(true)
-  ),
-new SlashCommandBuilder()
-  .setName("fish")
-  .setDescription("Go fishing with your fishing rod"),
-  new SlashCommandBuilder()
-  .setName("call")
-  .setDescription("Use the old Growtopia telephone"),
-  new SlashCommandBuilder()
-  .setName("addguild")
-  .setDescription("Add or update a guild member")
-  .addStringOption(option =>
-    option.setName("growid")
-      .setDescription("GrowID / in-game name")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("role")
-      .setDescription("Guild role")
-      .setRequired(true)
-      .addChoices(
-        { name: "Guild Leader", value: "GL" },
-        { name: "Guild Co-Leader", value: "GC" },
-        { name: "Guild Elder", value: "GE" },
-        { name: "Member", value: "MEMBER" }
-      )
-  )
-  .addUserOption(option =>
-    option.setName("discord")
-      .setDescription("Discord user, optional")
-      .setRequired(false)
-  ),
-  new SlashCommandBuilder()
-  .setName("guildlist")
-  .setDescription("View all guild members"),
-  new SlashCommandBuilder()
-  .setName("wikiitem")
-  .setDescription("Search an item from Growtopia Wiki")
-  .addStringOption(option =>
-    option.setName("item")
-      .setDescription("Item name, example: Dirt or World Lock")
       .setRequired(true)
   ),
   new SlashCommandBuilder()
@@ -868,41 +572,10 @@ new SlashCommandBuilder()
       .setDescription("Explain the feature")
       .setRequired(true)
   ),
-new SlashCommandBuilder()
-  .setName("checkalt")
-  .setDescription("Check a Discord user ID for possible alt accounts")
-  .addStringOption(option =>
-    option
-      .setName("userid")
-      .setDescription("Discord user ID, including users who left the server")
-      .setRequired(true)
-      .setMinLength(17)
-      .setMaxLength(20)
-  ),
-new SlashCommandBuilder()
-  .setName("legendquest")
-  .setDescription("View Legendary Quest steps")
-  .addStringOption(option =>
-    option.setName("quest")
-      .setDescription("Choose a legendary quest")
-      .setRequired(true)
-      .addChoices(
-        { name: "Quest For Honor", value: "honor" },
-        { name: "Quest For Fire", value: "fire" },
-        { name: "Quest Of Steel", value: "steel" },
-        { name: "Quest Of The Heavens", value: "heavens" },
-        { name: "Quest For The Blade", value: "blade" },
-        { name: "Quest For Candour", value: "candour" },
-        { name: "Quest For The Sky", value: "sky" },
-        { name: "Quest Of The Owl", value: "owl" },
-        { name: "Quest Of The Mech", value: "mech" }
-      )
-  ),
   new SlashCommandBuilder()
     .setName("testbday")
-    .setDescription("Send a test birthday message (Admin only)"),
-testLevelCommand.data,
-worldcup.data
+    .setDescription("Send a test birthday message (Admin only)")
+
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
