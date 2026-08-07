@@ -307,24 +307,6 @@ new SlashCommandBuilder()
       .setDescription("Where to send the update log")
       .setRequired(true)
   ),
-new SlashCommandBuilder()
-  .setName("dms")
-  .setDescription("Send a direct message to a user")
-  .addUserOption(option =>
-    option.setName("user")
-      .setDescription("User to DM")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("message")
-      .setDescription("Message to send")
-      .setRequired(false)
-  )
-  .addAttachmentOption(option =>
-    option.setName("file")
-      .setDescription("Attach file/image (optional)")
-      .setRequired(false)
-  ),
   new SlashCommandBuilder()
   .setName("report")
   .setDescription("Report a player (Beta)")
@@ -449,22 +431,7 @@ new SlashCommandBuilder()
       .setDescription("Channel to send the message")
       .setRequired(false)
   ),
-  new SlashCommandBuilder()
-  .setName("mathquestions")
-  .setDescription("Solve a math question based on difficulty")
-  .addStringOption(option =>
-    option.setName("level")
-      .setDescription("Select difficulty")
-      .setRequired(true)
-      .addChoices(
-        { name: "Easy", value: "easy" },
-        { name: "Medium", value: "medium" },
-        { name: "Hard", value: "hard" }
-      )
-  ),
-  new SlashCommandBuilder()
-  .setName("trivia")
-  .setDescription("Answer a random trivia question"),
+
 new SlashCommandBuilder()
   .setName("ticketpanel")
   .setDescription("Send ticket panel")
@@ -491,51 +458,7 @@ new SlashCommandBuilder()
       .setDescription("Word to remove")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("postfeed")
-  .setDescription("Post a permanent photo or reel")
-  .addAttachmentOption(option =>
-    option
-      .setName("media")
-      .setDescription("Choose an image or video")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option
-      .setName("caption")
-      .setDescription("Write a caption")
-      .setRequired(false)
-  ),
-new SlashCommandBuilder()
-  .setName("help")
-  .setDescription("Show all bot commands"),
-new SlashCommandBuilder()
-  .setName("highlights")
-  .setDescription("View story highlights")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-  new SlashCommandBuilder()
-  .setName("eventjoin")
-  .setDescription("Send the event join panel")
-  .addChannelOption(option =>
-    option
-      .setName("channel")
-      .setDescription("Channel to send the event panel")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("selectteam")
-  .setDescription("Ask a user to join your team")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose your teammate")
-      .setRequired(true)
-  ),
+
 
   new SlashCommandBuilder()
   .setName("addauction")
@@ -593,30 +516,7 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
   .setName("randommessage")
   .setDescription("Generate a random message."),
-  new SlashCommandBuilder()
-  .setName("scanblist")
-  .setDescription("Scan the approved blacklist channel and rebuild blacklist data"),
-  new SlashCommandBuilder()
-  .setName("poststory")
-  .setDescription("Post a story that disappears after 24 hours")
-  .addAttachmentOption(option =>
-    option
-      .setName("media")
-      .setDescription("Choose an image or video")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("postnote")
-  .setDescription("Post a note that disappears after 24 hours")
-  .addStringOption(option =>
-    option
-      .setName("text")
-      .setDescription("Write your note")
-      .setRequired(true)
-  ),
-new SlashCommandBuilder()
-  .setName("testdice")
-  .setDescription("Roll a dice"),
+
 new SlashCommandBuilder()
   .setName("wouldyourather")
   .setDescription("Play Would You Rather"),
@@ -867,17 +767,6 @@ new SlashCommandBuilder()
     option.setName("feature")
       .setDescription("Explain the feature")
       .setRequired(true)
-  ),
-new SlashCommandBuilder()
-  .setName("checkalt")
-  .setDescription("Check a Discord user ID for possible alt accounts")
-  .addStringOption(option =>
-    option
-      .setName("userid")
-      .setDescription("Discord user ID, including users who left the server")
-      .setRequired(true)
-      .setMinLength(17)
-      .setMaxLength(20)
   ),
   new SlashCommandBuilder()
   .setName("whosgay")
