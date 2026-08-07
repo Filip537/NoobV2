@@ -879,7 +879,15 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("whostraight")
   .setDescription("Spot a random straight member"),
-
+new SlashCommandBuilder()
+  .setName("myfavgame")
+  .setDescription("Guess your favorite game")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("whosfurry")
   .setDescription("Spot a random furry member"),

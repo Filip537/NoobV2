@@ -2542,6 +2542,138 @@ interaction.reply(
 );
 
 }
+if (interaction.commandName === "myfavgame") {
+  const user =
+    interaction.options.getUser("user") || interaction.user;
+
+  const games = [
+    "Growtopia",
+    "Pixel Worlds",
+    "Plants vs. Zombies",
+    "Plants vs. Zombies 2",
+    "Hay Day",
+    "Minecraft",
+    "Roblox",
+    "Fortnite",
+    "Grand Theft Auto V",
+    "Grand Theft Auto: San Andreas",
+    "Grand Theft Auto: Vice City",
+    "Red Dead Redemption 2",
+    "Terraria",
+    "Stardew Valley",
+    "Among Us",
+    "Fall Guys",
+    "Geometry Dash",
+    "Subway Surfers",
+    "Temple Run",
+    "Clash of Clans",
+    "Clash Royale",
+    "Brawl Stars",
+    "Mobile Legends: Bang Bang",
+    "League of Legends",
+    "Valorant",
+    "Counter-Strike 2",
+    "Counter-Strike 1.6",
+    "Dota 2",
+    "PUBG",
+    "PUBG Mobile",
+    "Call of Duty",
+    "Call of Duty: Mobile",
+    "Call of Duty: Black Ops II",
+    "Call of Duty: Modern Warfare",
+    "Apex Legends",
+    "Overwatch",
+    "Team Fortress 2",
+    "Left 4 Dead 2",
+    "Half-Life 2",
+    "Portal 2",
+    "Garry's Mod",
+    "The Sims 4",
+    "The Sims 2",
+    "World of Warcraft",
+    "RuneScape",
+    "Old School RuneScape",
+    "MapleStory",
+    "Pokémon",
+    "Pokémon GO",
+    "Mario Kart",
+    "Super Mario Bros.",
+    "Super Mario 64",
+    "The Legend of Zelda",
+    "Animal Crossing",
+    "Super Smash Bros.",
+    "Sonic the Hedgehog",
+    "Pac-Man",
+    "Tetris",
+    "Street Fighter",
+    "Tekken",
+    "Mortal Kombat",
+    "Need for Speed: Most Wanted",
+    "Need for Speed: Underground 2",
+    "Forza Horizon 5",
+    "Gran Turismo",
+    "Euro Truck Simulator 2",
+    "FIFA",
+    "EA Sports FC",
+    "eFootball",
+    "NBA 2K",
+    "Wii Sports",
+    "Rocket League",
+    "Dead by Daylight",
+    "Five Nights at Freddy's",
+    "Undertale",
+    "Cuphead",
+    "Hollow Knight",
+    "Don't Starve",
+    "The Binding of Isaac",
+    "Castle Crashers",
+    "Bloons TD 6",
+    "Angry Birds",
+    "Fruit Ninja",
+    "Jetpack Joyride",
+    "Cut the Rope",
+    "Candy Crush Saga",
+    "Flappy Bird",
+    "Hill Climb Racing",
+    "8 Ball Pool",
+    "Crossy Road",
+    "Talking Tom",
+    "Cooking Mama",
+    "FarmVille",
+    "AdventureQuest Worlds",
+    "Transformice",
+    "Club Penguin",
+    "Habbo",
+    "Moshi Monsters",
+    "Poptropica"
+  ];
+
+  const game =
+    games[Math.floor(Math.random() * games.length)];
+
+  const messages = [
+    `I think ${user}'s favorite game is **${game}**.`,
+    `${user} definitely looks like a **${game}** player.`,
+    `My game detector says ${user} loves **${game}**.`,
+    `${user}'s secret favorite game has been exposed: **${game}**.`,
+    `I'm guessing ${user} spends way too much time playing **${game}**.`,
+    `Favorite game detected for ${user}: **${game}**.`,
+    `${user}, don't lie. I know you love **${game}**.`,
+    `After a very serious investigation, ${user}'s favorite game is **${game}**.`,
+    `Game radar result: ${user} → **${game}**.`,
+    `I have a feeling ${user} grew up playing **${game}**.`
+  ];
+
+  const result =
+    messages[Math.floor(Math.random() * messages.length)];
+
+  return interaction.reply({
+    content: result,
+    allowedMentions: {
+      parse: []
+    }
+  });
+}
 if(interaction.commandName==="futurewife"){
 
 const user=interaction.options.getUser("user")||interaction.user;
