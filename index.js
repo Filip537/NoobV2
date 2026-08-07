@@ -735,13 +735,21 @@ client.on("interactionCreate", async (interaction) => {
       })
       .setTimestamp();
   
-    await interaction.reply({
-      content: `<@${NIRI_ID}>, this user needs help`,
-      embeds: [helpEmbed],
-      allowedMentions: {
-        users: [NIRI_ID]
-      }
-    });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`niri_reply_${interaction.user.id}`)
+          .setLabel("Reply")
+          .setStyle(ButtonStyle.Danger)
+      );
+      
+      await interaction.reply({
+        content: `<@${NIRI_ID}>, this user needs help`,
+        embeds: [helpEmbed],
+        components: [row],
+        allowedMentions: {
+          users: [NIRI_ID]
+        }
+      });
   
     return;
   }
@@ -3323,6 +3331,39 @@ return interaction.update({
  }
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+  if (
+    interaction.isModalSubmit() &&
+    interaction.customId.startsWith("niri_reply_modal_")
+  ) {
+    const requesterId = interaction.customId.replace(
+      "niri_reply_modal_",
+      ""
+    );
+  
+    const reply = interaction.fields.getTextInputValue("reply");
+  
+    try {
+      const user = await client.users.fetch(requesterId);
+  
+      const embed = new EmbedBuilder()
+        .setColor("Red")
+        .setTitle("Niri replied to your inquiry")
+        .setDescription(reply)
+        .setTimestamp();
+  
+      await user.send({ embeds: [embed] });
+  
+      await interaction.reply({
+        content: "Reply sent successfully.",
+        ephemeral: true
+      });
+    } catch {
+      await interaction.reply({
+        content: "Unable to send the reply to the user.",
+        ephemeral: true
+      });
+    }
+  }
   if (interaction.customId.startsWith("auction_bid_modal_")) {
   const auctionId = interaction.customId.replace("auction_bid_modal_", "");
   const bidText = interaction.fields.getTextInputValue("auction_bid_amount").trim();
@@ -3522,6 +3563,37 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  if (
+    interaction.isButton() &&
+    interaction.customId.startsWith("niri_reply_")
+  ) {
+    const NIRI_ID = "1009567472577429515";
+  
+    if (interaction.user.id !== NIRI_ID) {
+      return interaction.reply({
+        content: "Only Niri can use this button.",
+        ephemeral: true
+      });
+    }
+  
+    const requesterId = interaction.customId.replace("niri_reply_", "");
+  
+    const modal = new ModalBuilder()
+      .setCustomId(`niri_reply_modal_${requesterId}`)
+      .setTitle("Reply to User");
+  
+    const replyInput = new TextInputBuilder()
+      .setCustomId("reply")
+      .setLabel("Your reply")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
+  
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(replyInput)
+    );
+  
+    return interaction.showModal(modal);
+  }
   if (interaction.customId.startsWith("market_sold_")) {
     const marketId = interaction.customId.replace("market_sold_", "");
     const listings = loadMarket();
