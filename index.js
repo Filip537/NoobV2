@@ -9,11 +9,22 @@ process.on("unhandledRejection", (err) => {
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
 });
-
-const wyr = require("./commands/wyr.js");
+const testLevelCommand = require("./commands/testlevelup.js");const wyr = require("./commands/wyr.js");
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
+const renderWorld = require("./commands/renderworld.js");
+const call = require("./feature/call.js");
+const inventoryFeature = require("./feature/inventory.js");
+const slot = require("./feature/slot.js");
+const fishing = require("./feature/fishing.js");
+const task = require("./feature/task.js");
+const trade = require("./feature/trade.js");
+const business = require("./feature/business.js");
+const casino = require("./feature/casino.js");
+const pvp = require("./feature/pvp.js");
+const gamble = require("./feature/gamble.js");
 const level = require("./feature/level.js");
+const stickerGif = require("./feature/stickerGif.js");
 const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
@@ -546,7 +557,6 @@ intents: [
 ],
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
-require("./nirielAlert.js")(client);
 const sharkfinReplyFile = "./sharkfinReplies.json";
 
 function loadSharkfinReplies() {
@@ -638,7 +648,7 @@ function getRandomMessages() {
 }
 
 const birthdayFile = "./birthdays.json";
-const birthdayChannel = "1444902597730504725";
+const birthdayChannel = "1411995708403486780";
 const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
 const PENDING_CHANNEL = "1481767733304623235";
@@ -962,6 +972,30 @@ async function scanBlacklistChannel() {
     saved: blacklist.length
   };
 }
+const worldCupCommand = require('./feature/worldcup');
+
+client.once('ready', () => {
+    console.log(`${client.user.tag} is online.`);
+
+    // Check completed matches every five minutes.
+    setInterval(async () => {
+        try {
+            const result =
+                await worldCupCommand.settleWorldCupBets(client);
+
+            if (result.settled > 0) {
+                console.log(
+                    `[World Cup] Settled ${result.settled} bets.`
+                );
+            }
+        } catch (error) {
+            console.error(
+                '[World Cup settlement error]',
+                error
+            );
+        }
+    }, 5 * 60 * 1000);
+});
 async function cleanupExpiredStories() {
   const stories = loadStories();
   const now = Date.now();
@@ -1043,64 +1077,97 @@ async function cleanUnknownBirthdays(guild, birthdays) {
 
   return removed;
 }
-
-async function checkBirthdays() {
+async function checkBirthdays(forceCheck = false) {
   const now = getGMT8DateParts();
 
-  if (now.hour !== 9) return;
+  if (!forceCheck && now.hour !== 9) {
+    return;
+  }
 
   const birthdays = loadBirthdays();
-  const channel = await client.channels.fetch(birthdayChannel).catch(() => null);
 
-  if (!channel || !channel.guild) return;
+  const birthdayChatChannel = await client.channels
+    .fetch(birthdayChannel)
+    .catch(() => null);
 
-  await cleanUnknownBirthdays(channel.guild, birthdays);
+  if (
+    !birthdayChatChannel ||
+    !birthdayChatChannel.isTextBased() ||
+    !birthdayChatChannel.guild
+  ) {
+    console.log("Birthday chat channel was not found.");
+    return;
+  }
 
   for (const userId of Object.keys(birthdays)) {
     const birthday = birthdays[userId];
 
-    if (!birthday || !birthday.day || !birthday.month) continue;
-
-    const member = await channel.guild.members.fetch(userId).catch(() => null);
-
-    if (!member || member.user.bot) {
-      delete birthdays[userId];
+    if (!birthday?.day || !birthday?.month) {
       continue;
     }
 
-    if (
-      birthday.day === now.day &&
-      birthday.month === now.month &&
-      birthday.lastBirthdaySent !== now.dateKey
-    ) {
-      await channel.send({
-        content: `🎉 Happy Birthday ${member}! Hope you have an amazing day!`
-      });
+    const member = await birthdayChatChannel.guild.members
+      .fetch(userId)
+      .catch(() => null);
 
-      await member.send({
-        content:
-`🎉 Happy Birthday!
-
-Hello ${member}, today is your birthday!
-
-We hope you have an amazing day. Enjoy your special day 🎂`
-      }).catch(() => {});
-
-      await member.roles.add(birthdayRole).catch(() => {});
-
-      setTimeout(async () => {
-        const freshMember = await channel.guild.members.fetch(userId).catch(() => null);
-        if (freshMember) {
-          await freshMember.roles.remove(birthdayRole).catch(() => {});
-        }
-      }, 24 * 60 * 60 * 1000);
-
-      birthday.lastBirthdaySent = now.dateKey;
+    if (!member || member.user.bot) {
+      continue;
     }
+
+    const isBirthday =
+      Number(birthday.day) === Number(now.day) &&
+      Number(birthday.month) === Number(now.month);
+
+    const alreadySent =
+      birthday.lastBirthdaySent === now.dateKey;
+
+    if (!isBirthday || alreadySent) {
+      continue;
+    }
+
+    const nickname =
+      member.displayName ||
+      member.user.globalName ||
+      member.user.username;
+
+    await birthdayChatChannel.send({
+      content:
+        `🎉 Today is <@${member.id}>'s birthday!\n\n` +
+        `Happy Birthday, **${nickname}**! ` +
+        `Everyone please wish them an amazing birthday! 🎂`,
+      allowedMentions: {
+        users: [member.id]
+      }
+    }).catch(err => {
+      console.error("Birthday message failed:", err);
+    });
+
+    await member.send({
+      content:
+        `🎉 Happy Birthday, ${nickname}!\n\n` +
+        `Today is your special day. We hope you have an amazing birthday! 🎂`
+    }).catch(() => {});
+
+    await member.roles.add(birthdayRole).catch(() => {});
+
+    setTimeout(async () => {
+      const freshMember = await birthdayChatChannel.guild.members
+        .fetch(userId)
+        .catch(() => null);
+
+      if (freshMember) {
+        await freshMember.roles
+          .remove(birthdayRole)
+          .catch(() => {});
+      }
+    }, 24 * 60 * 60 * 1000);
+
+    birthday.lastBirthdaySent = now.dateKey;
   }
 
   saveBirthdays(birthdays);
 }
+
 function clone(board) {
   return board.map(r => [...r]);
 }
@@ -1582,6 +1649,631 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+ if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "checkalt"
+) {
+  const CHECK_ALT_ROLE = "1491399898237501530";
+
+  const executor = await interaction.guild.members
+    .fetch(interaction.user.id)
+    .catch(() => null);
+
+  const hasPermission =
+    interaction.user.id === OWNER_ID ||
+    interaction.member.permissions.has("Administrator") ||
+    executor?.roles.cache.has(CHECK_ALT_ROLE);
+
+  if (!hasPermission) {
+    return interaction.reply({
+      content: "❌ You do not have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({
+    ephemeral: true
+  });
+
+  const userId = interaction.options
+    .getString("userid", true)
+    .trim()
+    .replace(/[<@!>]/g, "");
+
+  if (!/^\d{17,20}$/.test(userId)) {
+    return interaction.editReply({
+      content:
+        "❌ Invalid Discord user ID.\n" +
+        "Enable Developer Mode, right-click the user, then press **Copy User ID**."
+    });
+  }
+
+  let targetUser;
+
+  try {
+    targetUser = await client.users.fetch(userId, {
+      force: true
+    });
+  } catch (error) {
+    console.error("Checkalt user fetch error:", error);
+
+    return interaction.editReply({
+      content:
+        "❌ I could not find that Discord account. Check that the user ID is correct."
+    });
+  }
+
+  if (targetUser.bot) {
+    return interaction.editReply({
+      content: "❌ Bot accounts cannot be checked."
+    });
+  }
+
+  // The target may have already left the server.
+  const targetMember = await interaction.guild.members
+    .fetch(userId)
+    .catch(() => null);
+
+  // Load all current server members for comparison.
+  await interaction.guild.members.fetch().catch(error => {
+    console.error("Checkalt member fetch error:", error);
+  });
+
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  const accountAgeDays = Math.floor(
+    (now - targetUser.createdTimestamp) / dayMs
+  );
+
+  const serverAgeDays =
+    targetMember?.joinedTimestamp
+      ? Math.floor(
+          (now - targetMember.joinedTimestamp) / dayMs
+        )
+      : null;
+
+  function normalizeName(name) {
+    return String(name || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function levenshteinDistance(first, second) {
+    const a = normalizeName(first);
+    const b = normalizeName(second);
+
+    if (!a) return b.length;
+    if (!b) return a.length;
+
+    const matrix = Array.from(
+      { length: b.length + 1 },
+      () => Array(a.length + 1).fill(0)
+    );
+
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i][0] = i;
+    }
+
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        const cost =
+          b[i - 1] === a[j - 1] ? 0 : 1;
+
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[b.length][a.length];
+  }
+
+  function similarity(first, second) {
+    const a = normalizeName(first);
+    const b = normalizeName(second);
+
+    if (!a || !b) return 0;
+    if (a === b) return 100;
+
+    const longestLength = Math.max(
+      a.length,
+      b.length
+    );
+
+    const distance = levenshteinDistance(a, b);
+
+    return Math.max(
+      0,
+      Math.round(
+        (1 - distance / longestLength) * 100
+      )
+    );
+  }
+
+  function getAvatarHash(user) {
+    return user.avatar || null;
+  }
+
+  let riskScore = 0;
+  const riskReasons = [];
+
+  if (accountAgeDays <= 3) {
+    riskScore += 35;
+    riskReasons.push(
+      "The checked account was created less than 3 days ago."
+    );
+  } else if (accountAgeDays <= 7) {
+    riskScore += 25;
+    riskReasons.push(
+      "The checked account was created less than 7 days ago."
+    );
+  } else if (accountAgeDays <= 30) {
+    riskScore += 15;
+    riskReasons.push(
+      "The checked account was created less than 30 days ago."
+    );
+  }
+
+  if (!targetUser.avatar) {
+    riskScore += 10;
+    riskReasons.push(
+      "The checked account uses a default Discord avatar."
+    );
+  }
+
+  if (!targetMember) {
+    riskReasons.push(
+      "The checked account is no longer inside this server."
+    );
+  } else {
+    if (serverAgeDays !== null && serverAgeDays <= 1) {
+      riskScore += 20;
+      riskReasons.push(
+        "The checked account joined this server less than 1 day ago."
+      );
+    } else if (
+      serverAgeDays !== null &&
+      serverAgeDays <= 7
+    ) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account joined this server less than 7 days ago."
+      );
+    }
+
+    const normalRoles =
+      targetMember.roles.cache.filter(
+        role => role.id !== interaction.guild.id
+      );
+
+    if (normalRoles.size === 0) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account has no server roles."
+      );
+    }
+
+    if (targetMember.pending) {
+      riskScore += 10;
+      riskReasons.push(
+        "The checked account has not completed membership screening."
+      );
+    }
+  }
+
+  const possibleMatches = [];
+
+  for (
+    const member of
+    interaction.guild.members.cache.values()
+  ) {
+    if (
+      member.id === targetUser.id ||
+      member.user.bot
+    ) {
+      continue;
+    }
+
+    const usernameSimilarity = similarity(
+      targetUser.username,
+      member.user.username
+    );
+
+    const globalNameSimilarity = similarity(
+      targetUser.globalName,
+      member.user.globalName
+    );
+
+    const displayNameSimilarity = targetMember
+      ? similarity(
+          targetMember.displayName,
+          member.displayName
+        )
+      : 0;
+
+    const highestNameSimilarity = Math.max(
+      usernameSimilarity,
+      globalNameSimilarity,
+      displayNameSimilarity
+    );
+
+    let matchScore = 0;
+    const matchReasons = [];
+
+    if (highestNameSimilarity >= 90) {
+      matchScore += 55;
+      matchReasons.push(
+        `${highestNameSimilarity}% similar name`
+      );
+    } else if (highestNameSimilarity >= 75) {
+      matchScore += 35;
+      matchReasons.push(
+        `${highestNameSimilarity}% similar name`
+      );
+    } else if (highestNameSimilarity >= 60) {
+      matchScore += 20;
+      matchReasons.push(
+        `${highestNameSimilarity}% similar name`
+      );
+    }
+
+    const sameAvatar =
+      getAvatarHash(targetUser) &&
+      getAvatarHash(targetUser) ===
+        getAvatarHash(member.user);
+
+    if (sameAvatar) {
+      matchScore += 45;
+      matchReasons.push(
+        "uses the exact same Discord avatar"
+      );
+    }
+
+    if (
+      !targetUser.avatar &&
+      !member.user.avatar
+    ) {
+      matchScore += 5;
+      matchReasons.push(
+        "both use default avatars"
+      );
+    }
+
+    const otherAccountAgeDays = Math.floor(
+      (now - member.user.createdTimestamp) /
+        dayMs
+    );
+
+    const creationDifferenceDays = Math.abs(
+      accountAgeDays - otherAccountAgeDays
+    );
+
+    if (
+      accountAgeDays <= 30 &&
+      otherAccountAgeDays <= 30
+    ) {
+      matchScore += 10;
+      matchReasons.push(
+        "both accounts are newly created"
+      );
+    }
+
+    if (creationDifferenceDays <= 1) {
+      matchScore += 15;
+      matchReasons.push(
+        "accounts were created within 1 day"
+      );
+    } else if (creationDifferenceDays <= 7) {
+      matchScore += 8;
+      matchReasons.push(
+        "accounts were created within 7 days"
+      );
+    }
+
+    if (
+      targetMember?.joinedTimestamp &&
+      member.joinedTimestamp
+    ) {
+      const joinDifference = Math.abs(
+        targetMember.joinedTimestamp -
+        member.joinedTimestamp
+      );
+
+      if (joinDifference <= 30 * 60 * 1000) {
+        matchScore += 30;
+        matchReasons.push(
+          "joined the server within 30 minutes"
+        );
+      } else if (
+        joinDifference <=
+        24 * 60 * 60 * 1000
+      ) {
+        matchScore += 15;
+        matchReasons.push(
+          "joined the server within 24 hours"
+        );
+      }
+    }
+
+    if (matchScore >= 25) {
+      possibleMatches.push({
+        member,
+        score: Math.min(matchScore, 100),
+        reasons: matchReasons
+      });
+    }
+  }
+
+  possibleMatches.sort(
+    (a, b) => b.score - a.score
+  );
+
+  const topMatches =
+    possibleMatches.slice(0, 5);
+
+  if (topMatches.length > 0) {
+    riskScore += Math.min(
+      25,
+      Math.floor(topMatches[0].score / 4)
+    );
+
+    riskReasons.push(
+      "Possible related accounts were found inside the server."
+    );
+  }
+
+  riskScore = Math.min(riskScore, 100);
+
+  let riskLevel = "Low";
+  let riskColor = 0x57f287;
+
+  if (riskScore >= 70) {
+    riskLevel = "High";
+    riskColor = 0xed4245;
+  } else if (riskScore >= 40) {
+    riskLevel = "Medium";
+    riskColor = 0xfee75c;
+  }
+
+  const accountCreatedTimestamp = Math.floor(
+    targetUser.createdTimestamp / 1000
+  );
+
+  const joinedTimestamp =
+    targetMember?.joinedTimestamp
+      ? Math.floor(
+          targetMember.joinedTimestamp / 1000
+        )
+      : null;
+
+  const normalRoleCount = targetMember
+    ? targetMember.roles.cache.filter(
+        role => role.id !== interaction.guild.id
+      ).size
+    : 0;
+
+  const reasonsText =
+    riskReasons.length > 0
+      ? riskReasons
+          .map(reason => `• ${reason}`)
+          .join("\n")
+      : "• No major risk signals were found.";
+
+  const matchesText =
+    topMatches.length > 0
+      ? topMatches
+          .map((match, index) => {
+            const reasons =
+              match.reasons.length > 0
+                ? match.reasons.join(", ")
+                : "general account similarities";
+
+            return (
+              `**${index + 1}.** ` +
+              `<@${match.member.id}> ` +
+              `(\`${match.member.id}\`)\n` +
+              `Match score: **${match.score}%**\n` +
+              `Signals: ${reasons}`
+            );
+          })
+          .join("\n\n")
+      : "No strongly similar accounts were found inside the server.";
+
+  const embed = new EmbedBuilder()
+    .setColor(riskColor)
+    .setTitle("Alt Account Risk Check")
+    .setThumbnail(
+      targetUser.displayAvatarURL({
+        size: 256
+      })
+    )
+    .setDescription(
+      `**Checked user:** ${targetUser.username}\n` +
+      `**User ID:** \`${targetUser.id}\`\n` +
+      `**Currently in server:** ${
+        targetMember ? "Yes" : "No"
+      }\n\n` +
+      `**Risk level:** ${riskLevel}\n` +
+      `**Risk score:** ${riskScore}/100\n\n` +
+      "This is only a public-account comparison. " +
+      "It cannot confirm that two accounts have the same owner."
+    )
+    .addFields(
+      {
+        name: "Checked Account",
+        value:
+          `Username: **${targetUser.username}**\n` +
+          `Global name: **${
+            targetUser.globalName || "None"
+          }**\n` +
+          `Created: <t:${accountCreatedTimestamp}:F>\n` +
+          `Account age: **${accountAgeDays} days**\n` +
+          `Joined server: ${
+            joinedTimestamp
+              ? `<t:${joinedTimestamp}:F>`
+              : "Not in server / unavailable"
+          }\n` +
+          `Server roles: **${
+            targetMember
+              ? normalRoleCount
+              : "Unavailable"
+          }**`
+      },
+      {
+        name: "Risk Signals",
+        value:
+          reasonsText.slice(0, 1024)
+      },
+      {
+        name: "Possible Alts Still in Server",
+        value:
+          matchesText.slice(0, 1024)
+      }
+    )
+    .setFooter({
+      text:
+        "Do not punish users based only on this score."
+    })
+    .setTimestamp();
+
+  return interaction.editReply({
+    embeds: [embed],
+    allowedMentions: {
+      parse: []
+    }
+  });
+}
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "worldcup"
+) {
+  return worldCupCommand.execute(interaction, client);
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await call.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isChatInputCommand()) {
+  const handled = await task.handleCommand(interaction, client);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await task.handleButton(interaction);
+  if (handled) return;
+}
+
+if (interaction.isChatInputCommand()) {
+  const handled = await trade.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await trade.handleButton(interaction);
+  if (handled) return;
+}
+if (interaction.isChatInputCommand()) {
+  const handled = await fishing.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await fishing.handleButton(interaction);
+  if (handled) return;
+}
+if (interaction.isStringSelectMenu()) {
+  const handled = await fishing.handleSelect(interaction);
+  if (handled) return;
+}
+if (interaction.isChatInputCommand() && interaction.commandName === "renderworld") {
+  return renderWorld.execute(interaction);
+}
+
+if (interaction.isButton()) {
+  const handled = await renderWorld.handleButton(interaction);
+  if (handled) return;
+}
+
+if (interaction.isModalSubmit()) {
+  const handled = await renderWorld.handleModal(interaction);
+  if (handled) return;
+}
+if (interaction.isStringSelectMenu()) {
+  const handled = await call.handleSelect(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand() && interaction.commandName === "testlevelup") {
+  return testLevelCommand.execute(interaction);
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await business.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await business.handleButton(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await casino.handleCommand(interaction);
+  if (handled) return;
+}
+if (interaction.isButton()) {
+  const handled = await profileFeature.handleButton(interaction);
+  if (handled) return;
+}
+
+if (interaction.isStringSelectMenu()) {
+  const handled = await profileFeature.handleSelect(interaction);
+  if (handled) return;
+}
+if (interaction.isButton()) {
+  const handled = await casino.handleButton(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await pvp.handleCommand(interaction);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+  const handled = await pvp.handleButton(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await casino.handleCommand(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await gamble.handleCommand(interaction);
+  if (handled) return;
+}
+  if (interaction.isChatInputCommand()) {
+  const handled = await slot.handleCommand(interaction);
+  if (handled) return;
+}
+  if (interaction.isAutocomplete()) {
+  const handled = await stickerGif.handleAutocomplete(interaction);
+  if (handled) return;
+}
+
+if (interaction.isChatInputCommand()) {
+  const handled = await stickerGif.handleCommand(interaction, client);
+  if (handled) return;
+}
+
+if (interaction.isButton()) {
+const handled = await stickerGif.handleButton(interaction, client);
+  if (handled) return;
+}
   if (interaction.commandName === "wiki") {
   const menu = buildWikiMenu();
 
@@ -1629,23 +2321,8 @@ if (interaction.commandName === "editwiki") {
     ephemeral: true
   });
 }
-  if (interaction.commandName === "inventory") {
-  const target = interaction.options.getUser("user") || interaction.user;
-  const levels = loadLevelsData();
-  const data = levels[target.id] || {};
-
-  const wl = data.wl || 0;
-  const level = data.level || 1;
-  const xp = data.xp || 0;
-
-  return interaction.reply({
-    content:
-      `🎒 **${target.username}'s Inventory**\n` +
-      `World Locks: **${wl} WL**\n` +
-      `Level: **${level}**\n` +
-      `XP: **${xp}**`,
-    allowedMentions: { parse: [] }
-  });
+ if (interaction.isChatInputCommand() && interaction.commandName === "inventory") {
+  return inventoryFeature.executeInventory(interaction);
 }
 
 if (interaction.commandName === "tellstory") {
@@ -2927,36 +3604,78 @@ if (interaction.commandName === "sayas") {
     });
   }
 }
-if (interaction.commandName === "dms") {
-  const SAYAS_ROLE = "1491399898237501530";
+if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
+  const DMS_ROLE = "1491399898237501530";
 
-  if (!interaction.member.roles.cache.has(SAYAS_ROLE) && interaction.user.id !== OWNER_ID) {
+  const executorMember = await interaction.guild.members
+    .fetch(interaction.user.id)
+    .catch(() => null);
+
+  const hasPermission =
+    interaction.user.id === OWNER_ID ||
+    executorMember?.roles.cache.has(DMS_ROLE);
+
+  if (!hasPermission) {
     return interaction.reply({
       content: "❌ You do not have permission to use this command.",
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
   await interaction.deferReply({ ephemeral: true });
 
-  const user = interaction.options.getUser("user");
+  const selectedUser = interaction.options.getUser("user", true);
   const message = interaction.options.getString("message");
-  const file = interaction.options.getAttachment("file");
+  const attachment = interaction.options.getAttachment("file");
 
-  if (!message && !file) {
+  if (!message && !attachment) {
     return interaction.editReply("❌ Please provide a message or attachment.");
   }
 
-  try {
-    await user.send({
-      content: message || null,
-      files: file ? [file.url] : []
-    });
+  // Make sure the user is actually in this server
+  const targetMember = await interaction.guild.members
+    .fetch(selectedUser.id)
+    .catch(() => null);
 
-    return interaction.editReply(`✅ Successfully sent a DM to ${user.tag}`);
+  if (!targetMember) {
+    return interaction.editReply("❌ That user is not in this server.");
+  }
+
+  if (targetMember.user.bot) {
+    return interaction.editReply("❌ You cannot DM a bot.");
+  }
+
+  try {
+    const payload = {};
+
+    if (message) payload.content = message;
+
+    if (attachment) {
+      payload.files = [
+        {
+          attachment: attachment.url,
+          name: attachment.name,
+        },
+      ];
+    }
+
+    await targetMember.send(payload);
+
+    return interaction.editReply(
+      `✅ Successfully sent a DM to **${targetMember.user.tag}**`
+    );
   } catch (err) {
     console.error("DM Error:", err);
-    return interaction.editReply("❌ Failed to send DM. The user may have DMs closed.");
+
+    if (err.code === 50007) {
+      return interaction.editReply(
+        "❌ That user has DMs disabled or has blocked the bot."
+      );
+    }
+
+    return interaction.editReply(
+      "❌ Failed to send the DM. Check the console for the error."
+    );
   }
 }
 if (interaction.commandName === "sendupdates") {
@@ -3182,16 +3901,8 @@ const percent = Math.floor(Math.random() * 500) + 1;
   });
 }
 
- if (interaction.isChatInputCommand() && interaction.commandName === "createprofile") {
-  return profileFeature.executeCreateProfile(interaction);
-}
-
 if (interaction.isChatInputCommand() && interaction.commandName === "profile") {
   return profileFeature.executeProfile(interaction);
-}
-
-if (interaction.isChatInputCommand() && interaction.commandName === "viewprofile") {
-  return profileFeature.executeViewProfile(interaction);
 }
 
 if (interaction.commandName === "scanblist") {
@@ -3522,38 +4233,58 @@ if (interaction.channel.id === PAY_CHANNEL) {
   }
   
 if (interaction.commandName === "leaderboard") {
-
   const category = interaction.options.getString("category");
+  const levels = loadLevelsData();
 
-  if (category === "level") {
-    const data = JSON.parse(fs.readFileSync("./levels.json", "utf8"));
+  const users = Object.entries(levels)
+    .map(([userId, data]) => ({
+      userId,
+      level: data.level || 1,
+      xp: data.xp || 0,
+      wl: data.wl || 0
+    }))
+    .filter(user => category === "wl" ? user.wl > 0 : user.level > 0)
+    .sort((a, b) => {
+      if (category === "wl") return b.wl - a.wl;
+      return b.level - a.level || b.xp - a.xp;
+    })
+    .slice(0, 10);
 
-    const sorted = Object.entries(data)
-      .sort((a, b) => b[1].level - a[1].level)
-      .slice(0, 10);
-
-    if (sorted.length === 0) {
-      return interaction.reply("No data yet.");
-    }
-
-    let description = "";
-
-    for (let i = 0; i < sorted.length; i++) {
-      const [userId, info] = sorted[i];
-
-      description += `**${i + 1}.** <@${userId}> — Level ${info.level} (${info.xp} XP)\n`;
-    }
-
-    const embed = new EmbedBuilder()
-.setTitle("<:bulletin:1447778065512923217> Level Leaderboard")
-      .setDescription(description)
-      .setColor("Gold");
-
+  if (users.length === 0) {
     return interaction.reply({
-      embeds: [embed],
-      allowedMentions: { parse: [] } // 🚫 prevents ping
+      content: "❌ No leaderboard data found.",
+      ephemeral: true
     });
   }
+
+  const title = category === "wl"
+    ? "🏆 World Locks Leaderboard"
+    : "🏆 Level Leaderboard";
+
+  const description = users.map((user, index) => {
+    const medal =
+      index === 0 ? "🥇" :
+      index === 1 ? "🥈" :
+      index === 2 ? "🥉" :
+      `**${index + 1}.**`;
+
+    if (category === "wl") {
+      return `${medal} <@${user.userId}> — **${user.wl} WL**`;
+    }
+
+    return `${medal} <@${user.userId}> — Level **${user.level}** | XP **${user.xp}**`;
+  }).join("\n");
+
+  const embed = new EmbedBuilder()
+    .setColor("Gold")
+    .setTitle(title)
+    .setDescription(description)
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [embed],
+    allowedMentions: { parse: [] }
+  });
 }
 if (interaction.commandName === "wordbanlist") {
 
@@ -3572,66 +4303,248 @@ if (interaction.commandName === "wordbanlist") {
     ephemeral: true
   });
 }
-
 if (interaction.commandName === "bdaylist") {
-  await interaction.deferReply(); // visible to everyone
+  await interaction.deferReply();
+
+  const selectedMonth =
+    interaction.options.getString("month") || "all";
+
+  const selectedMonthNumber =
+    selectedMonth === "all"
+      ? null
+      : Number(selectedMonth);
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
 
   const birthdays = loadBirthdays();
   const entries = [];
-  let removed = 0;
 
   for (const userId of Object.keys(birthdays)) {
-    const member =
-      interaction.guild.members.cache.get(userId) ||
-      await interaction.guild.members.fetch(userId).catch(() => null);
+    const birthday = birthdays[userId];
 
-    if (!member || member.user.bot) {
-      delete birthdays[userId];
-      removed++;
+    if (!birthday?.day || !birthday?.month || !birthday?.year) {
       continue;
     }
 
-    const b = birthdays[userId];
-    entries.push(`<@${member.id}> → ${b.day}/${b.month}/${b.year}`);
-  }
+    const birthdayMonth = Number(birthday.month);
 
-  if (removed > 0) {
-    saveBirthdays(birthdays);
-  }
+    if (
+      selectedMonthNumber !== null &&
+      birthdayMonth !== selectedMonthNumber
+    ) {
+      continue;
+    }
 
-  if (entries.length === 0) {
-    return interaction.editReply({
-      content: "No birthdays saved."
+    const member =
+      interaction.guild.members.cache.get(userId) ||
+      await interaction.guild.members
+        .fetch(userId)
+        .catch(() => null);
+
+    let displayName;
+
+    if (member && !member.user.bot) {
+      displayName =
+        member.displayName ||
+        member.user.globalName ||
+        member.user.username;
+    } else {
+      displayName =
+        birthday.savedName ||
+        birthday.username ||
+        "Former Member";
+    }
+
+    entries.push({
+      displayName,
+      day: Number(birthday.day),
+      month: birthdayMonth,
+      year: Number(birthday.year)
     });
   }
 
-  const chunks = [];
-  let current = "";
-
-  for (const line of entries) {
-    if ((current + line + "\n").length > 1800) {
-      chunks.push(current);
-      current = "";
+  entries.sort((a, b) => {
+    if (a.month !== b.month) {
+      return a.month - b.month;
     }
 
-    current += line + "\n";
+    if (a.day !== b.day) {
+      return a.day - b.day;
+    }
+
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  if (entries.length === 0) {
+    const emptyMessage =
+      selectedMonthNumber === null
+        ? "No birthdays have been saved."
+        : `No birthdays were found in **${monthNames[selectedMonthNumber - 1]}**.`;
+
+    return interaction.editReply({
+      content: emptyMessage
+    });
   }
 
-  if (current) chunks.push(current);
+  let output = "";
+
+  // SHOW ALL: group birthdays under each month heading
+  if (selectedMonthNumber === null) {
+    output = "## 🎂 Birthday List — All Months\n\n";
+
+    for (let month = 1; month <= 12; month++) {
+      const monthEntries = entries.filter(entry => entry.month === month);
+
+      output += `### ${monthNames[month - 1]}\n`;
+
+      if (monthEntries.length === 0) {
+        output += "No birthdays.\n\n";
+        continue;
+      }
+
+      for (const entry of monthEntries) {
+        output +=
+          `• **${entry.displayName}** → ` +
+          `${entry.day}/${entry.month}/${entry.year}\n`;
+      }
+
+      output += "\n";
+    }
+  }
+
+  // SINGLE MONTH: show only selected month
+  else {
+    output =
+      `## 🎂 Birthday List — ${monthNames[selectedMonthNumber - 1]}\n\n`;
+
+    for (const entry of entries) {
+      output +=
+        `• **${entry.displayName}** → ` +
+        `${entry.day}/${entry.month}/${entry.year}\n`;
+    }
+  }
+
+  const chunks = [];
+  let currentChunk = "";
+
+  const lines = output.split("\n");
+
+  for (const line of lines) {
+    const nextLine = line + "\n";
+
+    if ((currentChunk + nextLine).length > 1900) {
+      chunks.push(currentChunk);
+      currentChunk = "";
+    }
+
+    currentChunk += nextLine;
+  }
+
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk);
+  }
 
   await interaction.editReply({
-    content: `## Birthday List\n\n${chunks[0]}`,
-    allowedMentions: { parse: [] }
+    content: chunks[0],
+    allowedMentions: {
+      parse: []
+    }
   });
 
   for (let i = 1; i < chunks.length; i++) {
     await interaction.followUp({
       content: chunks[i],
-      allowedMentions: { parse: [] }
+      allowedMentions: {
+        parse: []
+      }
     });
   }
 
   return;
+}
+if (interaction.commandName === "checkbirthday") {
+    const target = interaction.options.getUser("user");
+
+    const birthdays = loadBirthdays();
+
+    const birthday = birthdays[target.id];
+
+    if (!birthday) {
+        return interaction.reply({
+            content: `❌ **${target.username}** hasn't added their birthday yet.`,
+            ephemeral: true
+        });
+    }
+
+    const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+    ];
+
+    const member =
+        interaction.guild.members.cache.get(target.id) ||
+        await interaction.guild.members.fetch(target.id).catch(() => null);
+
+    const displayName =
+        member?.displayName ||
+        target.globalName ||
+        target.username;
+
+    const today = new Date();
+
+    let nextBirthday = new Date(
+        today.getFullYear(),
+        Number(birthday.month) - 1,
+        Number(birthday.day)
+    );
+
+    if (nextBirthday < today) {
+        nextBirthday.setFullYear(today.getFullYear() + 1);
+    }
+
+    const diffDays = Math.ceil(
+        (nextBirthday - today) / (1000 * 60 * 60 * 24)
+    );
+
+    await interaction.reply({
+        embeds: [
+            new EmbedBuilder()
+                .setColor(0xF6A5C0)
+                .setTitle("🎂 Birthday Information")
+                .setDescription(
+                    `**User:** ${displayName}\n\n` +
+                    `**Birthday:** ${birthday.day} ${monthNames[Number(birthday.month) - 1]} ${birthday.year}\n` +
+                    `**Next Birthday:** <t:${Math.floor(nextBirthday.getTime() / 1000)}:D>\n` +
+                    `**Countdown:** **${diffDays} day${diffDays === 1 ? "" : "s"}**`
+                )
+                .setThumbnail(target.displayAvatarURL())
+        ]
+    });
+
+    return;
 }
 if (interaction.commandName === "testbday") {
   if (!interaction.member.roles.cache.has(adminRole)) {
@@ -3853,9 +4766,11 @@ if (interaction.commandName === "report") {
 }
 // ================= ADD BIRTHDAY =================
 if (interaction.commandName === "addbirthday") {
-  const day = interaction.options.getInteger("day");
-  const month = interaction.options.getInteger("month");
+  const day = interaction.options.getInteger("date");
+  const monthInput = interaction.options.getString("month");
   const year = interaction.options.getInteger("year");
+
+  const month = Number(monthInput);
 
   if (!isValidBirthday(day, month, year)) {
     return interaction.reply({
@@ -3866,23 +4781,53 @@ if (interaction.commandName === "addbirthday") {
 
   const birthdays = loadBirthdays();
 
+  const member =
+    interaction.member ||
+    await interaction.guild.members
+      .fetch(interaction.user.id)
+      .catch(() => null);
+
+  const savedName =
+    member?.displayName ||
+    interaction.user.globalName ||
+    interaction.user.username;
+
   birthdays[interaction.user.id] = {
     day,
     month,
     year,
-    lastBirthdaySent: birthdays[interaction.user.id]?.lastBirthdaySent || null,
+    savedName,
+    username: interaction.user.username,
+    lastBirthdaySent:
+      birthdays[interaction.user.id]?.lastBirthdaySent || null,
     updatedAt: Date.now()
   };
 
   saveBirthdays(birthdays);
 
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
   return interaction.reply({
-    content: `✅ Your birthday has been saved: **${day}/${month}/${year}**`,
+    content:
+      `✅ Your birthday has been saved as ` +
+      `**${day} ${monthNames[month - 1]} ${year}**.`,
     ephemeral: true
   });
 }
   }
-
   // ================= DROPDOWN =================
  if (interaction.isStringSelectMenu()) {
   if (interaction.customId === "wiki_select") {
@@ -4590,8 +5535,7 @@ story.comments.push({
     ephemeral: true
   });
 }
-  const handled = await profileFeature.handleModal(interaction);
-  if (handled) return;
+
 const handledSocialModal = await socialFeature.handleModal(interaction);
 if (handledSocialModal !== false) return;
   return settings.handleModal(interaction);
@@ -4661,6 +5605,7 @@ if (interaction.customId.startsWith("role_")) {
 
 // ================= BUTTON =================
 if (interaction.isButton()) {
+  
   if (interaction.customId === "wiki_add_button") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
@@ -4693,6 +5638,11 @@ if (interaction.isButton()) {
   );
 
   return interaction.showModal(modal);
+}
+
+if (interaction.isButton()) {
+  const handled = await inventoryFeature.handleButton(interaction);
+  if (handled) return;
 }
 
 if (interaction.customId.startsWith("wiki_confirm_add_")) {
@@ -5101,9 +6051,6 @@ if (interaction.customId.startsWith("highlight_")) {
 
   const handledSocialButton = await socialFeature.handleButton(interaction);
 if (handledSocialButton !== false) return;
-const handledProfileButton = await profileFeature.handleButton(interaction, client);
-
-if (handledProfileButton) return;
 
 if (interaction.customId.startsWith("view_note_")) {
   const storyId = interaction.customId.replace("view_note_", "");
@@ -5439,8 +6386,6 @@ client.on("messageCreate", async (message) => {
   if (!message.guild) {
     return;
   }
-  // ================= AUTO REPLY: TUMMA / TUMMARATSU / NIRIEL =================
-
 // ================= SHARKFIN WEBHOOK AUTO REPLY =================
 const SHARKFIN_USER_IDS = [
   "946556932636950528",
@@ -5451,58 +6396,64 @@ if (SHARKFIN_USER_IDS.includes(message.author.id)) {
   let webhook = null;
 
   try {
-    // If message is inside a thread, use its parent channel
-    const webhookChannel = message.channel.isThread()
-      ? message.channel.parent
-      : message.channel;
+    if (!message.channel.isTextBased()) return;
 
-    if (
-      !webhookChannel ||
-      typeof webhookChannel.createWebhook !== "function"
-    ) {
-      console.log("Sharkfin: Cannot create webhook in this channel.");
-    } else {
-      webhook = await webhookChannel.createWebhook({
-        name: "NoobV2",
-        avatar: client.user.displayAvatarURL({
-          extension: "png",
-          size: 256
-        }),
-        reason: "Temporary NoobV2 Sharkfin webhook"
-      });
+    const sharkfinData = loadSharkfinReplies();
+    const today = new Date().toISOString().slice(0, 10);
 
-      const sendData = {
-        content: `<@${message.author.id}> loves sharkfin soup`,
-        allowedMentions: {
-          parse: [],
-          users: [message.author.id]
-        }
-      };
-
-      // If original message was inside a thread,
-      // send the webhook message into that thread
-      if (message.channel.isThread()) {
-        sendData.threadId = message.channel.id;
-      }
-
-      await webhook.send(sendData);
-
-      console.log(
-        `Sharkfin reply sent to ${message.author.id}`
-      );
+    // Separate daily counter for each user
+    if (!sharkfinData[today]) {
+      sharkfinData[today] = {};
     }
 
-  } catch (error) {
-    console.error(
-      "Sharkfin Webhook Error:",
-      error
+    const userReplyCount =
+      Number(sharkfinData[today][message.author.id]) || 0;
+
+    // Maximum 3 successful messages per user each day
+    if (userReplyCount >= 3) {
+      return;
+    }
+
+    webhook = await message.channel.createWebhook({
+      name: "NoobV2",
+      avatar: client.user.displayAvatarURL({
+        extension: "png",
+        size: 256
+      }),
+      reason: "Temporary Sharkfin auto-reply webhook"
+    });
+
+    await webhook.send({
+      content: `<@${message.author.id}> i love sharkfin soup`,
+      allowedMentions: {
+        parse: [],
+        users: [message.author.id]
+      }
+    });
+
+    // Only increase after the message sends successfully
+    sharkfinData[today][message.author.id] =
+      userReplyCount + 1;
+
+    saveSharkfinReplies(sharkfinData);
+
+    console.log(
+      `✅ Sharkfin webhook sent for ${message.author.id}`
     );
+
+  } catch (error) {
+    console.error("❌ Sharkfin Webhook Error:", error);
 
   } finally {
     if (webhook) {
       await webhook
-        .delete("Temporary NoobV2 Sharkfin webhook")
-        .catch(() => {});
+        .delete("Temporary Sharkfin webhook finished")
+        .catch(error => {
+          console.error(
+            "❌ Failed to delete Sharkfin webhook:",
+            error
+          );
+        });
     }
   }
 }
