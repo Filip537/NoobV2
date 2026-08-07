@@ -3389,20 +3389,21 @@ if (interaction.isModalSubmit()) {
         })
         .setTimestamp();
   
-      await webhook.send({
-        content: `<@${requesterId}>, Niri has replied to your inquiry.`,
-        embeds: [replyEmbed],
-        allowedMentions: {
-          users: [requesterId]
-        }
-      });
+        const sentMessage = await webhook.send({
+          content: `<@${requesterId}> Niri has responded to your help request.`,
+          embeds: [replyEmbed],
+          allowedMentions: {
+            users: [requesterId]
+          }
+        });
+        
+        await webhook.delete().catch(() => {});
   
-      // Delete webhook after sending
-      await webhook.delete("Niri help reply sent").catch(() => {});
-  
-      return interaction.editReply({
-        content: `Reply sent successfully in <#${NIRI_HELP_CHANNEL}>.`
-      });
+        return interaction.editReply({
+          content:
+            `Your response has been sent successfully.\n` +
+            `The user has been notified in <#1455812353936588944> and tagged there.`
+        });
   
     } catch (error) {
       console.error("Niri reply error:", error);
