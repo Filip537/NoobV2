@@ -664,6 +664,65 @@ function getUI(game) {
   ];
 }
 
+function shuffleArray(array) {
+  const copy = [...array];
+
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
+}
+
+function bingoNumbers(min, max, amount = 5) {
+  const numbers = [];
+
+  for (let i = min; i <= max; i++) {
+    numbers.push(i);
+  }
+
+  return shuffleArray(numbers).slice(0, amount);
+}
+
+function generateBingoCard() {
+  const B = bingoNumbers(1, 15);
+  const I = bingoNumbers(16, 30);
+  const N = bingoNumbers(31, 45);
+  const G = bingoNumbers(46, 60);
+  const O = bingoNumbers(61, 75);
+
+  const rows = [];
+
+  for (let i = 0; i < 5; i++) {
+    rows.push([
+      B[i],
+      I[i],
+      i === 2 ? "FREE" : N[i],
+      G[i],
+      O[i]
+    ]);
+  }
+
+  return rows;
+}
+
+function formatBingoCard(card) {
+  let output = " B     I     N     G     O\n";
+  output += "-----------------------------\n";
+
+  for (const row of card) {
+    output += row
+      .map(value => String(value).padStart(4, " "))
+      .join(" | ");
+
+    output += "\n";
+  }
+
+  return `\`\`\`\n${output}\`\`\``;
+}
+
 client.once("ready", async () => {
   await ticket.refreshAllTicketPanels(client);
 await ticket.cleanupCustomTickets(client);
@@ -707,6 +766,191 @@ cron.schedule("0 * * * *", async () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  if (
+    ["whosgay", "whospro", "whostraight", "whosfurry"].includes(
+      interaction.commandName
+    )
+  ) {
+    // Fetch members so the random selection is not limited
+    // to only recently cached users.
+    await interaction.guild.members.fetch().catch(() => {});
+  
+    const members = interaction.guild.members.cache.filter(member =>
+      !member.user.bot
+    );
+  
+    if (members.size === 0) {
+      return interaction.reply({
+        content: "I couldn't find any members."
+      });
+    }
+  
+    const randomMember =
+      members.random();
+  
+    const messages = {
+      whosgay: [
+        `Spotted a gay: ${randomMember}`,
+        `Found a gay: ${randomMember}`,
+        `Look who's gay: ${randomMember}`,
+        `Random gay spotted: ${randomMember}`,
+        `Caught in 4K: ${randomMember} is gay`,
+        `The gay detector found ${randomMember}`,
+        `Target acquired: ${randomMember}`,
+        `Well well well... look who I found: ${randomMember}`,
+        `Gay radar activated... ${randomMember}`,
+        `I found the chosen one: ${randomMember}`
+      ],
+  
+      whospro: [
+        `Spotted a pro: ${randomMember}`,
+        `Found a pro: ${randomMember}`,
+        `Look who's pro: ${randomMember}`,
+        `Random pro spotted: ${randomMember}`,
+        `The pro detector found ${randomMember}`,
+        `Skill detected: ${randomMember}`,
+        `Certified pro spotted: ${randomMember}`,
+        `Target acquired: ${randomMember}`,
+        `We found the server pro: ${randomMember}`,
+        `Pro radar activated... ${randomMember}`
+      ],
+  
+      whostraight: [
+        `Spotted a straight person: ${randomMember}`,
+        `Found a straight person: ${randomMember}`,
+        `Look who's straight: ${randomMember}`,
+        `Random straight spotted: ${randomMember}`,
+        `Straight detector found ${randomMember}`,
+        `Target acquired: ${randomMember}`,
+        `The radar has spoken: ${randomMember}`,
+        `Certified straight spotted: ${randomMember}`,
+        `Well well well... ${randomMember}`,
+        `Straight radar activated... ${randomMember}`
+      ],
+  
+      whosfurry: [
+        `Spotted a furry: ${randomMember}`,
+        `Found a furry: ${randomMember}`,
+        `Look who's furry: ${randomMember}`,
+        `Random furry spotted: ${randomMember}`,
+        `The furry detector found ${randomMember}`,
+        `Furry radar activated... ${randomMember}`,
+        `Caught in 4K: ${randomMember}`,
+        `Target acquired: ${randomMember}`,
+        `We found the server furry: ${randomMember}`,
+        `The paws have chosen ${randomMember}`
+      ]
+    };
+  
+    const choices = messages[interaction.commandName];
+  
+    const result =
+      choices[Math.floor(Math.random() * choices.length)];
+  
+    return interaction.reply({
+      content: result,
+      allowedMentions: {
+        users: [randomMember.id]
+      }
+    });
+  }
+  if (interaction.commandName === "bingo") {
+    const selectedUser =
+      interaction.options.getUser("user") || interaction.user;
+  
+    const isAdmin =
+      interaction.member.permissions.has("Administrator");
+  
+    // Normal users may only create their own card.
+    if (
+      selectedUser.id !== interaction.user.id &&
+      !isAdmin
+    ) {
+      return interaction.reply({
+        content:
+          "❌ Only users with Administrator permission can send Bingo cards to other users.",
+        ephemeral: true
+      });
+    }
+  
+    if (selectedUser.bot) {
+      return interaction.reply({
+        content: "❌ You cannot send a Bingo card to a bot.",
+        ephemeral: true
+      });
+    }
+  
+    const card = generateBingoCard();
+  
+    const now = new Date();
+  
+    const eventId =
+      `BINGO-${now.getUTCFullYear()}` +
+      `${String(now.getUTCMonth() + 1).padStart(2, "0")}` +
+      `${String(now.getUTCDate()).padStart(2, "0")}`;
+  
+    const bingoEmbed = new EmbedBuilder()
+      .setColor("Gold")
+      .setTitle("Bingo Event")
+      .setDescription(
+        `**Event ID:** ${eventId}\n\n` +
+        `Compete with other members participating in the same event.\n\n` +
+        formatBingoCard(card)
+      )
+      .addFields({
+        name: "How to Win",
+        value:
+          "Complete a horizontal, vertical, or diagonal line and follow the current event rules."
+      })
+      .setFooter({
+        text: "NoobV2 Bingo Event"
+      })
+      .setTimestamp();
+  
+    try {
+      await selectedUser.send({
+        content: `Hello ${selectedUser}, here is your Bingo card.`,
+        embeds: [bingoEmbed]
+      });
+  
+      return interaction.reply({
+        content:
+          selectedUser.id === interaction.user.id
+            ? "✅ Your Bingo card has been sent to your DMs."
+            : `✅ Bingo card has been sent to ${selectedUser}.`,
+        ephemeral: true
+      });
+  
+    } catch (error) {
+      console.error("Bingo DM error:", error);
+  
+      return interaction.reply({
+        content:
+          `❌ I couldn't DM ${selectedUser}. Their DMs may be closed.`,
+        ephemeral: true
+      });
+    }
+  }
+  if (interaction.commandName === "howfurry") {
+    const target = interaction.options.getUser("user") || interaction.user;
+  
+    const percent = Math.floor(Math.random() * 500);
+  
+    const messages = [
+      `${target} is **${percent}% furry** today.`,
+      `Furry meter result for ${target}: **${percent}%**`,
+      `${target}, you are **${percent}% furry**.`,
+      `The furry scanner says ${target} is **${percent}% furry**.`,
+      `${target} unlocked **${percent}% furry power**.`
+    ];
+  
+    const message =
+      messages[Math.floor(Math.random() * messages.length)];
+  
+    return interaction.reply({
+      content: message
+    });
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === "nirihelp") {
     const NIRI_ID = "1009567472577429515";
     const NIRI_THUMBNAIL =
@@ -1339,12 +1583,11 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
   }
 }
 if (interaction.commandName === "sayas") {
-  const ALLOWED_ROLE_ID = "1495044283294552165";
   const SAYAS_LOG_VIEWER_ID = "1146756192710959155";
 
-  if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {
+  if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
-      content: "❌ You don’t have permission to use this command.",
+      content: "❌ You need Administrator permission to use this command.",
       ephemeral: true
     });
   }
@@ -1386,6 +1629,21 @@ const percent = Math.floor(Math.random() * 500) + 1;
       ];
 
       finalMessage = messages[Math.floor(Math.random() * messages.length)];
+    }
+
+    if (commandInput === "howfurry") {
+      const percent = Math.floor(Math.random() * 101);
+    
+      const messages = [
+        `${targetUser} is **${percent}% furry** today.`,
+        `Furry meter result for ${targetUser}: **${percent}%**`,
+        `${targetUser}, you are **${percent}% furry**.`,
+        `The furry scanner says ${targetUser} is **${percent}% furry**.`,
+        `${targetUser} unlocked **${percent}% furry power**.`
+      ];
+    
+      finalMessage =
+        messages[Math.floor(Math.random() * messages.length)];
     }
 
     if (commandInput === "howpro") {

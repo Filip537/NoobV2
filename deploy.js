@@ -45,6 +45,15 @@ const commands = [
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("howfurry")
+  .setDescription("See how furry someone is")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("User to check")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
   .setName("nirihelp")
   .setDescription("Ask Niri for help")
   .addStringOption(option =>
@@ -236,7 +245,8 @@ new SlashCommandBuilder()
       .setRequired(false)
       .addChoices(
         { name: "/howgay", value: "howgay" },
-        { name: "/howpro", value: "howpro" }
+        { name: "/howpro", value: "howpro" },
+        { name: "/howfurry", value: "howfurry" }
       )
   )
   .addAttachmentOption(option =>
@@ -247,6 +257,15 @@ new SlashCommandBuilder()
   .addChannelOption(option =>
     option.setName("channel")
       .setDescription("Channel to send the message")
+      .setRequired(false)
+  ),
+  new SlashCommandBuilder()
+  .setName("bingo")
+  .setDescription("Send a Bingo event card to a user's DM")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("User who will receive the Bingo card")
       .setRequired(false)
   ),
   new SlashCommandBuilder()
