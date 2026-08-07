@@ -879,6 +879,21 @@ new SlashCommandBuilder()
       .setMinLength(17)
       .setMaxLength(20)
   ),
+  new SlashCommandBuilder()
+  .setName("whosgay")
+  .setDescription("Spot a random gay member"),
+
+new SlashCommandBuilder()
+  .setName("whospro")
+  .setDescription("Spot a random pro member"),
+
+new SlashCommandBuilder()
+  .setName("whostraight")
+  .setDescription("Spot a random straight member"),
+
+new SlashCommandBuilder()
+  .setName("whosfurry")
+  .setDescription("Spot a random furry member"),
 new SlashCommandBuilder()
   .setName("legendquest")
   .setDescription("View Legendary Quest steps")

@@ -1649,6 +1649,94 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (
+  ["whosgay", "whospro", "whostraight", "whosfurry"].includes(
+    interaction.commandName
+  )
+) {
+  // Fetch members so the random selection is not limited
+  // to only recently cached users.
+  await interaction.guild.members.fetch().catch(() => {});
+
+  const members = interaction.guild.members.cache.filter(member =>
+    !member.user.bot
+  );
+
+  if (members.size === 0) {
+    return interaction.reply({
+      content: "I couldn't find any members."
+    });
+  }
+
+  const randomMember =
+    members.random();
+
+  const messages = {
+    whosgay: [
+      `Spotted a gay: ${randomMember}`,
+      `Found a gay: ${randomMember}`,
+      `Look who's gay: ${randomMember}`,
+      `Random gay spotted: ${randomMember}`,
+      `Caught in 4K: ${randomMember} is gay`,
+      `The gay detector found ${randomMember}`,
+      `Target acquired: ${randomMember}`,
+      `Well well well... look who I found: ${randomMember}`,
+      `Gay radar activated... ${randomMember}`,
+      `I found the chosen one: ${randomMember}`
+    ],
+
+    whospro: [
+      `Spotted a pro: ${randomMember}`,
+      `Found a pro: ${randomMember}`,
+      `Look who's pro: ${randomMember}`,
+      `Random pro spotted: ${randomMember}`,
+      `The pro detector found ${randomMember}`,
+      `Skill detected: ${randomMember}`,
+      `Certified pro spotted: ${randomMember}`,
+      `Target acquired: ${randomMember}`,
+      `We found the server pro: ${randomMember}`,
+      `Pro radar activated... ${randomMember}`
+    ],
+
+    whostraight: [
+      `Spotted a straight person: ${randomMember}`,
+      `Found a straight person: ${randomMember}`,
+      `Look who's straight: ${randomMember}`,
+      `Random straight spotted: ${randomMember}`,
+      `Straight detector found ${randomMember}`,
+      `Target acquired: ${randomMember}`,
+      `The radar has spoken: ${randomMember}`,
+      `Certified straight spotted: ${randomMember}`,
+      `Well well well... ${randomMember}`,
+      `Straight radar activated... ${randomMember}`
+    ],
+
+    whosfurry: [
+      `Spotted a furry: ${randomMember}`,
+      `Found a furry: ${randomMember}`,
+      `Look who's furry: ${randomMember}`,
+      `Random furry spotted: ${randomMember}`,
+      `The furry detector found ${randomMember}`,
+      `Furry radar activated... ${randomMember}`,
+      `Caught in 4K: ${randomMember}`,
+      `Target acquired: ${randomMember}`,
+      `We found the server furry: ${randomMember}`,
+      `The paws have chosen ${randomMember}`
+    ]
+  };
+
+  const choices = messages[interaction.commandName];
+
+  const result =
+    choices[Math.floor(Math.random() * choices.length)];
+
+  return interaction.reply({
+    content: result,
+    allowedMentions: {
+      users: [randomMember.id]
+    }
+  });
+}
  if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "checkalt"
