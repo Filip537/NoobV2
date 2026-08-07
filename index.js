@@ -2362,7 +2362,7 @@ if (interaction.isButton()) {
 const handled = await stickerGif.handleButton(interaction, client);
   if (handled) return;
 }
-  if (interaction.commandName === "wiki") {
+   if (interaction.commandName === "wiki") {
   const menu = buildWikiMenu();
 
   if (!menu) {
@@ -2384,6 +2384,290 @@ const handled = await stickerGif.handleButton(interaction, client);
   });
 }
 
+if (interaction.commandName === "braincells") {
+
+const user=interaction.options.getUser("user")||interaction.user;
+
+const cells=Math.floor(Math.random()*500);
+
+return interaction.reply(
+`${user} currently has **${cells} brain cells** remaining. 🧠`
+);
+
+}
+
+if(interaction.commandName==="scan"){
+
+const user=interaction.options.getUser("user")||interaction.user;
+
+const virus=Math.floor(Math.random()*101);
+const iq=Math.floor(Math.random()*201);
+const sleep=Math.floor(Math.random()*101);
+const luck=Math.floor(Math.random()*101);
+
+const embed=new EmbedBuilder()
+.setColor("Blue")
+.setTitle("User Scanner")
+.setDescription(
+`👤 ${user}
+
+🧠 IQ: ${iq}
+
+🍀 Luck: ${luck}%
+
+😴 Sleep: ${sleep}%
+
+🦠 Virus: ${virus}%`
+);
+
+return interaction.reply({embeds:[embed]});
+
+}
+if (interaction.commandName === "memory") {
+
+const emojis = ["🟥","🟦","🟩","🟨","🟪","⬜","⬛","🟧"];
+
+const sequence = [];
+for(let i=0;i<5;i++){
+sequence.push(emojis[Math.floor(Math.random()*emojis.length)]);
+}
+
+await interaction.reply(
+`Memorize this sequence (5 seconds):\n\n${sequence.join(" ")}`
+);
+
+setTimeout(async()=>{
+
+await interaction.editReply(
+`What was the **3rd emoji**?\n\nA) ${sequence[1]}\nB) ${sequence[2]}\nC) ${sequence[4]}\nD) ${sequence[0]}`
+);
+
+},5000);
+
+}
+if(interaction.commandName==="reaction"){
+
+await interaction.reply("Wait for it...");
+
+const delay=2000+Math.floor(Math.random()*5000);
+
+setTimeout(async()=>{
+
+const start=Date.now();
+
+await interaction.editReply("CLICK NOW!");
+
+const filter=m=>!m.author.bot;
+
+const collector=interaction.channel.createMessageCollector({
+filter,
+max:1,
+time:5000
+});
+
+collector.on("collect",m=>{
+
+interaction.followUp(
+`${m.author} reacted first in **${Date.now()-start}ms**!`
+);
+
+});
+
+},delay);
+
+}
+if(interaction.commandName==="quickdraw"){
+
+await interaction.reply("🤠\n\nGet Ready...");
+
+const delay=3000+Math.floor(Math.random()*4000);
+
+setTimeout(async()=>{
+
+const start=Date.now();
+
+await interaction.editReply("DRAW!");
+
+const collector=interaction.channel.createMessageCollector({
+filter:m=>!m.author.bot,
+max:1,
+time:5000
+});
+
+collector.on("collect",m=>{
+
+interaction.followUp(
+`${m.author} wins the duel in **${Date.now()-start}ms**!`
+);
+
+});
+
+},delay);
+
+}
+if(interaction.commandName==="futurejob"){
+
+const user=interaction.options.getUser("user")||interaction.user;
+
+const jobs=[
+"Doctor",
+"Chef",
+"Game Developer",
+"Streamer",
+"Teacher",
+"Farmer",
+"Pilot",
+"Police Officer",
+"Lawyer",
+"Business Owner",
+"Programmer",
+"Mechanic",
+"Scientist",
+"Professional Gambler",
+"Discord Moderator",
+"Astronaut"
+];
+
+const job=jobs[Math.floor(Math.random()*jobs.length)];
+
+interaction.reply(
+`${user}'s future job will be **${job}**.`
+);
+
+}
+if(interaction.commandName==="futurewife"){
+
+const user=interaction.options.getUser("user")||interaction.user;
+
+const members=(await interaction.guild.members.fetch())
+.filter(m=>!m.user.bot&&m.id!==user.id);
+
+const wife=members.random();
+
+interaction.reply(
+`${user}'s future wife is ${wife}. ❤️`
+);
+
+}
+if(interaction.commandName==="guessnumber"){
+
+const guess=interaction.options.getInteger("number");
+
+const answer=Math.floor(Math.random()*10)+1;
+
+if(guess===answer){
+
+return interaction.reply(
+`Correct! The number was **${answer}**.`
+);
+
+}
+
+interaction.reply(
+`Wrong! The number was **${answer}**.`
+);
+
+}
+if(interaction.commandName==="higherlower"){
+
+const guess=interaction.options.getString("guess");
+
+const first=Math.floor(Math.random()*100)+1;
+const second=Math.floor(Math.random()*100)+1;
+
+let correct;
+
+if(second>first) correct="higher";
+else if(second<first) correct="lower";
+else correct="equal";
+
+if(correct==="equal"){
+
+return interaction.reply(
+`First: **${first}**\nSecond: **${second}**\nIt's a tie!`
+);
+
+}
+
+interaction.reply(
+`First: **${first}**\nSecond: **${second}**\n\n${
+guess===correct?"You guessed correctly!":"Wrong guess!"
+}`
+);
+
+}
+if(interaction.commandName==="typingrace"){
+
+const sentences=[
+"The quick brown fox jumps over the lazy dog.",
+"NoobV2 is the best Discord bot.",
+"Growtopia players love World Locks.",
+"Programming is fun when it works.",
+"Discord bots make servers more fun."
+];
+
+const sentence=sentences[Math.floor(Math.random()*sentences.length)];
+
+await interaction.reply(
+`Type this sentence exactly:\n\n${sentence}`
+);
+
+const collector=interaction.channel.createMessageCollector({
+filter:m=>!m.author.bot,
+time:30000
+});
+
+collector.on("collect",m=>{
+
+if(m.content===sentence){
+
+collector.stop();
+
+interaction.followUp(
+`${m.author} wins the typing race!`
+);
+
+}
+
+});
+
+}
+if(interaction.commandName==="emojiquiz"){
+
+const quizzes=[
+{emoji:"🍎📱",answer:"apple"},
+{emoji:"💎🔒",answer:"world lock"},
+{emoji:"🌍🎮",answer:"growtopia"},
+{emoji:"🐟🎣",answer:"fishing"},
+{emoji:"🚗💨",answer:"car"}
+];
+
+const quiz=quizzes[Math.floor(Math.random()*quizzes.length)];
+
+await interaction.reply(
+`Guess this:\n\n${quiz.emoji}`
+);
+
+const collector=interaction.channel.createMessageCollector({
+filter:m=>!m.author.bot,
+time:30000
+});
+
+collector.on("collect",m=>{
+
+if(m.content.toLowerCase()===quiz.answer){
+
+collector.stop();
+
+interaction.followUp(
+`${m.author} guessed correctly!`
+);
+
+}
+
+});
+
+}
 if (interaction.commandName === "editwiki") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({

@@ -886,7 +886,107 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("whospro")
   .setDescription("Spot a random pro member"),
+    new SlashCommandBuilder()
+  .setName("luck")
+  .setDescription("Check how lucky you are today"),
 
+new SlashCommandBuilder()
+  .setName("today")
+  .setDescription("See your fortune for today"),
+
+new SlashCommandBuilder()
+  .setName("braincells")
+  .setDescription("See how many brain cells you have left")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("memory")
+  .setDescription("Test your memory"),
+
+new SlashCommandBuilder()
+  .setName("reaction")
+  .setDescription("Test your reaction speed"),
+
+new SlashCommandBuilder()
+  .setName("quickdraw")
+  .setDescription("Be the fastest to draw"),
+
+new SlashCommandBuilder()
+  .setName("scan")
+  .setDescription("Scan a random user's stats")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("whosmart")
+  .setDescription("Find a random smart member"),
+
+new SlashCommandBuilder()
+  .setName("whosnpc")
+  .setDescription("Find a random NPC"),
+
+new SlashCommandBuilder()
+  .setName("futurejob")
+  .setDescription("Predict your future job")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("futurewife")
+  .setDescription("Predict your future wife")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Choose a user")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("guessnumber")
+  .setDescription("Guess the secret number")
+  .addIntegerOption(option =>
+    option
+      .setName("number")
+      .setDescription("1-10")
+      .setRequired(true)
+      .setMinValue(1)
+      .setMaxValue(10)
+  ),
+
+new SlashCommandBuilder()
+  .setName("higherlower")
+  .setDescription("Guess if the next number is higher or lower")
+  .addStringOption(option =>
+    option
+      .setName("guess")
+      .setDescription("Higher or Lower")
+      .setRequired(true)
+      .addChoices(
+        { name: "Higher", value: "higher" },
+        { name: "Lower", value: "lower" }
+      )
+  ),
+
+new SlashCommandBuilder()
+  .setName("typingrace")
+  .setDescription("Race to type a random sentence"),
+
+new SlashCommandBuilder()
+  .setName("emojiquiz")
+  .setDescription("Guess the emoji word"),
 new SlashCommandBuilder()
   .setName("whostraight")
   .setDescription("Spot a random straight member"),
