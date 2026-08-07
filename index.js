@@ -1730,12 +1730,12 @@ client.on("interactionCreate", async (interaction) => {
   const result =
     choices[Math.floor(Math.random() * choices.length)];
 
-  return interaction.reply({
-    content: result,
-    allowedMentions: {
-      users: [randomMember.id]
-    }
-  });
+return interaction.reply({
+  content: result,
+  allowedMentions: {
+    parse: []
+  }
+});
 }
  if (
   interaction.isChatInputCommand() &&
