@@ -398,7 +398,7 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 new SlashCommandBuilder()
-  .setName("sayas")
+  .setName("spk")
   .setDescription("Send a message or command result as a user")
   .addUserOption(option =>
     option.setName("user")

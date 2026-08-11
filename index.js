@@ -3909,7 +3909,7 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
   }
 }
 
-if (interaction.commandName === "sayas") {
+if (interaction.commandName === "spk") {
   const SAYAS_ROLE = "1491399898237501530";
 
   if (!interaction.member.roles.cache.has(SAYAS_ROLE) && interaction.user.id !== OWNER_ID) {
