@@ -544,6 +544,276 @@ function saveAiMemory(data) {
 }
 const fs = require("fs");
 const cron = require("node-cron");
+const activityStatsFile = "./activityStats.json";
+
+function loadActivityStats() {
+  if (!fs.existsSync(activityStatsFile)) {
+    fs.writeFileSync(activityStatsFile, "{}");
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(activityStatsFile, "utf8"));
+  } catch {
+    fs.writeFileSync(activityStatsFile, "{}");
+    return {};
+  }
+}
+
+function saveActivityStats(data) {
+  fs.writeFileSync(
+    activityStatsFile,
+    JSON.stringify(data, null, 2)
+  );
+}
+
+function getDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function trackUserActivity(message) {
+  if (!message.guild) return;
+  if (message.author.bot) return;
+
+  const stats = loadActivityStats();
+
+  const guildId = message.guild.id;
+  const userId = message.author.id;
+  const dateKey = getDateKey();
+
+  if (!stats[guildId]) {
+    stats[guildId] = {};
+  }
+
+  if (!stats[guildId][userId]) {
+    stats[guildId][userId] = {};
+  }
+
+  if (!stats[guildId][userId][dateKey]) {
+    stats[guildId][userId][dateKey] = {
+      messages: 0,
+      images: 0,
+      attachments: 0
+    };
+  }
+
+  const today = stats[guildId][userId][dateKey];
+
+  today.messages += 1;
+
+  for (const attachment of message.attachments.values()) {
+    today.attachments += 1;
+
+    const contentType = attachment.contentType || "";
+
+    const fileName =
+      attachment.name?.toLowerCase() || "";
+
+    const isImage =
+      contentType.startsWith("image/") ||
+      /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileName);
+
+    if (isImage) {
+      today.images += 1;
+    }
+  }
+
+  saveActivityStats(stats);
+}
+
+function parseStatsDate(input) {
+  if (!input) return null;
+
+  const value = input.trim().toLowerCase();
+
+  const now = new Date();
+
+  if (value === "today") {
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+  }
+
+  if (value === "yesterday") {
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 1
+    );
+  }
+
+  // YYYY-MM-DD
+  let match = value.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})$/
+  );
+
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+
+    const date = new Date(year, month - 1, day);
+
+    if (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    ) {
+      return date;
+    }
+  }
+
+  // DD/MM/YYYY
+  match = value.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  );
+
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+
+    const date = new Date(year, month - 1, day);
+
+    if (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    ) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function getUserActivityRange(
+  guildId,
+  userId,
+  startDate,
+  endDate
+) {
+  const stats = loadActivityStats();
+
+  const userStats =
+    stats[guildId]?.[userId] || {};
+
+  const totals = {
+    messages: 0,
+    images: 0,
+    attachments: 0,
+    activeDays: 0
+  };
+
+  const current = new Date(startDate);
+
+  while (current <= endDate) {
+    const key = getDateKey(current);
+    const day = userStats[key];
+
+    if (day) {
+      totals.messages += day.messages || 0;
+      totals.images += day.images || 0;
+      totals.attachments += day.attachments || 0;
+
+      if ((day.messages || 0) > 0) {
+        totals.activeDays += 1;
+      }
+    }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return totals;
+}
+
+function buildStatsEmbed(
+  interaction,
+  target,
+  startDate,
+  endDate,
+  rangeName
+) {
+  const totals = getUserActivityRange(
+    interaction.guild.id,
+    target.id,
+    startDate,
+    endDate
+  );
+
+  const levels = loadLevelsData();
+
+  const levelData =
+    levels[target.id] || {
+      level: 1,
+      xp: 0,
+      wl: 0
+    };
+
+  const levelNumber = levelData.level || 1;
+  const xp = levelData.xp || 0;
+  const wl = levelData.wl || 0;
+
+  const dl = Math.floor(wl / 100);
+  const remainingWL = wl % 100;
+
+  const nonImageAttachments = Math.max(
+    0,
+    totals.attachments - totals.images
+  );
+
+  const startUnix = Math.floor(
+    startDate.getTime() / 1000
+  );
+
+  const endUnix = Math.floor(
+    endDate.getTime() / 1000
+  );
+
+  return new EmbedBuilder()
+    .setColor("Blue")
+    .setTitle(`${target.username}'s Stats`)
+    .setThumbnail(
+      target.displayAvatarURL({
+        size: 256
+      })
+    )
+    .setDescription(
+      `**Range:** ${rangeName}\n` +
+      `<t:${startUnix}:D> → <t:${endUnix}:D>`
+    )
+    .addFields(
+      {
+        name: "Activity",
+        value:
+          `Messages: **${totals.messages.toLocaleString()}**\n` +
+          `Images: **${totals.images.toLocaleString()}**\n` +
+          `Attachments: **${totals.attachments.toLocaleString()}**\n` +
+          `Other files: **${nonImageAttachments.toLocaleString()}**\n` +
+          `Active days: **${totals.activeDays}**`,
+        inline: true
+      },
+      {
+        name: "Profile",
+        value:
+          `Level: **${levelNumber}**\n` +
+          `XP: **${xp.toLocaleString()}**\n` +
+          `World Locks: **${wl.toLocaleString()} WL**\n` +
+          `Converted: **${dl} DL ${remainingWL} WL**`,
+        inline: true
+      }
+    )
+    .setFooter({
+      text:
+        "Activity stats are recorded from the date this tracker was enabled."
+    })
+    .setTimestamp();
+}
 const activeInteractions = new Set();
 const client = new Client({
 intents: [
@@ -1649,6 +1919,124 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  // ================= MYSTATS RANGE SELECT =================
+
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith("mystats_range_")
+) {
+  const targetId =
+    interaction.customId.replace(
+      "mystats_range_",
+      ""
+    );
+
+  const target =
+    await client.users
+      .fetch(targetId)
+      .catch(() => null);
+
+  if (!target) {
+    return interaction.reply({
+      content: "User not found.",
+      ephemeral: true
+    });
+  }
+
+  const range =
+    interaction.values[0];
+
+  const now = new Date();
+
+  const today =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
+  if (range === "daily") {
+    const embed =
+      buildStatsEmbed(
+        interaction,
+        target,
+        today,
+        today,
+        "Today"
+      );
+
+    return interaction.update({
+      embeds: [embed],
+      components: interaction.message.components
+    });
+  }
+
+  if (range === "weekly") {
+    const start =
+      new Date(today);
+
+    start.setDate(
+      start.getDate() - 6
+    );
+
+    const embed =
+      buildStatsEmbed(
+        interaction,
+        target,
+        start,
+        today,
+        "Last 7 Days"
+      );
+
+    return interaction.update({
+      embeds: [embed],
+      components: interaction.message.components
+    });
+  }
+
+  if (range === "custom") {
+    const modal =
+      new ModalBuilder()
+        .setCustomId(
+          `mystats_custom_${target.id}`
+        )
+        .setTitle("Custom Stats Range");
+
+    const startInput =
+      new TextInputBuilder()
+        .setCustomId("mystats_start")
+        .setLabel("Start date")
+        .setPlaceholder(
+          "Example: 2026-08-01"
+        )
+        .setStyle(
+          TextInputStyle.Short
+        )
+        .setRequired(true);
+
+    const endInput =
+      new TextInputBuilder()
+        .setCustomId("mystats_end")
+        .setLabel("End date")
+        .setPlaceholder(
+          "Example: 2026-08-11 or today"
+        )
+        .setStyle(
+          TextInputStyle.Short
+        )
+        .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder()
+        .addComponents(startInput),
+
+      new ActionRowBuilder()
+        .addComponents(endInput)
+    );
+
+    return interaction.showModal(modal);
+  }
+}
   if (
   ["whosgay", "whospro", "whostraight", "whosfurry"].includes(
     interaction.commandName
@@ -2470,6 +2858,7 @@ collector.on("collect",m=>{
 interaction.followUp(
 `${m.author} reacted first in **${Date.now()-start}ms**!`
 );
+
 
 });
 
@@ -4743,6 +5132,61 @@ if (interaction.channel.id === PAY_CHANNEL) {
     fs.writeFileSync("./levels.json", JSON.stringify(levels, null, 2));
   }
   
+  // ================= MYSTATS =================
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "mystats"
+) {
+  const target =
+    interaction.options.getUser("user") ||
+    interaction.user;
+
+  const menu =
+    new StringSelectMenuBuilder()
+      .setCustomId(`mystats_range_${target.id}`)
+      .setPlaceholder("Choose time range")
+      .addOptions([
+        {
+          label: "Daily",
+          description: "View today's stats",
+          value: "daily"
+        },
+        {
+          label: "Weekly",
+          description: "View the last 7 days",
+          value: "weekly"
+        },
+        {
+          label: "Custom Range",
+          description: "Choose custom dates",
+          value: "custom"
+        }
+      ]);
+
+  const row =
+    new ActionRowBuilder()
+      .addComponents(menu);
+
+  const embed =
+    new EmbedBuilder()
+      .setColor("Blue")
+      .setTitle(`${target.username}'s Stats`)
+      .setThumbnail(
+        target.displayAvatarURL({
+          size: 256
+        })
+      )
+      .setDescription(
+        "Select the time range you want to check."
+      );
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
+
 if (interaction.commandName === "leaderboard") {
   const category = interaction.options.getString("category");
   const levels = loadLevelsData();
@@ -5875,6 +6319,93 @@ return interaction.update({
  }
   // ================= MODAL =================
 if (interaction.isModalSubmit()) {
+  // ================= MYSTATS CUSTOM RANGE =================
+
+if (
+  interaction.customId.startsWith(
+    "mystats_custom_"
+  )
+) {
+  const targetId =
+    interaction.customId.replace(
+      "mystats_custom_",
+      ""
+    );
+
+  const target =
+    await client.users
+      .fetch(targetId)
+      .catch(() => null);
+
+  if (!target) {
+    return interaction.reply({
+      content: "User not found.",
+      ephemeral: true
+    });
+  }
+
+  const startInput =
+    interaction.fields
+      .getTextInputValue(
+        "mystats_start"
+      );
+
+  const endInput =
+    interaction.fields
+      .getTextInputValue(
+        "mystats_end"
+      );
+
+  const startDate =
+    parseStatsDate(startInput);
+
+  const endDate =
+    parseStatsDate(endInput);
+
+  if (!startDate || !endDate) {
+    return interaction.reply({
+      content:
+        "Invalid date. Use `YYYY-MM-DD`, `DD/MM/YYYY`, `today`, or `yesterday`.",
+      ephemeral: true
+    });
+  }
+
+  if (startDate > endDate) {
+    return interaction.reply({
+      content:
+        "The start date cannot be after the end date.",
+      ephemeral: true
+    });
+  }
+
+  const maxRange =
+    366 * 24 * 60 * 60 * 1000;
+
+  if (
+    endDate.getTime() -
+      startDate.getTime() >
+    maxRange
+  ) {
+    return interaction.reply({
+      content:
+        "Custom ranges cannot be longer than 1 year.",
+      ephemeral: true
+    });
+  }
+
+  const embed =
+    buildStatsEmbed(
+      interaction,
+      target,
+      startDate,
+      endDate,
+      "Custom Range"
+    );
+
+  return interaction.reply({
+    embeds: [embed]
+  });
+}
   if (interaction.customId === "wiki_add_modal") {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
@@ -6897,6 +7428,9 @@ client.on("messageCreate", async (message) => {
   if (!message.guild) {
     return;
   }
+
+  // ================= MYSTATS TRACKER =================
+  trackUserActivity(message);
 // ================= SHARKFIN WEBHOOK AUTO REPLY =================
 const SHARKFIN_USER_IDS = [
   "946556932636950528",

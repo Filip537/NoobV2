@@ -888,6 +888,15 @@ new SlashCommandBuilder()
       .setDescription("Choose a user")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("mystats")
+  .setDescription("Check your or another user's server activity stats")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("User to check")
+      .setRequired(false)
+  ),
 new SlashCommandBuilder()
   .setName("whosfurry")
   .setDescription("Spot a random furry member"),
