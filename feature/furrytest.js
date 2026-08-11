@@ -2605,7 +2605,7 @@ function createQuestionEmbed(session) {
 
   return new EmbedBuilder()
     .setColor("Purple")
-    .setTitle("Gen Z Furry Test 🐾")
+    .setTitle("Furry Test 🐾")
     .setDescription(
       `**Question ${session.currentQuestion + 1}/10**\n\n` +
       question.text
