@@ -19,6 +19,7 @@ const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
 const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
+const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
@@ -821,6 +822,7 @@ intents: [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
   GatewayIntentBits.GuildModeration,
+  GatewayIntentBits.GuildVoiceStates,
   GatewayIntentBits.GuildMessages,
   GatewayIntentBits.GuildMessageReactions,
   GatewayIntentBits.DirectMessages,
@@ -1920,6 +1922,24 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  // ================= MUSIC =================
+
+if (interaction.isChatInputCommand()) {
+  const handled =
+    await music.handleCommand(interaction);
+
+  if (handled) return;
+}
+
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith("musicsearch_")
+) {
+  const handled =
+    await music.handleSelect(interaction);
+
+  if (handled) return;
+}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "furrytest"

@@ -397,6 +397,33 @@ new SlashCommandBuilder()
       .setDescription("Channel to send the role selector panel")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("play")
+  .setDescription("Play music in your voice channel")
+  .addStringOption(option =>
+    option
+      .setName("query")
+      .setDescription("YouTube link or song name")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("addqueue")
+  .setDescription("Add a song to the music queue")
+  .addStringOption(option =>
+    option
+      .setName("query")
+      .setDescription("YouTube link or song name")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("checkqueue")
+  .setDescription("View the current music queue"),
+
+new SlashCommandBuilder()
+  .setName("stop")
+  .setDescription("Stop music and clear the queue"),
 new SlashCommandBuilder()
   .setName("spk")
   .setDescription("Send a message or command result as a user")
