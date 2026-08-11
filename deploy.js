@@ -488,59 +488,6 @@ new SlashCommandBuilder()
 
 
   new SlashCommandBuilder()
-  .setName("addauction")
-  .setDescription("Create a new auction")
-  .addStringOption(o =>
-    o.setName("item")
-      .setDescription("Item name")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("startbid")
-      .setDescription("Starting bid amount")
-      .setRequired(true)
-  )
-  .addStringOption(o =>
-    o.setName("currency")
-      .setDescription("Currency")
-      .setRequired(true)
-      .addChoices(
-        { name: "WL", value: "WL" },
-        { name: "DL", value: "DL" },
-        { name: "BGL", value: "BGL" }
-      )
-  )
-  .addStringOption(o =>
-    o.setName("duration")
-      .setDescription("Auction duration, example: 1h, 12h, 1d")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("auctionlist")
-  .setDescription("View active auctions"),
-new SlashCommandBuilder()
-  .setName("teamlist")
-  .setDescription("Show confirmed event teams"),
-  new SlashCommandBuilder()
-  .setName("editblist")
-  .setDescription("Edit an existing blacklist message")
-  .addStringOption(option =>
-    option.setName("messageid")
-      .setDescription("Message ID of the blacklist message")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("growid")
-      .setDescription("New GrowID")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("reason")
-      .setDescription("New reason")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
   .setName("randommessage")
   .setDescription("Generate a random message."),
 
@@ -819,19 +766,6 @@ new SlashCommandBuilder()
       .setDescription("Choose a user")
       .setRequired(false)
   ),
-
-new SlashCommandBuilder()
-  .setName("memory")
-  .setDescription("Test your memory"),
-
-new SlashCommandBuilder()
-  .setName("reaction")
-  .setDescription("Test your reaction speed"),
-
-new SlashCommandBuilder()
-  .setName("quickdraw")
-  .setDescription("Be the fastest to draw"),
-
 new SlashCommandBuilder()
   .setName("scan")
   .setDescription("Scan a random user's stats")
@@ -869,40 +803,10 @@ new SlashCommandBuilder()
       .setDescription("Choose a user")
       .setRequired(false)
   ),
-
-new SlashCommandBuilder()
-  .setName("guessnumber")
-  .setDescription("Guess the secret number")
-  .addIntegerOption(option =>
-    option
-      .setName("number")
-      .setDescription("1-10")
-      .setRequired(true)
-      .setMinValue(1)
-      .setMaxValue(10)
-  ),
-
-new SlashCommandBuilder()
-  .setName("higherlower")
-  .setDescription("Guess if the next number is higher or lower")
-  .addStringOption(option =>
-    option
-      .setName("guess")
-      .setDescription("Higher or Lower")
-      .setRequired(true)
-      .addChoices(
-        { name: "Higher", value: "higher" },
-        { name: "Lower", value: "lower" }
-      )
-  ),
-
 new SlashCommandBuilder()
   .setName("typingrace")
   .setDescription("Race to type a random sentence"),
 
-new SlashCommandBuilder()
-  .setName("emojiquiz")
-  .setDescription("Guess the emoji word"),
 new SlashCommandBuilder()
   .setName("whostraight")
   .setDescription("Spot a random straight member"),
