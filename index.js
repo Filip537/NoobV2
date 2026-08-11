@@ -17,6 +17,7 @@ const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
+const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const trade = require("./feature/trade.js");
 const business = require("./feature/business.js");
@@ -1919,6 +1920,19 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "furrytest"
+) {
+  return furryTest.execute(interaction);
+}
+
+if (
+  interaction.isButton() &&
+  interaction.customId.startsWith("furrytest_")
+) {
+  return furryTest.handleButton(interaction);
+}
   // ================= MYSTATS RANGE SELECT =================
 
 if (

@@ -897,6 +897,9 @@ new SlashCommandBuilder()
       .setDescription("User to check")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("furrytest")
+  .setDescription("Find out how furry you really are"),
 new SlashCommandBuilder()
   .setName("whosfurry")
   .setDescription("Spot a random furry member"),
