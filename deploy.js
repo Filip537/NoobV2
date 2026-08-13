@@ -44,6 +44,9 @@ new SlashCommandBuilder()
       .setMinValue(1900)
       .setMaxValue(new Date().getFullYear())
   ),
+  new SlashCommandBuilder()
+  .setName("uptime")
+  .setDescription("Check how long the bot has been online"),
   
 new SlashCommandBuilder()
   .setName("addblist")
