@@ -1922,8 +1922,39 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
-  // ================= MUSIC =================
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "uptime"
+) {
+  const totalSeconds = Math.floor(process.uptime());
 
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const uptimeText = [
+    days > 0 ? `${days}d` : null,
+    hours > 0 ? `${hours}h` : null,
+    minutes > 0 ? `${minutes}m` : null,
+    `${seconds}s`
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const embed = new EmbedBuilder()
+    .setTitle("NoobV2 Uptime")
+    .setColor("Green")
+    .setDescription(
+      `**Bot Uptime:** ${uptimeText}\n` +
+      `**Status:** Online`
+    )
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [embed]
+  });
+}
 if (interaction.isChatInputCommand()) {
   const handled =
     await music.handleCommand(interaction);
