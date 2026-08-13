@@ -1922,6 +1922,121 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "addreaction"
+) {
+  // Admin only
+  if (!interaction.member.permissions.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const messageId = interaction.options.getString("messageid");
+
+  // 15 different emojis
+const emojis = [
+  // Faces
+  "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣",
+  "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰",
+  "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜",
+  "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳",
+  "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️",
+  "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤",
+  "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱",
+  "😨", "😰", "😥", "😓", "🤗", "🤔", "🫣", "🤭",
+  "🫢", "🫡", "🤫", "🫠", "🤥", "😶", "🫥", "😐",
+  "🫤", "😑", "😬", "🙄", "😯", "😦", "😧", "😮",
+  "😲", "🥱", "😴", "🤤", "😪", "😵", "😵‍💫", "🤐",
+
+  // Funny / crazy
+  "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠",
+  "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀",
+  "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹",
+  "😻", "😼", "😽", "🙀", "😿", "😾",
+
+  // Hands / reactions
+  "👍", "👎", "👌", "🤌", "🤏", "✌️", "🤞", "🫰",
+  "🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
+  "✋", "🤚", "🖐️", "🖖", "👋", "🤝", "👏", "🙌",
+  "🫶", "👐", "🤲", "🙏", "✍️", "💪", "🦾", "🖕",
+
+  // Hearts
+  "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+  "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓",
+  "💗", "💖", "💘", "💝", "💟",
+
+  // Popular reactions
+  "🔥", "💯", "✨", "⭐", "🌟", "💫", "⚡", "💥",
+  "💢", "💦", "💨", "🕳️", "💣", "💬", "👁️", "👀",
+  "🧠", "🫀", "🗿", "👑", "💎", "🏆", "🎯", "🎉",
+  "🎊", "🎁", "🎈", "🪩", "🎵", "🎶", "🔔", "📢",
+
+  // Animals
+  "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
+  "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵",
+  "🙈", "🙉", "🙊", "🐔", "🐧", "🐦", "🦆", "🦅",
+  "🦉", "🐺", "🐗", "🐴", "🦄", "🐝", "🪱", "🐛",
+  "🦋", "🐌", "🐞", "🐜", "🪰", "🕷️", "🦂", "🐢",
+  "🐍", "🦎", "🐙", "🦑", "🦀", "🐠", "🐟", "🐡",
+  "🦈", "🐬", "🐳", "🐋", "🐊", "🐅", "🐆", "🦍",
+
+  // Food
+  "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇",
+  "🍓", "🫐", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥",
+  "🥝", "🍅", "🍆", "🥑", "🥦", "🌽", "🌶️", "🍄",
+  "🍞", "🥐", "🥖", "🥨", "🧀", "🍗", "🍖", "🍔",
+  "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🍜", "🍝",
+  "🍣", "🍱", "🍙", "🍚", "🍛", "🍤", "🍦", "🍩",
+  "🍪", "🎂", "🍰", "🍫", "🍬", "🍭", "☕", "🧋",
+
+  // Random / gaming
+  "⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🎱", "🏓",
+  "🥊", "🎮", "🕹️", "🎲", "♟️", "🧩", "🚀", "🛸",
+  "🚗", "🏎️", "✈️", "🚁", "🚂", "⚓", "🗺️", "🌍",
+  "🌙", "☀️", "🌈", "☁️", "❄️", "☃️", "🌊", "🌋",
+  "🌸", "🌹", "🌻", "🍀", "🌴", "🌵", "🎄", "🎋"
+];
+
+  await interaction.deferReply({
+    ephemeral: true
+  });
+
+  const message = await interaction.channel.messages
+    .fetch(messageId)
+    .catch(() => null);
+
+  if (!message) {
+    return interaction.editReply({
+      content: "❌ Message not found in this channel."
+    });
+  }
+
+  // Shuffle emojis and take 15
+  const selectedEmojis = [...emojis]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 15);
+
+  let added = 0;
+
+  for (const emoji of selectedEmojis) {
+    try {
+      await message.react(emoji);
+      added++;
+
+      // Small delay to avoid sending everything instantly
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (error) {
+      console.error(`Failed to react with ${emoji}:`, error);
+    }
+  }
+
+  return interaction.editReply({
+    content: `✅ Added **${added} random reactions** to the message.`
+  });
+}
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "uptime"
