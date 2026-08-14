@@ -67,15 +67,14 @@ Any use of **GenAI** is **strictly prohibited**. All responses must be your own 
 - Discord User:
 - Account Age:
 - Timezone (Specify it in GMT++)
+- How do you find out about NoobV2?
+- How long you’ve been playing this world and what was your first impression 
 - Why would you like to become an admin?
 - How would you respond if you witnessed an admin raiding the world?
 - What actions would you take to help keep the world active and entertained?
-- How could we trust you to be an admin?
+- How could we trust you to be an admin? 
 - If a player breaks the rule, should you ban them immediately?
 - Do you currently have advanced account protection enabled?
-- How can you ensure that your account is secure?
-
-Extra Note: Since having access to the world comes with responsibility, a compromised account could cause serious issues. Please confirm that your account is fully protected against potential hackers.
 \`\`\``;
 
 const supportForm = user =>
