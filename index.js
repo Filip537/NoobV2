@@ -3109,38 +3109,42 @@ if (interaction.commandName === "myfavgame") {
     }
   });
 }
-if(interaction.commandName==="futurewife"){
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "futurewife"
+) {
+  const user =
+    interaction.options.getUser("user") ||
+    interaction.user;
 
-const user=interaction.options.getUser("user")||interaction.user;
+  const members = interaction.guild.members.cache.filter(member =>
+    !member.user.bot &&
+    member.id !== user.id
+  );
 
-const members=(await interaction.guild.members.fetch())
-.filter(m=>!m.user.bot&&m.id!==user.id);
+  if (members.size === 0) {
+    return interaction.reply({
+      content: "❌ I could not find a future wife."
+    });
+  }
 
-const wife=members.random();
+  const wife = members.random();
 
-interaction.reply(
-`${user}'s future wife is ${wife}. ❤️`
-);
+  // Use server nickname/display name instead of tagging
+  const wifeName =
+    wife.displayName ||
+    wife.user.globalName ||
+    wife.user.username;
 
-}
-if(interaction.commandName==="guessnumber"){
+  return interaction.reply({
+    content: `${user}'s future wife is **${wifeName}**. ❤️`,
 
-const guess=interaction.options.getInteger("number");
-
-const answer=Math.floor(Math.random()*10)+1;
-
-if(guess===answer){
-
-return interaction.reply(
-`Correct! The number was **${answer}**.`
-);
-
-}
-
-interaction.reply(
-`Wrong! The number was **${answer}**.`
-);
-
+    // Only the person being checked can be mentioned.
+    // The selected wife is plain text.
+    allowedMentions: {
+      users: [user.id]
+    }
+  });
 }
 if(interaction.commandName==="higherlower"){
 
@@ -3807,7 +3811,10 @@ if (interaction.commandName === "teamlist") {
 if (interaction.isChatInputCommand() && interaction.commandName === "refreshticketpanel") {
   return ticket.refreshTicketPanelCommand(interaction);
 }
-if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartner") {
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "whosmypartner"
+) {
   await interaction.deferReply();
 
   const boostIds = [
@@ -3829,6 +3836,7 @@ if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartn
   members.forEach(member => {
     memberPool.push(member);
 
+    // Boost selected users' chance
     if (boostIds.includes(member.id)) {
       for (let i = 0; i < 5; i++) {
         memberPool.push(member);
@@ -3837,36 +3845,54 @@ if (interaction.isChatInputCommand() && interaction.commandName === "whosmypartn
   });
 
   if (memberPool.length === 0) {
-    return interaction.editReply("❌ I could not find a partner for you.");
+    return interaction.editReply(
+      "❌ I could not find a partner for you."
+    );
   }
 
-  const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
+  const randomMember =
+    memberPool[Math.floor(Math.random() * memberPool.length)];
+
+  // Use nickname/display name instead of tagging
+  const partnerName =
+    randomMember.displayName ||
+    randomMember.user.globalName ||
+    randomMember.user.username;
 
   const messages = [
-    `Hello ${interaction.user}, your future partner is ${randomMember}. Please enjoy 💖`,
-    `${interaction.user}, destiny has chosen ${randomMember} as your future partner 💘`,
-    `Love alert! ${interaction.user}, your future partner is ${randomMember} 💕`,
-    `${interaction.user}, the bot has matched you with ${randomMember}. Please enjoy 😳`,
-    `Congratulations ${interaction.user}! Your future partner is ${randomMember} 🎉`,
-    `${interaction.user}, your perfect match is ${randomMember} 💞`,
-    `The love machine says ${interaction.user} belongs with ${randomMember} 💗`,
-    `${interaction.user}, your future romance starts with ${randomMember} 🌹`,
-    `Breaking news: ${interaction.user}'s future partner is ${randomMember} 💌`,
-    `${interaction.user}, the stars say your partner is ${randomMember} ✨`,
-    `Cupid has spoken! ${interaction.user}, your partner is ${randomMember} 🏹`,
-    `${interaction.user}, your soulmate might be ${randomMember} 😍`,
-    `After deep calculation, ${interaction.user}'s future partner is ${randomMember} 🧮💖`,
-    `${interaction.user}, your love story begins with ${randomMember} 📖💕`,
-    `The server has decided: ${interaction.user} + ${randomMember} = perfect match 💑`,
-    `${interaction.user}, your future partner has been revealed: ${randomMember} 👀`,
-    `No escape now ${interaction.user}, your partner is ${randomMember} 😭💕`,
-    `${interaction.user}, your heart has selected ${randomMember} ❤️`,
-    `Match found! ${interaction.user}, please enjoy your future with ${randomMember} 💍`,
-    `${interaction.user}, your partner result is ${randomMember}. Treat them well 😌`
+    `Hello ${interaction.user}, your future partner is **${partnerName}**. Please enjoy 💖`,
+    `${interaction.user}, destiny has chosen **${partnerName}** as your future partner 💘`,
+    `Love alert! ${interaction.user}, your future partner is **${partnerName}** 💕`,
+    `${interaction.user}, the bot has matched you with **${partnerName}**. Please enjoy 😳`,
+    `Congratulations ${interaction.user}! Your future partner is **${partnerName}** 🎉`,
+    `${interaction.user}, your perfect match is **${partnerName}** 💞`,
+    `The love machine says ${interaction.user} belongs with **${partnerName}** 💗`,
+    `${interaction.user}, your future romance starts with **${partnerName}** 🌹`,
+    `Breaking news: ${interaction.user}'s future partner is **${partnerName}** 💌`,
+    `${interaction.user}, the stars say your partner is **${partnerName}** ✨`,
+    `Cupid has spoken! ${interaction.user}, your partner is **${partnerName}** 🏹`,
+    `${interaction.user}, your soulmate might be **${partnerName}** 😍`,
+    `After deep calculation, ${interaction.user}'s future partner is **${partnerName}** 🧮💖`,
+    `${interaction.user}, your love story begins with **${partnerName}** 📖💕`,
+    `The server has decided: ${interaction.user} + **${partnerName}** = perfect match 💑`,
+    `${interaction.user}, your future partner has been revealed: **${partnerName}** 👀`,
+    `No escape now ${interaction.user}, your partner is **${partnerName}** 😭💕`,
+    `${interaction.user}, your heart has selected **${partnerName}** ❤️`,
+    `Match found! ${interaction.user}, please enjoy your future with **${partnerName}** 💍`,
+    `${interaction.user}, your partner result is **${partnerName}**. Treat them well 😌`
   ];
 
+  const randomMessage =
+    messages[Math.floor(Math.random() * messages.length)];
+
   return interaction.editReply({
-    content: messages[Math.floor(Math.random() * messages.length)]
+    content: randomMessage,
+
+    // Only allow the command user to be mentioned.
+    // partnerName is plain text, so partner won't be tagged.
+    allowedMentions: {
+      users: [interaction.user.id]
+    }
   });
 }
 if (interaction.isChatInputCommand() && interaction.commandName === "customticket") {
@@ -4024,7 +4050,10 @@ if (interaction.commandName === "spk") {
     }
 
     const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
-
+const partnerName =
+  randomMember.displayName ||
+  randomMember.user.globalName ||
+  randomMember.user.username;
     const messages = [
       `Hello ${targetUser}, your future partner is ${randomMember}. Please enjoy 💖`,
       `${targetUser}, destiny has chosen ${randomMember} as your future partner 💘`,
