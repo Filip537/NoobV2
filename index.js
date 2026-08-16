@@ -932,6 +932,8 @@ const storyFile = "./stories.json";
 const NOTE_CHANNEL = "1493571345491955853";
 const OWNER_ID = "1108921222030426172";
 const birthdayRole = "1500307450824232970";
+const LOCKE_SOURCE_CHANNEL = "1538335848452333629";
+const LOCKE_NOTIFICATION_CHANNEL = "1411995708403486780";
 const BOT_ID = "1444622846729912435";
 const ROLE_LOG_CHANNEL = "1503741904636874756";
 const MESSAGE_LOG_CHANNEL = "1503741879282307072";
@@ -1922,8 +1924,18 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
-  // ================= MUSIC =================
+if (interaction.commandName === "howfurry") {
+  const target =
+    interaction.options.getUser("user") || interaction.user;
 
+  const percent = Math.floor(Math.random() * 101);
+
+  await interaction.reply(
+    ` **${target.username} is ${percent}% furry!**`
+  );
+
+  return;
+}
 if (interaction.isChatInputCommand()) {
   const handled =
     await music.handleCommand(interaction);
@@ -7457,6 +7469,25 @@ if (interaction.isChannelSelectMenu()) {
 });
 
 client.on("messageCreate", async (message) => {
+  if (
+  message.channel.id === LOCKE_SOURCE_CHANNEL &&
+  !message.author.bot
+) {
+  try {
+    const notificationChannel =
+      await message.guild.channels.fetch(
+        LOCKE_NOTIFICATION_CHANNEL
+      );
+
+    if (notificationChannel?.isTextBased()) {
+      await notificationChannel.send(
+        `# Locke notification please check <#${LOCKE_SOURCE_CHANNEL}> channel, thanks!`
+      );
+    }
+  } catch (err) {
+    console.error("Locke notification error:", err);
+  }
+}
   if (message.author.bot) return;
 
   if (!message.guild) {
