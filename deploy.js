@@ -430,7 +430,7 @@ new SlashCommandBuilder()
   .addUserOption(option =>
     option.setName("user")
       .setDescription("User to show")
-      .setRequired(true)
+      .setRequired(false)
   )
   .addStringOption(option =>
     option.setName("message")
