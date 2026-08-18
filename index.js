@@ -1924,6 +1924,63 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  // ================= UNBLACKLIST =================
+if (interaction.commandName === "unblist") {
+
+  const growid = interaction.options.getString("growid");
+  const blacklistReason = interaction.options.getString("blacklist_reason");
+  const unblacklistReason = interaction.options.getString("unblacklist_reason");
+
+  const embed = new EmbedBuilder()
+    .setTitle("Unblacklist Request")
+    .setColor("Orange")
+    .addFields(
+      {
+        name: "GrowID",
+        value: growid,
+        inline: false
+      },
+      {
+        name: "Reason of Blacklist",
+        value: blacklistReason,
+        inline: false
+      },
+      {
+        name: "Reason of Unblacklist",
+        value: unblacklistReason,
+        inline: false
+      }
+    )
+    .setFooter({
+      text: `Requested by ${interaction.user.tag}`
+    })
+    .setTimestamp();
+
+  const approve = new ButtonBuilder()
+    .setCustomId(`approve_unblist_${interaction.user.id}`)
+    .setLabel("Approve")
+    .setStyle(ButtonStyle.Success);
+
+  const deny = new ButtonBuilder()
+    .setCustomId(`deny_unblist_${interaction.user.id}`)
+    .setLabel("Deny")
+    .setStyle(ButtonStyle.Danger);
+
+  const row = new ActionRowBuilder().addComponents(approve, deny);
+
+  // SAME PROOF / APPROVAL CHANNEL AS BLACKLIST
+  const channel = await client.channels.fetch("1481767733304623235");
+
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: "✅ Unblacklist request submitted.",
+    ephemeral: true
+  });
+}
 if (interaction.commandName === "howfurry") {
   const target =
     interaction.options.getUser("user") || interaction.user;
@@ -7362,6 +7419,83 @@ if (interaction.customId.startsWith("report_blacklist_") || interaction.customId
 
   } else {
     embed.setColor("Red").setFooter({ text: "Report Denied" });
+  }
+
+  return interaction.update({
+    embeds: [embed],
+    components: []
+  });
+}
+
+// ================= UNBLACKLIST APPROVE / DENY =================
+if (
+  interaction.customId.startsWith("approve_unblist_") ||
+  interaction.customId.startsWith("deny_unblist_")
+) {
+
+  const ownerId = interaction.customId.split("_").pop();
+  const SELF_APPROVE_ROLE = "1448858787296317553";
+
+  // Same self-approval protection as blacklist
+  if (interaction.user.id === ownerId) {
+    if (!interaction.member.roles.cache.has(SELF_APPROVE_ROLE)) {
+      return interaction.reply({
+        content: "❌ You cannot approve your own unblacklist request.",
+        ephemeral: true
+      });
+    }
+  }
+
+  const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+  const fields = embed.data.fields;
+
+  const growid =
+    fields.find(f => f.name === "GrowID")?.value || "Unknown";
+
+  const blacklistReason =
+    fields.find(f => f.name === "Reason of Blacklist")?.value || "Unknown";
+
+  const unblacklistReason =
+    fields.find(f => f.name === "Reason of Unblacklist")?.value || "Unknown";
+
+  // APPROVED
+  if (interaction.customId.startsWith("approve_unblist_")) {
+
+    const finalChannel = await client.channels.fetch(
+      "1505252429967396904"
+    );
+
+    await finalChannel.send({
+      content:
+`**Growid:** ${growid}
+**Reason of blacklist:** ${blacklistReason}
+**Reason of unblacklist:** ${unblacklistReason}`
+    });
+
+    // REMOVE USER FROM blacklist.json
+    const blacklist = loadBlacklist();
+
+    const updatedBlacklist = blacklist.filter(
+      entry =>
+        entry.growid.toLowerCase() !== growid.toLowerCase()
+    );
+
+    saveBlacklist(updatedBlacklist);
+
+    embed
+      .setColor("Green")
+      .setFooter({
+        text: `Unblacklist Approved by ${interaction.user.tag}`
+      });
+
+  } else {
+
+    // DENIED
+    embed
+      .setColor("Red")
+      .setFooter({
+        text: `Unblacklist Denied by ${interaction.user.tag}`
+      });
   }
 
   return interaction.update({

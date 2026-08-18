@@ -829,6 +829,24 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName("unblist")
+  .setDescription("Submit a GrowID to be unblacklisted")
+  .addStringOption(o =>
+    o.setName("growid")
+      .setDescription("GrowID")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("blacklist_reason")
+      .setDescription("Reason they were originally blacklisted")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("unblacklist_reason")
+      .setDescription("Reason they should be unblacklisted")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("mystats")
   .setDescription("Check your or another user's server activity stats")
   .addUserOption(option =>
