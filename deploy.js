@@ -441,12 +441,12 @@ new SlashCommandBuilder()
     option.setName("command")
       .setDescription("Command to activate")
       .setRequired(false)
-.addChoices(
-  { name: "/howgay", value: "howgay" },
-  { name: "/howpro", value: "howpro" },
-  { name: "/whosmypartner", value: "whosmypartner" },
-  { name: "/fortuneteller", value: "fortuneteller" }
-)
+      .addChoices(
+        { name: "/howgay", value: "howgay" },
+        { name: "/howpro", value: "howpro" },
+        { name: "/whosmypartner", value: "whosmypartner" },
+        { name: "/fortuneteller", value: "fortuneteller" }
+      )
   )
   .addAttachmentOption(option =>
     option.setName("file")
@@ -457,8 +457,17 @@ new SlashCommandBuilder()
     option.setName("channel")
       .setDescription("Channel to send the message")
       .setRequired(false)
+  )
+  .addStringOption(option =>
+    option.setName("nickname")
+      .setDescription("Custom webhook nickname")
+      .setRequired(false)
+  )
+  .addAttachmentOption(option =>
+    option.setName("avatar")
+      .setDescription("Custom webhook profile picture")
+      .setRequired(false)
   ),
-
 new SlashCommandBuilder()
   .setName("ticketpanel")
   .setDescription("Send ticket panel")

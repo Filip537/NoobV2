@@ -4069,7 +4069,8 @@ if (interaction.commandName === "spk") {
   const command = interaction.options.getString("command");
   const file = interaction.options.getAttachment("file");
   const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
-
+const customNickname = interaction.options.getString("nickname");
+const customAvatar = interaction.options.getAttachment("avatar");
   if (!message && !command && !file) {
     return interaction.editReply("❌ Please provide a message, command, or file.");
   }
@@ -4158,10 +4159,20 @@ const partnerName =
   try {
     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
-    const webhook = await targetChannel.createWebhook({
-      name: member?.displayName || targetUser.username,
-      avatar: member?.displayAvatarURL({ dynamic: true }) || targetUser.displayAvatarURL({ dynamic: true })
-    });
+const webhookName =
+  customNickname ||
+  member?.displayName ||
+  targetUser.username;
+
+const webhookAvatar =
+  customAvatar?.url ||
+  member?.displayAvatarURL({ extension: "png", size: 1024 }) ||
+  targetUser.displayAvatarURL({ extension: "png", size: 1024 });
+
+const webhook = await targetChannel.createWebhook({
+  name: webhookName,
+  avatar: webhookAvatar
+});
 
     await webhook.send({
       content: finalMessage || null,
