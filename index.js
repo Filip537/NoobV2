@@ -4051,11 +4051,13 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
     });
   }
 }
-
 if (interaction.commandName === "spk") {
   const SAYAS_ROLE = "1491399898237501530";
 
-  if (!interaction.member.roles.cache.has(SAYAS_ROLE) && interaction.user.id !== OWNER_ID) {
+  if (
+    !interaction.member.roles.cache.has(SAYAS_ROLE) &&
+    interaction.user.id !== OWNER_ID
+  ) {
     return interaction.reply({
       content: "❌ You do not have permission to use this command.",
       ephemeral: true
@@ -4068,11 +4070,23 @@ if (interaction.commandName === "spk") {
   const message = interaction.options.getString("message");
   const command = interaction.options.getString("command");
   const file = interaction.options.getAttachment("file");
-  const targetChannel = interaction.options.getChannel("channel") || interaction.channel;
-const customNickname = interaction.options.getString("nickname");
-const customAvatar = interaction.options.getAttachment("avatar");
+  const targetChannel =
+    interaction.options.getChannel("channel") || interaction.channel;
+
+  const customNickname = interaction.options.getString("nickname");
+  const customAvatar = interaction.options.getAttachment("avatar");
+
   if (!message && !command && !file) {
-    return interaction.editReply("❌ Please provide a message, command, or file.");
+    return interaction.editReply(
+      "❌ Please provide a message, command, or file."
+    );
+  }
+
+  // Commands need a selected user
+  if (command && !targetUser) {
+    return interaction.editReply(
+      "❌ Please select a user when using the command option."
+    );
   }
 
   let finalMessage = message || "";
@@ -4101,7 +4115,9 @@ const customAvatar = interaction.options.getAttachment("avatar");
       "Your future looks bright today 🌈"
     ];
 
-    finalMessage = `${targetUser}, ${fortunes[Math.floor(Math.random() * fortunes.length)]}`;
+    finalMessage =
+      `${targetUser}, ` +
+      fortunes[Math.floor(Math.random() * fortunes.length)];
   }
 
   if (command === "whosmypartner") {
@@ -4132,14 +4148,14 @@ const customAvatar = interaction.options.getAttachment("avatar");
     });
 
     if (memberPool.length === 0) {
-      return interaction.editReply("❌ I could not find a partner.");
+      return interaction.editReply(
+        "❌ I could not find a partner."
+      );
     }
 
-    const randomMember = memberPool[Math.floor(Math.random() * memberPool.length)];
-const partnerName =
-  randomMember.displayName ||
-  randomMember.user.globalName ||
-  randomMember.user.username;
+    const randomMember =
+      memberPool[Math.floor(Math.random() * memberPool.length)];
+
     const messages = [
       `Hello ${targetUser}, your future partner is ${randomMember}. Please enjoy 💖`,
       `${targetUser}, destiny has chosen ${randomMember} as your future partner 💘`,
@@ -4153,40 +4169,72 @@ const partnerName =
       `${targetUser}, the stars say your partner is ${randomMember} ✨`
     ];
 
-    finalMessage = messages[Math.floor(Math.random() * messages.length)];
+    finalMessage =
+      messages[Math.floor(Math.random() * messages.length)];
   }
 
   try {
-    const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+    let member = null;
 
-const webhookName =
-  customNickname ||
-  member?.displayName ||
-  targetUser.username;
+    // Only fetch member if user was actually selected
+    if (targetUser) {
+      member = await interaction.guild.members
+        .fetch(targetUser.id)
+        .catch(() => null);
+    }
 
-const webhookAvatar =
-  customAvatar?.url ||
-  member?.displayAvatarURL({ extension: "png", size: 1024 }) ||
-  targetUser.displayAvatarURL({ extension: "png", size: 1024 });
+    // NAME PRIORITY:
+    // custom nickname -> selected user's nickname -> selected username -> default
+    const webhookName =
+      customNickname ||
+      member?.displayName ||
+      targetUser?.username ||
+      "SPK";
 
-const webhook = await targetChannel.createWebhook({
-  name: webhookName,
-  avatar: webhookAvatar
-});
+    // AVATAR PRIORITY:
+    // custom avatar -> selected user's avatar -> bot avatar
+    const webhookAvatar =
+      customAvatar?.url ||
+      member?.displayAvatarURL({
+        extension: "png",
+        size: 1024
+      }) ||
+      targetUser?.displayAvatarURL({
+        extension: "png",
+        size: 1024
+      }) ||
+      interaction.client.user.displayAvatarURL({
+        extension: "png",
+        size: 1024
+      });
+
+    const webhook = await targetChannel.createWebhook({
+      name: webhookName.slice(0, 80),
+      avatar: webhookAvatar
+    });
 
     await webhook.send({
       content: finalMessage || null,
       files: file ? [file.url] : [],
-      allowedMentions: { parse: [] }
+      allowedMentions: {
+        parse: []
+      }
     });
 
     await webhook.delete().catch(() => {});
 
-    return interaction.editReply("✅ Message sent successfully.");
+    return interaction.editReply(
+      "✅ Message sent successfully."
+    );
+
   } catch (err) {
-    console.error("Sayas Error:", err);
-    return interaction.editReply("❌ Failed. Make sure the bot has **Manage Webhooks** permission.");
+    console.error("SPK ERROR:", err);
+
+    return interaction.editReply(
+      `❌ Failed to send the message.\nError: \`${err.message}\``
+    );
   }
+}
 }  if (interaction.commandName === "sendroleselector") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
