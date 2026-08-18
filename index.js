@@ -1370,7 +1370,7 @@ async function sendBlacklistSeparator(channel) {
     }
 
     await webhook.send({
-      content: "# -----------------",
+      content: "# ---------------------------",
       allowedMentions: { parse: [] }
     });
 
