@@ -1931,30 +1931,31 @@ if (interaction.commandName === "unblist") {
   const blacklistReason = interaction.options.getString("blacklist_reason");
   const unblacklistReason = interaction.options.getString("unblacklist_reason");
 
-  const embed = new EmbedBuilder()
-    .setTitle("Unblacklist Request")
-    .setColor("Orange")
-    .addFields(
-      {
-        name: "GrowID",
-        value: growid,
-        inline: false
-      },
-      {
-        name: "Reason of Blacklist",
-        value: blacklistReason,
-        inline: false
-      },
-      {
-        name: "Reason of Unblacklist",
-        value: unblacklistReason,
-        inline: false
-      }
-    )
-    .setFooter({
-      text: `Requested by ${interaction.user.tag}`
-    })
-    .setTimestamp();
+const embed = new EmbedBuilder()
+  .setTitle("Unblacklist Request")
+  .setColor("Orange")
+  .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539412749740679179/happy.png?ex=6a863958&is=6a84e7d8&hm=2f42adb7282563cdcdce2a8f3775b5a8540875574af939cb8ca644765af7dfd5&=&format=webp&quality=lossless")
+  .addFields(
+    {
+      name: "GrowID",
+      value: growid,
+      inline: false
+    },
+    {
+      name: "Reason of Blacklist",
+      value: blacklistReason,
+      inline: false
+    },
+    {
+      name: "Reason of Unblacklist",
+      value: unblacklistReason,
+      inline: false
+    }
+  )
+  .setFooter({
+    text: `Requested by ${interaction.user.tag}`
+  })
+  .setTimestamp();
 
   const approve = new ButtonBuilder()
     .setCustomId(`approve_unblist_${interaction.user.id}`)
