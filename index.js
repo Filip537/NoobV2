@@ -1352,6 +1352,33 @@ async function cleanUnknownBirthdays(guild, birthdays) {
 
   return removed;
 }
+async function sendBlacklistSeparator(channel) {
+  try {
+    const webhooks = await channel.fetchWebhooks();
+
+    let webhook = webhooks.find(
+      hook =>
+        hook.name === "Message Separator" &&
+        hook.owner?.id === client.user.id
+    );
+
+    if (!webhook) {
+      webhook = await channel.createWebhook({
+        name: "Message Separator",
+        reason: "Automatic blacklist message separator"
+      });
+    }
+
+    await webhook.send({
+      content: "# -----------------",
+      allowedMentions: { parse: [] }
+    });
+
+  } catch (error) {
+    console.error("Blacklist separator webhook error:", error);
+  }
+}
+
 async function checkBirthdays(forceCheck = false) {
   const now = getGMT8DateParts();
 
@@ -7398,7 +7425,7 @@ if (interaction.customId.startsWith("report_blacklist_") || interaction.customId
     if (imageUrl) message += `\n${imageUrl}`;
 
     await finalChannel.send({ content: message });
-
+await sendBlacklistSeparator(finalChannel);
     // SAVE TO JSON
     const blacklist = loadBlacklist();
 
@@ -7538,7 +7565,7 @@ if (interaction.customId.startsWith("approve_")) {
   if (imageUrl) message += `\n${imageUrl}`;
 
   await finalChannel.send({ content: message });
-
+await sendBlacklistSeparator(finalChannel);
   // save approved blacklist permanently
   const blacklist = loadBlacklist();
 
