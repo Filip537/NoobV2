@@ -7659,6 +7659,59 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
+  // ================= ADMIN SCREENSHOT CHECK =================
+const SCREENSHOT_CHECK_CHANNEL = "1539414735659860048";
+
+if (message.channel.id === SCREENSHOT_CHECK_CHANNEL) {
+
+  // Admin only
+  if (!message.member?.roles.cache.has(adminRole)) {
+    return;
+  }
+
+  const images = message.attachments.filter(attachment => {
+    const type = attachment.contentType || "";
+    const name = attachment.name || "";
+
+    return (
+      type.startsWith("image/") ||
+      /\.(png|jpg|jpeg|webp)$/i.test(name)
+    );
+  });
+
+  if (images.size === 0) {
+    return message.reply({
+      content: "❌ Please send a screenshot/image for me to check.",
+      allowedMentions: {
+        repliedUser: false
+      }
+    });
+  }
+
+  const firstImage = images.first();
+
+  const checkEmbed = new EmbedBuilder()
+    .setTitle("Screenshot Detected")
+    .setColor("Yellow")
+    .setDescription(
+      `A screenshot has been submitted by ${message.author}.\n\n` +
+      `**Status:** Screenshot detected \n` +
+      `**Submitted by:** ${message.author}\n` +
+      `**File:** ${firstImage.name || "Screenshot"}\n\n` +
+      `The screenshot is ready for checking.`
+    )
+    .setImage(firstImage.url)
+    .setTimestamp();
+
+  await message.reply({
+    embeds: [checkEmbed],
+    allowedMentions: {
+      repliedUser: false
+    }
+  });
+
+  return;
+}
   // ================= MYSTATS TRACKER =================
   trackUserActivity(message);
 // ================= SHARKFIN WEBHOOK AUTO REPLY =================
