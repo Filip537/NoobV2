@@ -4235,7 +4235,8 @@ if (interaction.commandName === "spk") {
     );
   }
 }
-}  if (interaction.commandName === "sendroleselector") {
+
+  if (interaction.commandName === "sendroleselector") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
       content: "❌ No permission.",
