@@ -7455,7 +7455,6 @@ await sendBlacklistSeparator(finalChannel);
     components: []
   });
 }
-
 // ================= UNBLACKLIST APPROVE / DENY =================
 if (
   interaction.customId.startsWith("approve_unblist_") ||
@@ -7465,7 +7464,6 @@ if (
   const ownerId = interaction.customId.split("_").pop();
   const SELF_APPROVE_ROLE = "1448858787296317553";
 
-  // Same self-approval protection as blacklist
   if (interaction.user.id === ownerId) {
     if (!interaction.member.roles.cache.has(SELF_APPROVE_ROLE)) {
       return interaction.reply({
@@ -7487,21 +7485,21 @@ if (
   const unblacklistReason =
     fields.find(f => f.name === "Reason of Unblacklist")?.value || "Unknown";
 
-  // APPROVED
   if (interaction.customId.startsWith("approve_unblist_")) {
 
     const finalChannel = await client.channels.fetch(
       "1505252429967396904"
     );
 
-    await finalChannel.send({
-      content:
+await finalChannel.send({
+  content:
 `**Growid:** ${growid}
 **Reason of blacklist:** ${blacklistReason}
 **Reason of unblacklist:** ${unblacklistReason}`
-    });
+});
 
-    // REMOVE USER FROM blacklist.json
+await sendBlacklistSeparator(finalChannel);
+
     const blacklist = loadBlacklist();
 
     const updatedBlacklist = blacklist.filter(
@@ -7519,7 +7517,6 @@ if (
 
   } else {
 
-    // DENIED
     embed
       .setColor("Red")
       .setFooter({
