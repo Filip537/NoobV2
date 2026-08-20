@@ -2025,13 +2025,8 @@ function formatGrowtopiaPrice(wl) {
 
 
 // ================= GET PRICE =================
-
 async function getGTPrice(itemName) {
-  const normalizedItem = itemName
-    .trim()
-    .toLowerCase();
-
-  // ================= CACHE =================
+  const normalizedItem = itemName.trim().toLowerCase();
 
   const cached = gtPriceCache.get(normalizedItem);
 
@@ -2049,6 +2044,15 @@ async function getGTPrice(itemName) {
 
     page = await browser.newPage();
 
+    // ================= DISABLE CACHE =================
+
+    await page.setCacheEnabled(false);
+
+    await page.setExtraHTTPHeaders({
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache"
+    });
+
     await page.setViewport({
       width: 1280,
       height: 900
@@ -2060,13 +2064,40 @@ async function getGTPrice(itemName) {
       "Chrome/131.0.0.0 Safari/537.36"
     );
 
+    // Random query prevents cached homepage response
     await page.goto(
-      "https://gtpricetracker.com/",
+      `https://gtpricetracker.com/?nocache=${Date.now()}`,
       {
         waitUntil: "networkidle2",
         timeout: 30000
       }
     );
+
+    // ================= CLEAR WEBSITE CACHE =================
+
+    await page.evaluate(async () => {
+      try {
+        localStorage.clear();
+      } catch {}
+
+      try {
+        sessionStorage.clear();
+      } catch {}
+
+      try {
+        if ("caches" in window) {
+          const keys = await caches.keys();
+
+          await Promise.all(
+            keys.map(key =>
+              caches.delete(key)
+            )
+          );
+        }
+      } catch {}
+    });
+
+    // ================= SEARCH =================
 
     const searchInput =
       'input[placeholder*="Search for an item"]';
@@ -2078,278 +2109,339 @@ async function getGTPrice(itemName) {
       }
     );
 
-    await page.click(searchInput);
+    await page.click(
+      searchInput,
+      {
+        clickCount: 3
+      }
+    );
 
-    // Clear old search
-    await page.evaluate(selector => {
-      const input =
-        document.querySelector(selector);
+    await page.keyboard.press("Backspace");
 
-      if (!input) return;
-
-      input.value = "";
-
-      input.dispatchEvent(
-        new Event("input", {
-          bubbles: true
-        })
-      );
-    }, searchInput);
-
-    // Type item
     await page.type(
       searchInput,
       itemName,
       {
-        delay: 40
+        delay: 35
       }
     );
 
-    // Wait for suggestions
-    await new Promise(resolve =>
-      setTimeout(resolve, 1200)
-    );
+    // IMPORTANT:
+    // Always use the real Search button.
+    // Do NOT click random DIV suggestions.
 
-    // Try clicking exact search suggestion first
-    const clickedSuggestion =
-      await page.evaluate(itemName => {
-        const target =
-          itemName.trim().toLowerCase();
+    const clicked =
+      await page.evaluate(() => {
+        const buttons =
+          [...document.querySelectorAll("button")];
 
-        const elements = [
-          ...document.querySelectorAll(
-            "button, a, li, div"
-          )
-        ];
+        const button =
+          buttons.find(el =>
+            (el.textContent || "")
+              .trim()
+              .toLowerCase() ===
+            "search"
+          );
 
-        const exact = elements.find(el => {
-          const text =
-            el.textContent
-              ?.trim()
-              .toLowerCase();
-
-          return text === target;
-        });
-
-        if (exact) {
-          exact.click();
-          return true;
+        if (!button) {
+          return false;
         }
 
-        return false;
-      }, itemName);
+        button.click();
 
-    // If no suggestion was clicked, click Search button
-    if (!clickedSuggestion) {
-      const searchClicked =
-        await page.evaluate(() => {
-          const buttons =
-            [...document.querySelectorAll("button")];
+        return true;
+      });
 
-          const searchButton =
-            buttons.find(button =>
-              button.textContent
-                ?.trim()
-                .toLowerCase() ===
-              "search"
-            );
-
-          if (!searchButton) {
-            return false;
-          }
-
-          searchButton.click();
-
-          return true;
-        });
-
-      if (!searchClicked) {
-        throw new Error(
-          "Could not find search button."
-        );
-      }
+    if (!clicked) {
+      throw new Error(
+        "GTPriceTracker Search button not found."
+      );
     }
 
-    // Wait for page/result update
-    await new Promise(resolve =>
-      setTimeout(resolve, 3000)
-    );
+    // ================= WAIT FOR LIVE PRICE =================
 
-    // Wait until a current-price block exists
     await page.waitForFunction(
       () => {
         const text =
           document.body.innerText || "";
 
         return (
-          /Current\s+(WL|DL|BGL)/i.test(text) &&
-          /Lowest\s+(WL|DL|BGL)/i.test(text)
+          /Current\s+(WL|DL|BGL)\s*\n\s*[\d,.]+/i
+            .test(text) &&
+          /Lowest\s+(WL|DL|BGL)\s*\n\s*[\d,.]+/i
+            .test(text)
         );
       },
       {
-        timeout: 15000
+        timeout: 20000
       }
     );
 
-    // ================= EXTRACT CORRECT RESULT =================
+    // Let latest API data finish rendering
+    await new Promise(resolve =>
+      setTimeout(resolve, 1500)
+    );
 
-    const result =
-      await page.evaluate(itemName => {
-        const target =
-          itemName
-            .trim()
-            .toLowerCase();
+    // ================= READ VISIBLE CARDS ONLY =================
 
-        const allElements = [
-          ...document.querySelectorAll(
-            "div, section, article, main"
-          )
-        ];
+    const raw =
+      await page.evaluate(() => {
 
-        /*
-          Look for the smallest container that contains:
-          - searched item name
-          - Current WL/DL/BGL
-          - Lowest WL/DL/BGL
-        */
+        const clean = value =>
+          (value || "")
+            .replace(/\s+/g, " ")
+            .trim();
 
-        const candidates =
-          allElements
-            .map(el => ({
-              element: el,
-              text:
-                el.innerText?.trim() || ""
-            }))
-            .filter(obj => {
-              const lower =
-                obj.text.toLowerCase();
+        const visible = element => {
+          if (!element) {
+            return false;
+          }
 
-              return (
-                lower.includes(target) &&
-                /Current\s+(WL|DL|BGL)/i.test(
-                  obj.text
-                ) &&
-                /Lowest\s+(WL|DL|BGL)/i.test(
-                  obj.text
-                )
-              );
-            })
-            .sort(
-              (a, b) =>
-                a.text.length -
-                b.text.length
-            );
+          const style =
+            window.getComputedStyle(element);
 
-        let text = "";
+          const rect =
+            element.getBoundingClientRect();
 
-        if (candidates.length > 0) {
-          text =
-            candidates[0].text;
-        } else {
-          // Fallback
-          text =
-            document.body.innerText || "";
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+
+        const elements =
+          [...document.querySelectorAll("body *")]
+            .filter(visible);
+
+        // Find the ACTUAL visible Current BGL/DL/WL label
+        const currentLabel =
+          elements.find(element =>
+            /^Current\s+(WL|DL|BGL)$/i.test(
+              clean(element.textContent)
+            )
+          );
+
+        // Find the ACTUAL visible Lowest BGL/DL/WL label
+        const lowestLabel =
+          elements.find(element =>
+            /^Lowest\s+(WL|DL|BGL)$/i.test(
+              clean(element.textContent)
+            )
+          );
+
+        if (
+          !currentLabel ||
+          !lowestLabel
+        ) {
+          return null;
         }
 
-        return text;
-      }, itemName);
+        // ================= FIND CARD =================
+
+        const getCard = label => {
+          let element = label;
+
+          while (
+            element &&
+            element !== document.body
+          ) {
+            const text =
+              element.innerText || "";
+
+            const numbers =
+              text.match(
+                /\b\d+(?:\.\d+)?\b/g
+              ) || [];
+
+            if (
+              numbers.length > 0 &&
+              (
+                /Current\s+(WL|DL|BGL)/i.test(text) ||
+                /Lowest\s+(WL|DL|BGL)/i.test(text)
+              )
+            ) {
+              return element;
+            }
+
+            element =
+              element.parentElement;
+          }
+
+          return label.parentElement;
+        };
+
+        const currentCard =
+          getCard(currentLabel);
+
+        const lowestCard =
+          getCard(lowestLabel);
+
+        const currentText =
+          currentCard?.innerText || "";
+
+        const lowestText =
+          lowestCard?.innerText || "";
+
+        // ================= UNIT =================
+
+        const currentUnit =
+          clean(currentLabel.textContent)
+            .match(
+              /^Current\s+(WL|DL|BGL)$/i
+            )?.[1]
+            ?.toUpperCase() ||
+          null;
+
+        const lowestUnit =
+          clean(lowestLabel.textContent)
+            .match(
+              /^Lowest\s+(WL|DL|BGL)$/i
+            )?.[1]
+            ?.toUpperCase() ||
+          null;
+
+        // ================= VALUE =================
+
+        const currentValue =
+          currentText
+            .replace(
+              clean(currentLabel.textContent),
+              ""
+            )
+            .match(
+              /\b\d+(?:\.\d+)?\b/
+            )?.[0] ||
+          null;
+
+        const lowestValue =
+          lowestText
+            .replace(
+              clean(lowestLabel.textContent),
+              ""
+            )
+            .match(
+              /\b\d+(?:\.\d+)?\b/
+            )?.[0] ||
+          null;
+
+        // ================= LAST UPDATE =================
+
+        // IMPORTANT:
+        // Only search inside the CURRENT PRICE CARD.
+        // No whole-page regex anymore.
+
+        const updateElement =
+          [...currentCard.querySelectorAll("*")]
+            .filter(visible)
+            .find(element =>
+              /^Last update:/i.test(
+                clean(element.textContent)
+              )
+            );
+
+        const lastUpdate =
+          updateElement
+            ? clean(
+                updateElement.textContent
+              ).replace(
+                /^Last update:\s*/i,
+                ""
+              )
+            : null;
+
+        return {
+          currentUnit,
+          currentValue,
+          lowestUnit,
+          lowestValue,
+          lastUpdate,
+
+          // Debug
+          currentCardText:
+            currentText,
+
+          lowestCardText:
+            lowestText
+        };
+      });
 
     console.log(
-      "======= SELECTED PRICE BLOCK ======="
+      "========== LIVE GT PRICE =========="
     );
 
-    console.log(result);
+    console.log(raw);
 
     console.log(
-      "===================================="
+      "==================================="
     );
 
-    // ================= CURRENT PRICE =================
-
-    const currentMatch =
-      result.match(
-        /Current\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
-      );
-
-    const lowestMatch =
-      result.match(
-        /Lowest\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
-      );
-
-    /*
-      GTPriceTracker currently often displays:
-      Last update: 05:58 pm
-
-      rather than a full date.
-    */
-
-    const updateMatch =
-      result.match(
-        /Last update:\s*([^\n]+)/i
-      );
-
-    if (!currentMatch) {
-      return null;
-    }
-
-    // ================= CONVERT CURRENT =================
-
-    const currentUnit =
-      currentMatch[1].toUpperCase();
-
-    const currentRaw =
-      Number(
-        currentMatch[2]
-          .replace(/,/g, "")
-      );
-
-    let currentWL;
-
-    if (currentUnit === "BGL") {
-      currentWL =
-        currentRaw * 10000;
-    } else if (
-      currentUnit === "DL"
+    if (
+      !raw ||
+      !raw.currentUnit ||
+      !raw.currentValue
     ) {
-      currentWL =
-        currentRaw * 100;
-    } else {
-      currentWL =
-        currentRaw;
+      throw new Error(
+        "Could not read live Current price card."
+      );
     }
 
-    // ================= CONVERT LOWEST =================
+    // ================= CONVERT PRICE =================
 
-    let lowestWL = null;
-
-    if (lowestMatch) {
-      const lowestUnit =
-        lowestMatch[1].toUpperCase();
-
-      const lowestRaw =
+    const toWL = (
+      value,
+      unit
+    ) => {
+      const number =
         Number(
-          lowestMatch[2]
+          String(value)
             .replace(/,/g, "")
         );
 
-      if (lowestUnit === "BGL") {
-        lowestWL =
-          lowestRaw * 10000;
-      } else if (
-        lowestUnit === "DL"
+      if (
+        !Number.isFinite(number)
       ) {
-        lowestWL =
-          lowestRaw * 100;
-      } else {
-        lowestWL =
-          lowestRaw;
+        return null;
       }
+
+      if (unit === "BGL") {
+        return number * 10000;
+      }
+
+      if (unit === "DL") {
+        return number * 100;
+      }
+
+      return number;
+    };
+
+    const currentWL =
+      toWL(
+        raw.currentValue,
+        raw.currentUnit
+      );
+
+    const lowestWL =
+      raw.lowestValue &&
+      raw.lowestUnit
+        ? toWL(
+            raw.lowestValue,
+            raw.lowestUnit
+          )
+        : null;
+
+    if (currentWL === null) {
+      throw new Error(
+        "Invalid live price."
+      );
     }
 
-    // ================= DATA =================
+    // ================= FINAL DATA =================
 
     const data = {
-      item: itemName.trim(),
+      item:
+        itemName.trim(),
 
       currentWL,
 
@@ -2368,9 +2460,8 @@ async function getGTPrice(itemName) {
           : "Unknown",
 
       lastUpdate:
-        updateMatch
-          ? updateMatch[1].trim()
-          : "Unknown",
+        raw.lastUpdate ||
+        "Unknown",
 
       checkedAt:
         Date.now()
