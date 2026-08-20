@@ -4905,17 +4905,14 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
   }
 }
 if (interaction.commandName === "spk") {
-  const SAYAS_ROLE = "1491399898237501530";
-
   if (
-    !interaction.member.roles.cache.has(SAYAS_ROLE) &&
-    interaction.user.id !== OWNER_ID
-  ) {
-    return interaction.reply({
-      content: "❌ You do not have permission to use this command.",
-      ephemeral: true
-    });
-  }
+  !interaction.member.permissions.has(PermissionFlagsBits.Administrator)
+) {
+  return interaction.reply({
+    content: "❌ You need Administrator permission to use this command.",
+    ephemeral: true
+  });
+}
 
   await interaction.deferReply({ ephemeral: true });
 
