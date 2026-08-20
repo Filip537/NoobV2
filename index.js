@@ -1972,8 +1972,7 @@ let gtPriceBrowser = null;
 
 const gtPriceCache = new Map();
 
-const GT_PRICE_CACHE_TIME = 5 * 60 * 1000;
-
+const GT_PRICE_CACHE_TIME = 30 * 1000;
 
 // ================= GET BROWSER =================
 
