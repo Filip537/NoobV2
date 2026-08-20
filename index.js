@@ -2664,8 +2664,173 @@ async function getGTPrice(itemName) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-  // ================= PRICE COMMAND =================
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "addreaction"
+) {
+  // Administrator only
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
 
+  await interaction.deferReply({ ephemeral: true });
+
+  const messageId = interaction.options.getString("messageid", true);
+
+  try {
+    // Find the message in the current channel
+    const targetMessage = await interaction.channel.messages.fetch(messageId);
+
+    // Normal Unicode emojis
+const normalEmojis = [
+  "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣",
+  "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰",
+  "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜",
+  "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳",
+  "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️",
+  "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤",
+  "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱",
+  "😨", "😰", "😥", "😓", "🤗", "🤔", "🫣", "🤭",
+  "🫢", "🫡", "🤫", "🫠", "🤥", "😶", "😶‍🌫️", "😐",
+  "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲",
+  "🥱", "😴", "🤤", "😪", "😵", "😵‍💫", "🤐", "🥴",
+  "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠",
+  "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀",
+  "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹",
+  "😻", "😼", "😽", "🙀", "😿", "😾",
+
+  "👋", "🤚", "🖐️", "✋", "🖖", "🫱", "🫲", "🫳",
+  "🫴", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟",
+  "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️", "🫵",
+  "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌",
+  "🫶", "👐", "🤲", "🤝", "🙏", "✍️", "💅", "🤳",
+  "💪", "🦾", "🦵", "🦶", "👂", "👃", "🧠", "🫀",
+  "🫁", "🦷", "👀", "👁️", "👅", "👄",
+
+  "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+  "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓",
+  "💗", "💖", "💘", "💝", "💟",
+
+  "💯", "💢", "💥", "💫", "💦", "💨", "🕳️", "💣",
+  "💬", "👁️‍🗨️", "🗨️", "🗯️", "💭", "💤",
+
+  "🔥", "✨", "⭐", "🌟", "💫", "⚡", "☄️", "🌈",
+  "☀️", "🌤️", "⛅", "🌥️", "☁️", "🌧️", "⛈️", "🌩️",
+  "❄️", "☃️", "⛄", "🌪️", "🌊", "💧",
+
+  "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
+  "🐻‍❄️", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵",
+  "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦", "🐤",
+  "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄",
+  "🐝", "🪲", "🐞", "🦋", "🐌", "🐛", "🪱", "🐜",
+  "🦟", "🦗", "🕷️", "🦂", "🐢", "🐍", "🦎", "🐙",
+  "🦑", "🦀", "🦞", "🦐", "🐠", "🐟", "🐡", "🦈",
+  "🐬", "🐳", "🐋", "🐊", "🐆", "🐅", "🐃", "🐂",
+  "🐄", "🦬", "🐪", "🐫", "🦙", "🦒", "🐘", "🦏",
+  "🦛", "🐐", "🐏", "🐑", "🐎", "🐖", "🐀", "🐁",
+  "🐿️", "🦔",
+
+  "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇",
+  "🍓", "🫐", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥",
+  "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️",
+  "🫑", "🌽", "🥕", "🫒", "🧄", "🧅", "🥔", "🍠",
+  "🥐", "🥯", "🍞", "🥖", "🥨", "🧀", "🥚", "🍳",
+  "🥞", "🧇", "🥓", "🥩", "🍗", "🍖", "🌭", "🍔",
+  "🍟", "🍕", "🫓", "🥪", "🌮", "🌯", "🫔", "🥙",
+  "🧆", "🥘", "🍲", "🫕", "🥣", "🥗", "🍿", "🧈",
+  "🧂", "🥫", "🍱", "🍘", "🍙", "🍚", "🍛", "🍜",
+  "🍝", "🍠", "🍢", "🍣", "🍤", "🍥", "🥮", "🍡",
+  "🥟", "🥠", "🥡", "🍦", "🍧", "🍨", "🍩", "🍪",
+  "🎂", "🍰", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮",
+  "🍯",
+
+  "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉",
+  "🥏", "🎱", "🪀", "🏓", "🏸", "🏒", "🏑", "🥍",
+  "🏏", "🪃", "🥅", "⛳", "🪁", "🏹", "🎣", "🤿",
+  "🥊", "🥋", "🎽", "🛹", "🛼", "🛷", "⛸️", "🥌",
+  "🎿", "⛷️", "🏂", "🪂", "🏋️", "🤼", "🤸", "⛹️",
+  "🤺", "🤾", "🏌️", "🏇", "🧘", "🏄", "🏊", "🤽",
+  "🚣", "🧗", "🚵", "🚴",
+
+  "🎮", "🕹️", "🎲", "♟️", "🎯", "🎳", "🎰", "🧩",
+  "🎨", "🎭", "🎤", "🎧", "🎼", "🎹", "🥁", "🎷",
+  "🎺", "🎸", "🪕", "🎻", "🎬", "🎥", "📸", "📺",
+  "📱", "💻", "⌨️", "🖥️", "🖨️", "🖱️",
+
+  "🚗", "🚕", "🚙", "🚌", "🚎", "🏎️", "🚓", "🚑",
+  "🚒", "🚐", "🛻", "🚚", "🚛", "🚜", "🏍️", "🛵",
+  "🚲", "🛴", "🚨", "🚔", "✈️", "🚀", "🛸", "🚁",
+  "⛵", "🚤", "🛥️", "🚢",
+
+  "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "👑", "💎",
+  "💰", "💵", "💸", "🪙", "💳", "🧾", "🔑", "🗝️",
+  "🔒", "🔓", "🔐", "🔔", "🔕", "📢", "📣", "✅",
+  "❌", "❗", "❓", "‼️", "⁉️", "⚠️", "🚫", "⭕",
+  "✔️", "☑️", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣",
+  "⚫", "⚪", "🟤", "🔺", "🔻", "🔸", "🔹", "🔶",
+  "🔷", "🔳", "🔲",
+
+  "🗿", "🪦", "⚰️", "🔮", "🧿", "🪬", "🧸", "🎁",
+  "🎈", "🎉", "🎊", "🎀", "🎃", "🎄", "🎆", "🎇",
+  "🧨", "🎐", "🎑", "🧧", "🎋", "🎍"
+];
+
+    // Get all custom emojis from this server
+    const serverEmojis = interaction.guild.emojis.cache.map(emoji => emoji);
+
+    // Mix Unicode + server custom emojis
+    const emojiPool = [
+      ...normalEmojis,
+      ...serverEmojis
+    ];
+
+    if (emojiPool.length < 16) {
+      return interaction.editReply({
+        content: "❌ Not enough emojis available."
+      });
+    }
+
+    // Shuffle the emoji pool
+    const shuffled = [...emojiPool].sort(() => Math.random() - 0.5);
+
+    let added = 0;
+    const used = new Set();
+
+    for (const emoji of shuffled) {
+      if (added >= 16) break;
+
+      const emojiKey =
+        typeof emoji === "string"
+          ? emoji
+          : emoji.id;
+
+      if (used.has(emojiKey)) continue;
+
+      try {
+        await targetMessage.react(emoji);
+        used.add(emojiKey);
+        added++;
+      } catch (error) {
+        console.log(`Could not react with ${emojiKey}:`, error.message);
+      }
+    }
+
+    return interaction.editReply({
+      content: `✅ Added **${added} random reactions** to the message.`
+    });
+
+  } catch (error) {
+    console.error("Add reaction error:", error);
+
+    return interaction.editReply({
+      content:
+        "❌ Could not find that message. Make sure the message ID is from this channel."
+    });
+  }
+}
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "price"
