@@ -2023,21 +2023,17 @@ function formatGrowtopiaPrice(wl) {
   return `${Number(amount.toFixed(2))} WL`;
 }
 
-
-// ================= GET PRICE =================
-
 async function getGTPrice(itemName) {
-  const normalizedItem = itemName
-    .trim()
-    .toLowerCase();
+  const normalizedItem =
+    itemName.trim().toLowerCase();
 
-  // ================= CACHE =================
-
-  const cached = gtPriceCache.get(normalizedItem);
+  const cached =
+    gtPriceCache.get(normalizedItem);
 
   if (
     cached &&
-    Date.now() - cached.time < GT_PRICE_CACHE_TIME
+    Date.now() - cached.time <
+      GT_PRICE_CACHE_TIME
   ) {
     return cached.data;
   }
@@ -2045,9 +2041,22 @@ async function getGTPrice(itemName) {
   let page = null;
 
   try {
-    const browser = await getGTPriceBrowser();
+    const browser =
+      await getGTPriceBrowser();
 
-    page = await browser.newPage();
+    page =
+      await browser.newPage();
+
+    // Do not use an old cached website response
+    await page.setCacheEnabled(false);
+
+    await page.setExtraHTTPHeaders({
+      "Cache-Control":
+        "no-cache, no-store, max-age=0",
+
+      "Pragma":
+        "no-cache"
+    });
 
     await page.setViewport({
       width: 1280,
@@ -2061,7 +2070,7 @@ async function getGTPrice(itemName) {
     );
 
     await page.goto(
-      "https://gtpricetracker.com/",
+      `https://gtpricetracker.com/?t=${Date.now()}`,
       {
         waitUntil: "networkidle2",
         timeout: 30000
@@ -2078,278 +2087,527 @@ async function getGTPrice(itemName) {
       }
     );
 
-    await page.click(searchInput);
+    // Clear search box
+    await page.click(
+      searchInput,
+      {
+        clickCount: 3
+      }
+    );
 
-    // Clear old search
-    await page.evaluate(selector => {
-      const input =
-        document.querySelector(selector);
+    await page.keyboard.press(
+      "Backspace"
+    );
 
-      if (!input) return;
-
-      input.value = "";
-
-      input.dispatchEvent(
-        new Event("input", {
-          bubbles: true
-        })
-      );
-    }, searchInput);
-
-    // Type item
+    // Type requested item
     await page.type(
       searchInput,
-      itemName,
+      itemName.trim(),
       {
-        delay: 40
+        delay: 35
       }
     );
 
-    // Wait for suggestions
-    await new Promise(resolve =>
-      setTimeout(resolve, 1200)
-    );
+    // IMPORTANT:
+    // Click the actual Search button.
+    // Do NOT click random DIV autocomplete results.
+    const searchClicked =
+      await page.evaluate(() => {
+        const buttons =
+          [
+            ...document.querySelectorAll(
+              "button"
+            )
+          ];
 
-    // Try clicking exact search suggestion first
-    const clickedSuggestion =
-      await page.evaluate(itemName => {
-        const target =
-          itemName.trim().toLowerCase();
+        const searchButton =
+          buttons.find(button =>
+            (
+              button.textContent || ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "search"
+          );
 
-        const elements = [
-          ...document.querySelectorAll(
-            "button, a, li, div"
-          )
-        ];
+        if (!searchButton) {
+          return false;
+        }
 
-        const exact = elements.find(el => {
-          const text =
-            el.textContent
-              ?.trim()
+        searchButton.click();
+
+        return true;
+      });
+
+    if (!searchClicked) {
+      throw new Error(
+        "GTPriceTracker Search button not found."
+      );
+    }
+
+    // ==========================================
+    // WAIT FOR THE ACTUAL REQUESTED ITEM
+    // ==========================================
+
+    await page.waitForFunction(
+      target => {
+        const clean =
+          value =>
+            (value || "")
+              .replace(/\s+/g, " ")
+              .trim()
               .toLowerCase();
 
-          return text === target;
-        });
+        const visible =
+          element => {
+            if (!element) {
+              return false;
+            }
 
-        if (exact) {
-          exact.click();
-          return true;
-        }
+            const style =
+              getComputedStyle(
+                element
+              );
 
-        return false;
-      }, itemName);
+            const rect =
+              element
+                .getBoundingClientRect();
 
-    // If no suggestion was clicked, click Search button
-    if (!clickedSuggestion) {
-      const searchClicked =
-        await page.evaluate(() => {
-          const buttons =
-            [...document.querySelectorAll("button")];
+            return (
+              style.display !==
+                "none" &&
+              style.visibility !==
+                "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
 
-          const searchButton =
-            buttons.find(button =>
-              button.textContent
-                ?.trim()
-                .toLowerCase() ===
-              "search"
+        // Find actual visible result title
+        const hasCorrectItem =
+          [
+            ...document.querySelectorAll(
+              "h1,h2,h3,h4,p,span,div"
+            )
+          ]
+            .filter(visible)
+            .some(element =>
+              clean(
+                element.textContent
+              ) === target
             );
 
-          if (!searchButton) {
-            return false;
-          }
-
-          searchButton.click();
-
-          return true;
-        });
-
-      if (!searchClicked) {
-        throw new Error(
-          "Could not find search button."
-        );
-      }
-    }
-
-    // Wait for page/result update
-    await new Promise(resolve =>
-      setTimeout(resolve, 3000)
-    );
-
-    // Wait until a current-price block exists
-    await page.waitForFunction(
-      () => {
         const text =
-          document.body.innerText || "";
+          document.body
+            .innerText || "";
+
+        const hasPrices =
+          /Current\s+(WL|DL|BGL)/i
+            .test(text) &&
+          /Lowest\s+(WL|DL|BGL)/i
+            .test(text);
 
         return (
-          /Current\s+(WL|DL|BGL)/i.test(text) &&
-          /Lowest\s+(WL|DL|BGL)/i.test(text)
+          hasCorrectItem &&
+          hasPrices
         );
       },
+
       {
-        timeout: 15000
-      }
+        timeout: 20000
+      },
+
+      normalizedItem
     );
 
-    // ================= EXTRACT CORRECT RESULT =================
+    // Give the site's async request time
+    // to finish updating the cards.
+    await new Promise(resolve =>
+      setTimeout(
+        resolve,
+        1200
+      )
+    );
 
-    const result =
-      await page.evaluate(itemName => {
-        const target =
-          itemName
-            .trim()
-            .toLowerCase();
+    // ==========================================
+    // READ ONLY VISIBLE PRICE CARDS
+    // ==========================================
 
-        const allElements = [
-          ...document.querySelectorAll(
-            "div, section, article, main"
-          )
-        ];
+    const raw =
+      await page.evaluate(
+        target => {
 
-        /*
-          Look for the smallest container that contains:
-          - searched item name
-          - Current WL/DL/BGL
-          - Lowest WL/DL/BGL
-        */
+          const clean =
+            value =>
+              (value || "")
+                .replace(
+                  /\s+/g,
+                  " "
+                )
+                .trim();
 
-        const candidates =
-          allElements
-            .map(el => ({
-              element: el,
-              text:
-                el.innerText?.trim() || ""
-            }))
-            .filter(obj => {
-              const lower =
-                obj.text.toLowerCase();
+          const visible =
+            element => {
+              if (!element) {
+                return false;
+              }
+
+              const style =
+                getComputedStyle(
+                  element
+                );
+
+              const rect =
+                element
+                  .getBoundingClientRect();
 
               return (
-                lower.includes(target) &&
-                /Current\s+(WL|DL|BGL)/i.test(
-                  obj.text
-                ) &&
-                /Lowest\s+(WL|DL|BGL)/i.test(
-                  obj.text
-                )
+                style.display !==
+                  "none" &&
+                style.visibility !==
+                  "hidden" &&
+                rect.width > 0 &&
+                rect.height > 0
               );
-            })
-            .sort(
-              (a, b) =>
-                a.text.length -
-                b.text.length
+            };
+
+          const all =
+            [
+              ...document.querySelectorAll(
+                "body *"
+              )
+            ]
+              .filter(
+                visible
+              );
+
+          // =====================================
+          // VERIFY REQUESTED ITEM
+          // =====================================
+
+          const itemTitle =
+            all.find(element =>
+              clean(
+                element.textContent
+              )
+                .toLowerCase() ===
+              target
             );
 
-        let text = "";
+          if (!itemTitle) {
+            return {
+              error:
+                "Requested item title not found."
+            };
+          }
 
-        if (candidates.length > 0) {
-          text =
-            candidates[0].text;
-        } else {
-          // Fallback
-          text =
-            document.body.innerText || "";
+          // =====================================
+          // FIND EXACT VISIBLE LABELS
+          // =====================================
+
+          const currentLabel =
+            all.find(element =>
+              /^Current\s+(WL|DL|BGL)$/i
+                .test(
+                  clean(
+                    element.textContent
+                  )
+                )
+            );
+
+          const lowestLabel =
+            all.find(element =>
+              /^Lowest\s+(WL|DL|BGL)$/i
+                .test(
+                  clean(
+                    element.textContent
+                  )
+                )
+            );
+
+          if (
+            !currentLabel ||
+            !lowestLabel
+          ) {
+            return {
+              error:
+                "Visible price labels not found."
+            };
+          }
+
+          // =====================================
+          // FIND THE CARD FOR EACH LABEL
+          // =====================================
+
+          const findPriceCard =
+            label => {
+
+              let element =
+                label;
+
+              for (
+                let i = 0;
+                i < 6 &&
+                element &&
+                element !==
+                  document.body;
+                i++
+              ) {
+                const text =
+                  element.innerText ||
+                  "";
+
+                if (
+                  /\b\d+(?:[.,]\d+)?\b/
+                    .test(text)
+                ) {
+                  return element;
+                }
+
+                element =
+                  element.parentElement;
+              }
+
+              return (
+                label.parentElement
+              );
+            };
+
+          const currentCard =
+            findPriceCard(
+              currentLabel
+            );
+
+          const lowestCard =
+            findPriceCard(
+              lowestLabel
+            );
+
+          const currentText =
+            currentCard
+              ?.innerText ||
+            "";
+
+          const lowestText =
+            lowestCard
+              ?.innerText ||
+            "";
+
+          // =====================================
+          // UNITS
+          // =====================================
+
+          const currentUnit =
+            clean(
+              currentLabel
+                .textContent
+            )
+              .match(
+                /^Current\s+(WL|DL|BGL)$/i
+              )
+              ?.[1]
+              ?.toUpperCase();
+
+          const lowestUnit =
+            clean(
+              lowestLabel
+                .textContent
+            )
+              .match(
+                /^Lowest\s+(WL|DL|BGL)$/i
+              )
+              ?.[1]
+              ?.toUpperCase();
+
+          // =====================================
+          // VALUES
+          // =====================================
+
+          const getPrice =
+            (
+              text,
+              labelText
+            ) => {
+
+              const after =
+                text.replace(
+                  labelText,
+                  ""
+                );
+
+              const match =
+                after.match(
+                  /(?:^|\n)\s*([\d,.]+)\s*(?:\n|$)/
+                );
+
+              return (
+                match?.[1] ||
+                null
+              );
+            };
+
+          const currentValue =
+            getPrice(
+              currentText,
+
+              currentLabel
+                .innerText ||
+              currentLabel
+                .textContent ||
+              ""
+            );
+
+          const lowestValue =
+            getPrice(
+              lowestText,
+
+              lowestLabel
+                .innerText ||
+              lowestLabel
+                .textContent ||
+              ""
+            );
+
+          // =====================================
+          // UPDATE DATE
+          // =====================================
+
+          const updateMatch =
+            currentText.match(
+              /Last update:\s*([^\n]+)/i
+            );
+
+          return {
+            item:
+              clean(
+                itemTitle.textContent
+              ),
+
+            currentUnit,
+            currentValue,
+
+            lowestUnit,
+            lowestValue,
+
+            lastUpdate:
+              updateMatch
+                ? updateMatch[1]
+                    .trim()
+                : "Unknown",
+
+            currentCardText:
+              currentText,
+
+            lowestCardText:
+              lowestText
+          };
+        },
+
+        normalizedItem
+      );
+
+    // Useful PM2 debugging
+    console.log(
+      "======= LIVE GT PRICE ======="
+    );
+
+    console.log(raw);
+
+    console.log(
+      "============================="
+    );
+
+    if (
+      !raw ||
+      raw.error ||
+      !raw.currentUnit ||
+      !raw.currentValue
+    ) {
+      throw new Error(
+        raw?.error ||
+        "Could not read the requested item's live price."
+      );
+    }
+
+    // ==========================================
+    // CONVERT TO WL
+    // ==========================================
+
+    const toWL =
+      (
+        value,
+        unit
+      ) => {
+
+        const number =
+          Number(
+            String(value)
+              .replace(
+                /,/g,
+                ""
+              )
+          );
+
+        if (
+          !Number.isFinite(
+            number
+          )
+        ) {
+          return null;
         }
 
-        return text;
-      }, itemName);
+        if (
+          unit === "BGL"
+        ) {
+          return (
+            number *
+            10000
+          );
+        }
 
-    console.log(
-      "======= SELECTED PRICE BLOCK ======="
-    );
+        if (
+          unit === "DL"
+        ) {
+          return (
+            number *
+            100
+          );
+        }
 
-    console.log(result);
+        return number;
+      };
 
-    console.log(
-      "===================================="
-    );
-
-    // ================= CURRENT PRICE =================
-
-    const currentMatch =
-      result.match(
-        /Current\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
+    const currentWL =
+      toWL(
+        raw.currentValue,
+        raw.currentUnit
       );
 
-    const lowestMatch =
-      result.match(
-        /Lowest\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
-      );
+    const lowestWL =
+      raw.lowestValue &&
+      raw.lowestUnit
+        ? toWL(
+            raw.lowestValue,
+            raw.lowestUnit
+          )
+        : null;
 
-    /*
-      GTPriceTracker currently often displays:
-      Last update: 05:58 pm
-
-      rather than a full date.
-    */
-
-    const updateMatch =
-      result.match(
-        /Last update:\s*([^\n]+)/i
-      );
-
-    if (!currentMatch) {
-      return null;
-    }
-
-    // ================= CONVERT CURRENT =================
-
-    const currentUnit =
-      currentMatch[1].toUpperCase();
-
-    const currentRaw =
-      Number(
-        currentMatch[2]
-          .replace(/,/g, "")
-      );
-
-    let currentWL;
-
-    if (currentUnit === "BGL") {
-      currentWL =
-        currentRaw * 10000;
-    } else if (
-      currentUnit === "DL"
+    if (
+      currentWL === null
     ) {
-      currentWL =
-        currentRaw * 100;
-    } else {
-      currentWL =
-        currentRaw;
+      throw new Error(
+        "Invalid current price."
+      );
     }
 
-    // ================= CONVERT LOWEST =================
-
-    let lowestWL = null;
-
-    if (lowestMatch) {
-      const lowestUnit =
-        lowestMatch[1].toUpperCase();
-
-      const lowestRaw =
-        Number(
-          lowestMatch[2]
-            .replace(/,/g, "")
-        );
-
-      if (lowestUnit === "BGL") {
-        lowestWL =
-          lowestRaw * 10000;
-      } else if (
-        lowestUnit === "DL"
-      ) {
-        lowestWL =
-          lowestRaw * 100;
-      } else {
-        lowestWL =
-          lowestRaw;
-      }
-    }
-
-    // ================= DATA =================
+    // ==========================================
+    // FINAL RESULT
+    // ==========================================
 
     const data = {
-      item: itemName.trim(),
+      item:
+        raw.item ||
+        itemName.trim(),
 
       currentWL,
 
@@ -2368,20 +2626,19 @@ async function getGTPrice(itemName) {
           : "Unknown",
 
       lastUpdate:
-        updateMatch
-          ? updateMatch[1].trim()
-          : "Unknown",
+        raw.lastUpdate ||
+        "Unknown",
 
       checkedAt:
         Date.now()
     };
 
-    // ================= CACHE =================
-
     gtPriceCache.set(
       normalizedItem,
       {
-        time: Date.now(),
+        time:
+          Date.now(),
+
         data
       }
     );
