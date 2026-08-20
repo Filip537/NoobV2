@@ -1,5 +1,18 @@
 require("dotenv").config();
 const cheerio = require("cheerio");
+const { createWorker } = require("tesseract.js");
+const sharp = require("sharp");
+let ocrWorker = null;
+
+async function getOCRWorker() {
+  if (!ocrWorker) {
+    console.log("Loading OCR worker...");
+    ocrWorker = await createWorker("eng");
+    console.log("OCR worker ready.");
+  }
+
+  return ocrWorker;
+}
 const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
@@ -7801,8 +7814,7 @@ client.on("messageCreate", async (message) => {
   if (!message.guild) {
     return;
   }
-
-  // ================= ADMIN SCREENSHOT CHECK =================
+// ================= ADMIN /WHO BLACKLIST CHECK =================
 const SCREENSHOT_CHECK_CHANNEL = "1539414735659860048";
 
 if (message.channel.id === SCREENSHOT_CHECK_CHANNEL) {
@@ -7824,36 +7836,187 @@ if (message.channel.id === SCREENSHOT_CHECK_CHANNEL) {
 
   if (images.size === 0) {
     return message.reply({
-      content: "❌ Please send a screenshot/image for me to check.",
+      content: "❌ Please send a Growtopia `/who` screenshot.",
       allowedMentions: {
         repliedUser: false
       }
     });
   }
 
-  const firstImage = images.first();
+  const image = images.first();
 
-  const checkEmbed = new EmbedBuilder()
-    .setTitle("Screenshot Detected")
-    .setColor("Yellow")
-    .setDescription(
-      `A screenshot has been submitted by ${message.author}.\n\n` +
-      `**Status:** Screenshot detected \n` +
-      `**Submitted by:** ${message.author}\n` +
-      `**File:** ${firstImage.name || "Screenshot"}\n\n` +
-      `The screenshot is ready for checking.`
-    )
-    .setImage(firstImage.url)
-    .setTimestamp();
-
-  await message.reply({
-    embeds: [checkEmbed],
+  const scanningMessage = await message.reply({
+    content: "Reading `/who` screenshot and checking blacklist...",
     allowedMentions: {
       repliedUser: false
     }
   });
 
-  return;
+  try {
+
+    // Download screenshot
+    const response = await fetch(image.url);
+
+    if (!response.ok) {
+      throw new Error(`Image download failed: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
+
+    // Improve image for OCR
+    const processedImage = await sharp(imageBuffer)
+.resize({
+  width: 1400,
+  withoutEnlargement: false
+})
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .png()
+      .toBuffer();
+
+    // Start OCR
+const worker = await getOCRWorker();
+
+const result = await worker.recognize(processedImage);
+
+    const detectedText = result.data.text || "";
+
+    console.log("========== /WHO OCR ==========");
+    console.log(detectedText);
+    console.log("==============================");
+
+    // Load your existing blacklist.json
+    const blacklist = loadBlacklist();
+
+    // Build searchable blacklist map
+    const blacklistMap = new Map();
+
+    for (const entry of blacklist) {
+
+      if (!entry.growid) continue;
+
+      const normalizedGrowID = entry.growid
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+      blacklistMap.set(normalizedGrowID, entry);
+    }
+
+    // Get possible usernames from OCR
+    const detectedWords = detectedText
+      .split(/\s+/)
+      .map(word =>
+        word
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .trim()
+      )
+      .filter(word =>
+        word.length >= 3 &&
+        word.length <= 18
+      );
+
+    const uniqueNames = [...new Set(detectedWords)];
+
+    const matches = [];
+
+    // Compare detected names against blacklist
+    for (const detectedName of uniqueNames) {
+
+      const normalizedName = detectedName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+      const blacklistEntry =
+        blacklistMap.get(normalizedName);
+
+      if (blacklistEntry) {
+
+        // Avoid duplicates
+        const alreadyFound = matches.some(
+          item =>
+            item.entry.growid.toLowerCase() ===
+            blacklistEntry.growid.toLowerCase()
+        );
+
+        if (!alreadyFound) {
+          matches.push({
+            detectedName,
+            entry: blacklistEntry
+          });
+        }
+      }
+    }
+
+    // ================= NO BLACKLIST FOUND =================
+
+    if (matches.length === 0) {
+
+      const clearEmbed = new EmbedBuilder()
+        .setColor("Green")
+        .setTitle("✅ World Blacklist Scan")
+        .setDescription(
+          `No blacklisted GrowIDs were detected.\n\n` +
+          `**Blacklist database:** ${blacklist.length} entries\n` +
+          `**Possible words/names detected:** ${uniqueNames.length}`
+        )
+        .setImage(image.url)
+        .setFooter({
+          text: "OCR can make mistakes. Manually verify important results."
+        })
+        .setTimestamp();
+
+      return scanningMessage.edit({
+        content: "",
+        embeds: [clearEmbed]
+      });
+    }
+
+    // ================= BLACKLIST FOUND =================
+
+    const blacklistResults = matches
+      .map((match, index) => {
+
+        const entry = match.entry;
+
+        return (
+          `### ${index + 1}. ${entry.growid}\n` +
+          `**Reason:** ${entry.reason || "Unknown"}\n` +
+          `**Proof:** ${entry.proof || "Unknown"}`
+        );
+
+      })
+      .join("\n\n");
+
+    const warningEmbed = new EmbedBuilder()
+      .setColor("Red")
+      .setTitle("BLACKLISTED PLAYER DETECTED")
+.setDescription(
+  `Found **${matches.length} blacklisted player(s)** in the /who screenshot.\n\n` +
+  blacklistResults
+)
+      .setImage(image.url)
+      .setFooter({
+        text: "Manually verify OCR results before taking action."
+      })
+      .setTimestamp();
+
+    return scanningMessage.edit({
+      content: "",
+      embeds: [warningEmbed]
+    });
+
+  } catch (error) {
+
+    console.error("Blacklist OCR Error:", error);
+
+    return scanningMessage.edit({
+      content:
+        "❌ I couldn't read this screenshot.\n" +
+        "Please try a clearer Growtopia `/who` screenshot."
+    });
+  }
 }
   // ================= MYSTATS TRACKER =================
   trackUserActivity(message);
