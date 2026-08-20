@@ -8527,17 +8527,7 @@ if (
         Already-cropped screenshots:
         keep the whole thing
       */
-      if (imageHeight > 600) {
 
-        const cropHeight = Math.floor(imageHeight * 0.48);
-
-        sharpImage = sharpImage.extract({
-          left: 0,
-          top: 0,
-          width: imageWidth,
-          height: cropHeight
-        });
-      }
 
       const processedImage = await sharpImage
         .resize({
