@@ -2068,33 +2068,32 @@ async function getGTPrice(itemName) {
       }
     );
 
-    // Wait for search bar
+    const searchInput =
+      'input[placeholder*="Search for an item"]';
+
     await page.waitForSelector(
-      'input[placeholder*="Search for an item"]',
+      searchInput,
       {
         timeout: 15000
       }
     );
 
-    const searchInput =
-      'input[placeholder*="Search for an item"]';
-
     await page.click(searchInput);
 
-    // Clear existing text
+    // Clear old search
     await page.evaluate(selector => {
       const input =
         document.querySelector(selector);
 
-      if (input) {
-        input.value = "";
+      if (!input) return;
 
-        input.dispatchEvent(
-          new Event("input", {
-            bubbles: true
-          })
-        );
-      }
+      input.value = "";
+
+      input.dispatchEvent(
+        new Event("input", {
+          bubbles: true
+        })
+      );
     }, searchInput);
 
     // Type item
@@ -2102,59 +2101,89 @@ async function getGTPrice(itemName) {
       searchInput,
       itemName,
       {
-        delay: 30
+        delay: 40
       }
     );
 
-    // Small delay for search suggestions
+    // Wait for suggestions
     await new Promise(resolve =>
-      setTimeout(resolve, 800)
+      setTimeout(resolve, 1200)
     );
 
-    // Click Search button
-    const searchClicked =
-      await page.evaluate(() => {
+    // Try clicking exact search suggestion first
+    const clickedSuggestion =
+      await page.evaluate(itemName => {
+        const target =
+          itemName.trim().toLowerCase();
 
-        const buttons =
-          [...document.querySelectorAll("button")];
+        const elements = [
+          ...document.querySelectorAll(
+            "button, a, li, div"
+          )
+        ];
 
-        const searchButton =
-          buttons.find(button =>
-            button.textContent
+        const exact = elements.find(el => {
+          const text =
+            el.textContent
               ?.trim()
-              .toLowerCase() === "search"
-          );
+              .toLowerCase();
 
-        if (!searchButton) {
-          return false;
+          return text === target;
+        });
+
+        if (exact) {
+          exact.click();
+          return true;
         }
 
-        searchButton.click();
+        return false;
+      }, itemName);
 
-        return true;
-      });
+    // If no suggestion was clicked, click Search button
+    if (!clickedSuggestion) {
+      const searchClicked =
+        await page.evaluate(() => {
+          const buttons =
+            [...document.querySelectorAll("button")];
 
-    if (!searchClicked) {
-      throw new Error(
-        "Could not find GTPriceTracker search button."
-      );
+          const searchButton =
+            buttons.find(button =>
+              button.textContent
+                ?.trim()
+                .toLowerCase() ===
+              "search"
+            );
+
+          if (!searchButton) {
+            return false;
+          }
+
+          searchButton.click();
+
+          return true;
+        });
+
+      if (!searchClicked) {
+        throw new Error(
+          "Could not find search button."
+        );
+      }
     }
 
-    // Give tracker time to load price information
+    // Wait for page/result update
     await new Promise(resolve =>
-      setTimeout(resolve, 2500)
+      setTimeout(resolve, 3000)
     );
 
-    // Wait until price data attempts to load
+    // Wait until a current-price block exists
     await page.waitForFunction(
       () => {
         const text =
           document.body.innerText || "";
 
         return (
-          text.includes("Current WL") ||
-          text.includes("Current DL") ||
-          text.includes("Current BGL")
+          /Current\s+(WL|DL|BGL)/i.test(text) &&
+          /Lowest\s+(WL|DL|BGL)/i.test(text)
         );
       },
       {
@@ -2162,53 +2191,108 @@ async function getGTPrice(itemName) {
       }
     );
 
-    const bodyText =
-      await page.evaluate(() =>
-        document.body.innerText
-      );
+    // ================= EXTRACT CORRECT RESULT =================
+
+    const result =
+      await page.evaluate(itemName => {
+        const target =
+          itemName
+            .trim()
+            .toLowerCase();
+
+        const allElements = [
+          ...document.querySelectorAll(
+            "div, section, article, main"
+          )
+        ];
+
+        /*
+          Look for the smallest container that contains:
+          - searched item name
+          - Current WL/DL/BGL
+          - Lowest WL/DL/BGL
+        */
+
+        const candidates =
+          allElements
+            .map(el => ({
+              element: el,
+              text:
+                el.innerText?.trim() || ""
+            }))
+            .filter(obj => {
+              const lower =
+                obj.text.toLowerCase();
+
+              return (
+                lower.includes(target) &&
+                /Current\s+(WL|DL|BGL)/i.test(
+                  obj.text
+                ) &&
+                /Lowest\s+(WL|DL|BGL)/i.test(
+                  obj.text
+                )
+              );
+            })
+            .sort(
+              (a, b) =>
+                a.text.length -
+                b.text.length
+            );
+
+        let text = "";
+
+        if (candidates.length > 0) {
+          text =
+            candidates[0].text;
+        } else {
+          // Fallback
+          text =
+            document.body.innerText || "";
+        }
+
+        return text;
+      }, itemName);
 
     console.log(
-      "========== GT PRICE TRACKER =========="
+      "======= SELECTED PRICE BLOCK ======="
     );
 
-    console.log(bodyText);
+    console.log(result);
 
     console.log(
-      "======================================"
+      "===================================="
     );
 
-    /*
-      Expected tracker text:
-
-      Golden Angel Wings
-
-      Current WL
-      12000
-
-      Last update: ...
-
-      Lowest WL
-      11500
-    */
+    // ================= CURRENT PRICE =================
 
     const currentMatch =
-      bodyText.match(
+      result.match(
         /Current\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
       );
 
     const lowestMatch =
-      bodyText.match(
+      result.match(
         /Lowest\s+(WL|DL|BGL)\s*\n+\s*([\d,.]+)/i
       );
 
+    /*
+      GTPriceTracker currently often displays:
+      Last update: 05:58 pm
+
+      rather than a full date.
+    */
+
     const updateMatch =
-      bodyText.match(
-        /Last update:\s*(.+)/i
+      result.match(
+        /Last update:\s*([^\n]+)/i
       );
 
     if (!currentMatch) {
       return null;
     }
+
+    // ================= CONVERT CURRENT =================
 
     const currentUnit =
       currentMatch[1].toUpperCase();
@@ -2222,15 +2306,19 @@ async function getGTPrice(itemName) {
     let currentWL;
 
     if (currentUnit === "BGL") {
-      currentWL = currentRaw * 10000;
-    } else if (currentUnit === "DL") {
-      currentWL = currentRaw * 100;
+      currentWL =
+        currentRaw * 10000;
+    } else if (
+      currentUnit === "DL"
+    ) {
+      currentWL =
+        currentRaw * 100;
     } else {
-      currentWL = currentRaw;
+      currentWL =
+        currentRaw;
     }
 
-
-    // ================= LOWEST =================
+    // ================= CONVERT LOWEST =================
 
     let lowestWL = null;
 
@@ -2247,7 +2335,9 @@ async function getGTPrice(itemName) {
       if (lowestUnit === "BGL") {
         lowestWL =
           lowestRaw * 10000;
-      } else if (lowestUnit === "DL") {
+      } else if (
+        lowestUnit === "DL"
+      ) {
         lowestWL =
           lowestRaw * 100;
       } else {
@@ -2256,35 +2346,10 @@ async function getGTPrice(itemName) {
       }
     }
 
-
-    // ================= ITEM NAME =================
-
-    let detectedItem =
-      itemName.trim();
-
-    const lines =
-      bodyText
-        .split("\n")
-        .map(line => line.trim())
-        .filter(Boolean);
-
-    const priceTrackerIndex =
-      lines.findIndex(line =>
-        line.toLowerCase() ===
-        "price tracker"
-      );
-
-    if (
-      priceTrackerIndex !== -1 &&
-      lines[priceTrackerIndex + 1]
-    ) {
-      detectedItem =
-        lines[priceTrackerIndex + 1];
-    }
-
+    // ================= DATA =================
 
     const data = {
-      item: detectedItem,
+      item: itemName.trim(),
 
       currentWL,
 
@@ -2305,11 +2370,14 @@ async function getGTPrice(itemName) {
       lastUpdate:
         updateMatch
           ? updateMatch[1].trim()
-          : "Unknown"
+          : "Unknown",
+
+      checkedAt:
+        Date.now()
     };
 
+    // ================= CACHE =================
 
-    // Save cache
     gtPriceCache.set(
       normalizedItem,
       {
@@ -2336,7 +2404,6 @@ async function getGTPrice(itemName) {
         .close()
         .catch(() => {});
     }
-
   }
 }
 client.on("interactionCreate", async (interaction) => {
@@ -2391,13 +2458,21 @@ if (
             inline: true
           },
 
-          {
-            name: "Last Updated",
-            value:
-              price.lastUpdate ||
-              "Unknown",
-            inline: false
-          }
+{
+  name: "Tracker Last Update",
+  value:
+    price.lastUpdate ||
+    "Unknown",
+  inline: true
+},
+{
+  name: "Bot Checked",
+  value:
+    `<t:${Math.floor(
+      (price.checkedAt || Date.now()) / 1000
+    )}:R>`,
+  inline: true
+}
         )
 
         .setTimestamp();
