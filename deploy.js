@@ -397,16 +397,15 @@ new SlashCommandBuilder()
       .setDescription("Channel to send the role selector panel")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("play")
-  .setDescription("Play music in your voice channel")
-  .addStringOption(option =>
+new SlashCommandBuilder()
+  .setName("roledisplay")
+  .setDescription("Display all members in a role by nickname")
+  .addRoleOption(option =>
     option
-      .setName("query")
-      .setDescription("YouTube link or song name")
+      .setName("role")
+      .setDescription("Choose the role")
       .setRequired(true)
   ),
-
 new SlashCommandBuilder()
   .setName("addqueue")
   .setDescription("Add a song to the music queue")

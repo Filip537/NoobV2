@@ -1951,6 +1951,65 @@ const LEGEND_QUESTS = {
   }
 };
 client.on("interactionCreate", async (interaction) => {
+  // ================= ROLE DISPLAY =================
+if (interaction.commandName === "roledisplay") {
+  const role = interaction.options.getRole("role");
+
+  await interaction.deferReply();
+
+  // Fetch server members so the list is complete
+  await interaction.guild.members.fetch();
+
+  const members = role.members
+    .filter(member => !member.user.bot)
+    .map(member => member.displayName)
+    .sort((a, b) => a.localeCompare(b));
+
+  if (members.length === 0) {
+    return interaction.editReply({
+      content: "❌ There are no members in this role."
+    });
+  }
+
+  const lines = members.map(
+    (name, index) => `**${index + 1}.** ${name}`
+  );
+
+  // Split list so Discord embed limit is not exceeded
+  const pages = [];
+  let currentPage = "";
+
+  for (const line of lines) {
+    if ((currentPage + "\n" + line).length > 3900) {
+      pages.push(currentPage);
+      currentPage = line;
+    } else {
+      currentPage += currentPage ? `\n${line}` : line;
+    }
+  }
+
+  if (currentPage) {
+    pages.push(currentPage);
+  }
+
+  const embeds = pages.map((page, index) =>
+    new EmbedBuilder()
+      .setColor(role.color || "Blue")
+      .setTitle(`${role.name} Members`)
+      .setDescription(page)
+      .setFooter({
+        text:
+          pages.length > 1
+            ? `${members.length} members • Page ${index + 1}/${pages.length}`
+            : `${members.length} members`
+      })
+      .setTimestamp()
+  );
+
+  return interaction.editReply({
+    embeds: embeds.slice(0, 10)
+  });
+}
   // ================= UNBLACKLIST =================
 if (interaction.commandName === "unblist") {
 
