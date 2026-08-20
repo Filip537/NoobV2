@@ -406,14 +406,32 @@ new SlashCommandBuilder()
       .setDescription("Choose the role")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
+new SlashCommandBuilder()
   .setName("price")
   .setDescription("Check the current Growtopia item price")
+
   .addStringOption(option =>
     option
       .setName("item")
-      .setDescription("Item name, example: Golden Angel Wings")
+      .setDescription("Item name, example: MAGPLANT 5000")
       .setRequired(true)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("source")
+      .setDescription("Choose which price source to scan")
+      .setRequired(true)
+      .addChoices(
+        {
+          name: "GTPriceTracker",
+          value: "gtpricetracker"
+        },
+        {
+          name: "iHemo",
+          value: "ihemo"
+        }
+      )
   ),
 new SlashCommandBuilder()
   .setName("addqueue")
