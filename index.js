@@ -1970,8 +1970,10 @@ const LEGEND_QUESTS = {
 
 let gtPriceBrowser = null;
 
-const gtPriceCache = new Map();
+const pendingPriceSearches = new Map();
+const gtPriceGuideCache = new Map();
 
+const GT_PRICE_GUIDE_CACHE_TIME = 30 * 1000;
 const GT_PRICE_CACHE_TIME = 30 * 1000;
 
 // ================= GET BROWSER =================
@@ -2497,8 +2499,312 @@ async function getGTPrice(itemName) {
     }
   }
 }
+// ================= GTPRICEGUIDE =================
+
+async function getGTPriceGuide(itemName) {
+  const normalizedItem =
+    itemName.trim().toLowerCase();
+
+  const cached =
+    gtPriceGuideCache.get(normalizedItem);
+
+  if (
+    cached &&
+    Date.now() - cached.time <
+      GT_PRICE_GUIDE_CACHE_TIME
+  ) {
+    return cached.data;
+  }
+
+  try {
+    const itemUrl =
+      `https://gtpriceguide.com/item/${encodeURIComponent(
+        itemName.trim()
+      )}`;
+
+    console.log(
+      "GTPriceGuide URL:",
+      itemUrl
+    );
+
+    const response = await fetch(
+      `${itemUrl}?nocache=${Date.now()}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/131.0.0.0 Safari/537.36",
+
+          "Cache-Control":
+            "no-cache, no-store, max-age=0",
+
+          "Pragma":
+            "no-cache"
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.log(
+        "GTPriceGuide HTTP:",
+        response.status
+      );
+
+      return null;
+    }
+
+    const html =
+      await response.text();
+
+    const $ =
+      cheerio.load(html);
+
+    const title =
+      $("title")
+        .first()
+        .text()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const bodyText =
+      $("body")
+        .text()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    console.log(
+      "========== GT PRICE GUIDE =========="
+    );
+
+    console.log("TITLE:", title);
+
+    console.log(
+      bodyText.slice(0, 4000)
+    );
+
+    console.log(
+      "===================================="
+    );
+
+    // =============================================
+    // ITEM NAME
+    // =============================================
+
+    let detectedItem =
+      itemName.trim();
+
+    /*
+      Example title:
+
+      MAGPLANT 5000 Price — 42bgl (Aug 2026) | GTPriceGuide
+    */
+
+    const titleItemMatch =
+      title.match(
+        /^(.+?)\s+Price\s*[—–-]/i
+      );
+
+    if (titleItemMatch) {
+      detectedItem =
+        titleItemMatch[1].trim();
+    }
+
+    // =============================================
+    // PRICE
+    // =============================================
+
+    let priceAmount = null;
+    let priceUnit = null;
+
+    // First try title because GTPriceGuide
+    // puts the price in the page title.
+    const titlePriceMatch =
+      title.match(
+        /Price\s*[—–-]\s*([\d,.]+)\s*(WL|DL|BGL)/i
+      );
+
+    if (titlePriceMatch) {
+      priceAmount =
+        Number(
+          titlePriceMatch[1]
+            .replace(/,/g, "")
+        );
+
+      priceUnit =
+        titlePriceMatch[2]
+          .toUpperCase();
+    }
+
+    // Fallback: visible page content
+    if (
+      priceAmount === null ||
+      !priceUnit
+    ) {
+      const currentPriceMatch =
+        bodyText.match(
+          /Current\s+Price\s*([\d,.]+)\s*(WL|DL|BGL)/i
+        );
+
+      if (currentPriceMatch) {
+        priceAmount =
+          Number(
+            currentPriceMatch[1]
+              .replace(/,/g, "")
+          );
+
+        priceUnit =
+          currentPriceMatch[2]
+            .toUpperCase();
+      }
+    }
+
+    // Another fallback
+    if (
+      priceAmount === null ||
+      !priceUnit
+    ) {
+      const simplePriceMatch =
+        bodyText.match(
+          /\b([\d,.]+)\s*(BGL|DL|WL)\b/i
+        );
+
+      if (simplePriceMatch) {
+        priceAmount =
+          Number(
+            simplePriceMatch[1]
+              .replace(/,/g, "")
+          );
+
+        priceUnit =
+          simplePriceMatch[2]
+            .toUpperCase();
+      }
+    }
+
+    if (
+      !Number.isFinite(priceAmount) ||
+      !priceUnit
+    ) {
+      console.log(
+        "GTPriceGuide: price not found."
+      );
+
+      return null;
+    }
+
+    // =============================================
+    // CONVERT TO WL
+    // =============================================
+
+    let currentWL;
+
+    if (priceUnit === "BGL") {
+      currentWL =
+        priceAmount * 10000;
+    } else if (
+      priceUnit === "DL"
+    ) {
+      currentWL =
+        priceAmount * 100;
+    } else {
+      currentWL =
+        priceAmount;
+    }
+
+    // =============================================
+    // DATE
+    // =============================================
+
+    let lastUpdate =
+      "Unknown";
+
+    /*
+      Example:
+
+      (Aug 2026)
+    */
+
+    const titleDateMatch =
+      title.match(
+        /\(([^)]+)\)/
+      );
+
+    if (titleDateMatch) {
+      lastUpdate =
+        titleDateMatch[1].trim();
+    }
+
+    // Try more exact date from page
+    const updatedMatch =
+      bodyText.match(
+        /(?:Updated|Last Updated|Last update)\s*:?\s*([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}(?:[^|•]{0,30})?)/i
+      );
+
+    if (updatedMatch) {
+      lastUpdate =
+        updatedMatch[1]
+          .trim();
+    }
+
+    // =============================================
+    // FINAL DATA
+    // =============================================
+
+    const data = {
+      item:
+        detectedItem,
+
+      currentWL,
+
+      lowestWL:
+        null,
+
+      current:
+        formatGrowtopiaPrice(
+          currentWL
+        ),
+
+      lowest:
+        "Not provided",
+
+      lastUpdate,
+
+      checkedAt:
+        Date.now(),
+
+      source:
+        "GTPriceGuide",
+
+      sourceUrl:
+        itemUrl
+    };
+
+    gtPriceGuideCache.set(
+      normalizedItem,
+      {
+        time:
+          Date.now(),
+
+        data
+      }
+    );
+
+    return data;
+
+  } catch (error) {
+
+    console.error(
+      "GTPriceGuide Error:",
+      error
+    );
+
+    return null;
+  }
+}
 client.on("interactionCreate", async (interaction) => {
   // ================= PRICE COMMAND =================
+// ================= PRICE COMMAND =================
 
 if (
   interaction.isChatInputCommand() &&
@@ -2509,82 +2815,377 @@ if (
       .getString("item")
       .trim();
 
-  await interaction.deferReply();
+  if (!item) {
+    return interaction.reply({
+      content:
+        "❌ Please enter an item name.",
+      ephemeral: true
+    });
+  }
+
+  // Save item temporarily for this user
+  pendingPriceSearches.set(
+    interaction.user.id,
+    {
+      item,
+      createdAt:
+        Date.now()
+    }
+  );
+
+  const sourceMenu =
+    new StringSelectMenuBuilder()
+      .setCustomId(
+        `price_source_${interaction.user.id}`
+      )
+      .setPlaceholder(
+        "Choose a price source"
+      )
+      .addOptions([
+        {
+          label:
+            "GTPriceTracker",
+
+          description:
+            "Check live price from GTPriceTracker",
+
+          value:
+            "gtpricetracker"
+        },
+
+        {
+          label:
+            "iHeMo",
+
+          description:
+            "Check price from iHeMo",
+
+          value:
+            "iHemo"
+        }
+      ]);
+
+  const row =
+    new ActionRowBuilder()
+      .addComponents(
+        sourceMenu
+      );
+
+  const embed =
+    new EmbedBuilder()
+      .setColor("Blue")
+      .setTitle(
+        "💰 Growtopia Price Checker"
+      )
+      .setDescription(
+        `**Item:** ${item}\n\n` +
+        "Choose which source you want NoobV2 to scan."
+      )
+      .addFields(
+        {
+          name:
+            "GTPriceTracker",
+
+          value:
+            "Live market tracker.",
+
+          inline:
+            true
+        },
+
+        {
+          name:
+            "GTPriceGuide",
+
+          value:
+            "Community price guide.",
+
+          inline:
+            true
+        }
+      );
+
+  return interaction.reply({
+    embeds: [
+      embed
+    ],
+
+    components: [
+      row
+    ]
+  });
+}
+// ================= PRICE SOURCE SELECTOR =================
+
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith(
+    "price_source_"
+  )
+) {
+  const ownerId =
+    interaction.customId.replace(
+      "price_source_",
+      ""
+    );
+
+  // Only the person who ran /price can choose
+  if (
+    interaction.user.id !==
+    ownerId
+  ) {
+    return interaction.reply({
+      content:
+        "❌ This price selector belongs to another user.",
+
+      ephemeral:
+        true
+    });
+  }
+
+  const pending =
+    pendingPriceSearches.get(
+      interaction.user.id
+    );
+
+  if (!pending) {
+    return interaction.reply({
+      content:
+        "❌ This price search expired. Please use `/price` again.",
+
+      ephemeral:
+        true
+    });
+  }
+
+  // Expire search after 5 minutes
+  if (
+    Date.now() -
+      pending.createdAt >
+    5 * 60 * 1000
+  ) {
+    pendingPriceSearches.delete(
+      interaction.user.id
+    );
+
+    return interaction.reply({
+      content:
+        "❌ This price search expired. Please use `/price` again.",
+
+      ephemeral:
+        true
+    });
+  }
+
+  const item =
+    pending.item;
+
+  const source =
+    interaction.values[0];
+
+  await interaction.deferUpdate();
 
   try {
 
-    const price =
-      await getGTPrice(item);
+    let price = null;
+
+    // ==========================================
+    // GTPRICETRACKER
+    // ==========================================
+
+    if (
+      source ===
+      "gtpricetracker"
+    ) {
+      price =
+        await getGTPrice(
+          item
+        );
+
+      if (price) {
+        price.source =
+          "GTPriceTracker";
+
+        price.sourceUrl =
+          "https://gtpricetracker.com/";
+      }
+    }
+
+    // ==========================================
+    // GTPRICEGUIDE
+    // ==========================================
+
+    if (
+      source ===
+      "gtpriceguide"
+    ) {
+      price =
+        await getGTPriceGuide(
+          item
+        );
+    }
+
+    // ==========================================
+    // NOT FOUND
+    // ==========================================
 
     if (!price) {
       return interaction.editReply({
         content:
-          `❌ I couldn't find a price for **${item}**.\n` +
-          `Check the item name and try again.`
+          `❌ I couldn't find a price for **${item}** from **${
+            source === "gtpriceguide"
+              ? "GTPriceGuide"
+              : "GTPriceTracker"
+          }**.\n` +
+          "Check the item name or try the other source.",
+
+        embeds:
+          [],
+
+        components:
+          []
       });
     }
 
+    // ==========================================
+    // EMBED
+    // ==========================================
 
     const embed =
       new EmbedBuilder()
 
-        .setColor("Green")
+        .setColor(
+          source ===
+            "gtpriceguide"
+            ? "Gold"
+            : "Green"
+        )
 
         .setTitle(
-          `${price.item}`
+          price.item
         )
 
         .addFields(
           {
-            name: "Current Price",
+            name:
+              "Current Price",
+
             value:
               `**${price.current}**`,
-            inline: true
-          },
 
-          {
-            name: "Lowest Price",
-            value:
-              `**${price.lowest}**`,
-            inline: true
-          },
+            inline:
+              true
+          }
+        );
 
-{
-  name: "Tracker Last Update",
-  value:
-    price.lastUpdate ||
-    "Unknown",
-  inline: true
-},
-{
-  name: "Bot Checked",
-  value:
-    `<t:${Math.floor(
-      (price.checkedAt || Date.now()) / 1000
-    )}:R>`,
-  inline: true
-}
-        )
+    // GTPriceTracker has lowest price
+    if (
+      price.lowest &&
+      price.lowest !==
+        "Not provided"
+    ) {
+      embed.addFields({
+        name:
+          "Lowest Price",
 
-        .setTimestamp();
+        value:
+          `**${price.lowest}**`,
 
+        inline:
+          true
+      });
+    }
+
+    embed.addFields(
+      {
+        name:
+          "Source",
+
+        value:
+          `**${price.source}**`,
+
+        inline:
+          true
+      },
+
+      {
+        name:
+          "Source Last Update",
+
+        value:
+          price.lastUpdate ||
+          "Unknown",
+
+        inline:
+          true
+      },
+
+      {
+        name:
+          "Bot Checked",
+
+        value:
+          `<t:${Math.floor(
+            (
+              price.checkedAt ||
+              Date.now()
+            ) / 1000
+          )}:R>`,
+
+        inline:
+          true
+      }
+    );
+
+    if (
+      price.sourceUrl
+    ) {
+      embed.setURL(
+        price.sourceUrl
+      );
+    }
+
+    embed.setFooter({
+      text:
+        `Price source: ${price.source}`
+    });
+
+    embed.setTimestamp();
+
+    pendingPriceSearches.delete(
+      interaction.user.id
+    );
 
     return interaction.editReply({
-      embeds: [embed]
+      content:
+        null,
+
+      embeds: [
+        embed
+      ],
+
+      // Remove selector once used
+      components:
+        []
     });
 
   } catch (error) {
 
     console.error(
-      "/price command error:",
+      "Price source selector error:",
       error
     );
 
     return interaction.editReply({
       content:
-        "❌ An error occurred while checking the item price."
-    });
+        "❌ An error occurred while checking this price.",
 
+      embeds:
+        [],
+
+      components:
+        []
+    });
   }
 }
   // ================= ROLE DISPLAY =================
