@@ -5127,68 +5127,85 @@ if (interaction.commandName === "blist") {
     });
   }
 
-  const sorted = [...blacklist].sort((a, b) =>
-    a.growid.localeCompare(b.growid)
-  );
+  // Default: only show GrowID
+  const defaultFields = ["growid"];
 
-  const pageItems = sorted.slice(0, 10);
-
-  const embed = new EmbedBuilder()
-    .setTitle("📛 Blacklist List")
-    .setColor("Red")
-    .setDescription(
-      pageItems.map((entry, i) =>
-        `**${i + 1}. ${entry.growid}**\n` +
-        `Reason: ${entry.reason}\n` +
-        `Proof: ${entry.proof}\n` +
-        `Added: <t:${Math.floor(entry.createdAt / 1000)}:R>`
-      ).join("\n\n")
-    )
-    .setFooter({
-      text: `Showing ${pageItems.length} of ${blacklist.length} blacklisted GrowIDs`
-    });
-
-  const sortMenu = new StringSelectMenuBuilder()
-    .setCustomId("blist_sort")
-    .setPlaceholder("Sort blacklist")
+  const modeMenu = new StringSelectMenuBuilder()
+    .setCustomId(`blist_mode_${defaultFields.join("-")}`)
+    .setPlaceholder("Choose blacklist mode")
     .addOptions([
       {
-        label: "A-Z",
-        description: "Sort GrowIDs alphabetically",
-        value: "az"
+        label: "All",
+        description: "Show all blacklisted GrowIDs",
+        value: "all"
       },
       {
-        label: "Date",
-        description: "Sort by saved date",
-        value: "date"
-      },
-      {
-        label: "Newly Added",
-        description: "Show newest first",
-        value: "new"
-      },
-      {
-        label: "Old Added",
-        description: "Show oldest first",
-        value: "old"
+        label: "Custom Search",
+        description: "Search for a specific GrowID",
+        value: "custom"
       }
     ]);
 
-  const row1 = new ActionRowBuilder().addComponents(sortMenu);
+  const fieldsMenu = new StringSelectMenuBuilder()
+    .setCustomId("blist_fields")
+    .setPlaceholder("Choose what to show")
+    .setMinValues(1)
+    .setMaxValues(6)
+    .addOptions([
+      {
+        label: "GrowID",
+        description: "Show GrowID",
+        value: "growid",
+        default: true
+      },
+      {
+        label: "Reason",
+        description: "Show blacklist reason",
+        value: "reason"
+      },
+      {
+        label: "Proof By",
+        description: "Show proof information",
+        value: "proof"
+      },
+      {
+        label: "Added By",
+        description: "Show who added the blacklist",
+        value: "addedBy"
+      },
+      {
+        label: "Approved By",
+        description: "Show who approved the blacklist",
+        value: "approvedBy"
+      },
+      {
+        label: "Added Date",
+        description: "Show when it was added",
+        value: "createdAt"
+      }
+    ]);
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("blist_search")
-      .setLabel("Search User")
-      .setStyle(ButtonStyle.Primary)
-  );
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist Viewer")
+    .setColor("Red")
+    .setDescription(
+      "Choose **All** or **Custom Search**.\n\n" +
+      "Then choose what information you want to display using the selector below.\n\n" +
+      "**Default:** GrowID only."
+    )
+    .setFooter({
+      text: `${blacklist.length} approved blacklisted GrowIDs`
+    });
 
   return interaction.reply({
     embeds: [embed],
-    components: [row1, row2],
-    ephemeral: true
+    components: [
+      new ActionRowBuilder().addComponents(modeMenu),
+      new ActionRowBuilder().addComponents(fieldsMenu)
+    ],
   });
 }
+
 if (interaction.isChatInputCommand() && interaction.commandName === "postnote") {
   const text = interaction.options.getString("text");
 
@@ -6407,91 +6424,265 @@ return interaction.update({
 });
   }
 }
-  if (interaction.customId === "blist_sort") {
-  const blacklist = loadBlacklist();
+if (interaction.customId === "blist_fields") {
+  const fields = interaction.values;
 
-  if (blacklist.length === 0) {
-    return interaction.reply({
-      content: "❌ No blacklist entries found.",
-      ephemeral: true
-    });
-  }
-
-  const sortType = interaction.values[0];
-  let sorted = [...blacklist];
-
-  if (sortType === "az") {
-    sorted.sort((a, b) => a.growid.localeCompare(b.growid));
-  } else if (sortType === "date") {
-    sorted.sort((a, b) => b.createdAt - a.createdAt);
-  } else if (sortType === "new") {
-    sorted.sort((a, b) => b.createdAt - a.createdAt);
-  } else if (sortType === "old") {
-    sorted.sort((a, b) => a.createdAt - b.createdAt);
-  }
-
-  const pageItems = sorted.slice(0, 10);
-
-  const embed = new EmbedBuilder()
-    .setTitle("📛 Blacklist List")
-    .setColor("Red")
-    .setDescription(
-      pageItems.map((entry, i) =>
-        `**${i + 1}. ${entry.growid}**\n` +
-        `Reason: ${entry.reason}\n` +
-        `Proof: ${entry.proof}\n` +
-        `Added: <t:${Math.floor(entry.createdAt / 1000)}:R>`
-      ).join("\n\n")
+  const blacklist = loadBlacklist().sort((a, b) =>
+    (a.growid || "").localeCompare(
+      b.growid || "",
+      undefined,
+      { sensitivity: "base" }
     )
-    .setFooter({
-      text: `Showing ${pageItems.length} of ${blacklist.length} blacklisted GrowIDs`
-    });
+  );
 
-  const sortMenu = new StringSelectMenuBuilder()
-    .setCustomId("blist_sort")
-    .setPlaceholder("Sort blacklist")
+  const formatEntry = (entry, index) => {
+    const lines = [];
+
+    if (fields.includes("growid")) {
+      lines.push(
+        `**${index + 1}. ${entry.growid || "Unknown"}**`
+      );
+    }
+
+    if (fields.includes("reason")) {
+      lines.push(
+        `Reason: ${entry.reason || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("proof")) {
+      lines.push(
+        `Proof By: ${entry.proof || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("addedBy")) {
+      lines.push(
+        `Added By: ${entry.addedBy || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("approvedBy")) {
+      lines.push(
+        `Approved By: ${entry.approvedBy || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("createdAt")) {
+      lines.push(
+        `Added: ${
+          entry.createdAt
+            ? `<t:${Math.floor(entry.createdAt / 1000)}:R>`
+            : "Unknown"
+        }`
+      );
+    }
+
+    return lines.join("\n");
+  };
+
+  const shown = blacklist.slice(0, 10);
+
+  // Recreate mode selector and remember selected fields
+  const modeMenu = new StringSelectMenuBuilder()
+    .setCustomId(`blist_mode_${fields.join("-")}`)
+    .setPlaceholder("Choose blacklist mode")
     .addOptions([
       {
-        label: "A-Z",
-        description: "Sort GrowIDs alphabetically",
-        value: "az",
-        default: sortType === "az"
+        label: "All",
+        description: "Show all blacklisted GrowIDs",
+        value: "all"
       },
       {
-        label: "Date",
-        description: "Sort by saved date",
-        value: "date",
-        default: sortType === "date"
-      },
-      {
-        label: "Newly Added",
-        description: "Show newest first",
-        value: "new",
-        default: sortType === "new"
-      },
-      {
-        label: "Old Added",
-        description: "Show oldest first",
-        value: "old",
-        default: sortType === "old"
+        label: "Custom Search",
+        description: "Search for a specific GrowID",
+        value: "custom"
       }
     ]);
 
-  const row1 = new ActionRowBuilder().addComponents(sortMenu);
+  // Recreate field selector with selected options
+  const fieldsMenu = new StringSelectMenuBuilder()
+    .setCustomId("blist_fields")
+    .setPlaceholder("Choose what to show")
+    .setMinValues(1)
+    .setMaxValues(6)
+    .addOptions([
+      {
+        label: "GrowID",
+        description: "Show GrowID",
+        value: "growid",
+        default: fields.includes("growid")
+      },
+      {
+        label: "Reason",
+        description: "Show blacklist reason",
+        value: "reason",
+        default: fields.includes("reason")
+      },
+      {
+        label: "Proof By",
+        description: "Show proof information",
+        value: "proof",
+        default: fields.includes("proof")
+      },
+      {
+        label: "Added By",
+        description: "Show who added the blacklist",
+        value: "addedBy",
+        default: fields.includes("addedBy")
+      },
+      {
+        label: "Approved By",
+        description: "Show who approved the blacklist",
+        value: "approvedBy",
+        default: fields.includes("approvedBy")
+      },
+      {
+        label: "Added Date",
+        description: "Show when it was added",
+        value: "createdAt",
+        default: fields.includes("createdAt")
+      }
+    ]);
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("blist_search")
-      .setLabel("Search User")
-      .setStyle(ButtonStyle.Primary)
-  );
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist Preview")
+    .setColor("Red")
+    .setDescription(
+      shown
+        .map((entry, index) =>
+          formatEntry(entry, index)
+        )
+        .join("\n\n")
+    )
+    .setFooter({
+      text:
+        `Showing ${shown.length} of ${blacklist.length} blacklisted GrowIDs`
+    });
 
   return interaction.update({
     embeds: [embed],
-    components: [row1, row2]
+    components: [
+      new ActionRowBuilder().addComponents(modeMenu),
+      new ActionRowBuilder().addComponents(fieldsMenu)
+    ]
   });
 }
 
+
+// ================= BLIST MODE =================
+
+if (interaction.customId.startsWith("blist_mode_")) {
+  const fieldsPart =
+    interaction.customId.replace("blist_mode_", "");
+
+  const fields = fieldsPart
+    ? fieldsPart.split("-").filter(Boolean)
+    : ["growid"];
+
+  const mode = interaction.values[0];
+
+  // ================= CUSTOM SEARCH =================
+
+  if (mode === "custom") {
+    const modal = new ModalBuilder()
+      .setCustomId(
+        `blist_search_modal_${fields.join("-")}`
+      )
+      .setTitle("Custom Blacklist Search");
+
+    const input = new TextInputBuilder()
+      .setCustomId("blist_search_input")
+      .setLabel("GrowID or part of GrowID")
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder("Example: FR")
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input)
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ================= ALL =================
+
+  const blacklist = loadBlacklist().sort((a, b) =>
+    (a.growid || "").localeCompare(
+      b.growid || "",
+      undefined,
+      { sensitivity: "base" }
+    )
+  );
+
+  const formatEntry = (entry, index) => {
+    const lines = [];
+
+    if (fields.includes("growid")) {
+      lines.push(
+        `**${index + 1}. ${entry.growid || "Unknown"}**`
+      );
+    }
+
+    if (fields.includes("reason")) {
+      lines.push(
+        `Reason: ${entry.reason || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("proof")) {
+      lines.push(
+        `Proof By: ${entry.proof || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("addedBy")) {
+      lines.push(
+        `Added By: ${entry.addedBy || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("approvedBy")) {
+      lines.push(
+        `Approved By: ${entry.approvedBy || "Unknown"}`
+      );
+    }
+
+    if (fields.includes("createdAt")) {
+      lines.push(
+        `Added: ${
+          entry.createdAt
+            ? `<t:${Math.floor(entry.createdAt / 1000)}:R>`
+            : "Unknown"
+        }`
+      );
+    }
+
+    return lines.join("\n");
+  };
+
+  const shown = blacklist.slice(0, 10);
+
+  const embed = new EmbedBuilder()
+    .setTitle("📛 Blacklist List — All")
+    .setColor("Red")
+    .setDescription(
+      shown
+        .map((entry, index) =>
+          formatEntry(entry, index)
+        )
+        .join("\n\n")
+    )
+    .setFooter({
+      text:
+        `Showing ${shown.length} of ${blacklist.length} blacklisted GrowIDs`
+    });
+
+  return interaction.update({
+    embeds: [embed],
+    components: interaction.message.components
+  });
+}
   if (interaction.customId === "server_info_menu") {
   const value = interaction.values[0];
 
@@ -7816,9 +8007,11 @@ client.on("messageCreate", async (message) => {
     return;
   }
 // ================= ADMIN /WHO BLACKLIST CHECK =================
-// ================= ADMIN /WHO BLACKLIST CHECK =================
+
+const BLACKLIST_SCREENSHOT_CHANNEL = "1539978534003675276";
+
 if (
-  message.guild &&
+  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL &&
   message.member?.permissions.has(PermissionFlagsBits.Administrator)
 ) {
 
@@ -7842,7 +8035,7 @@ if (
     const image = images.first();
 
     const scanningMessage = await message.reply({
-      content: "🔍 Checking screenshot for Growtopia /who...",
+      content: "Checking screenshot for Growtopia /who...",
       allowedMentions: {
         repliedUser: false
       }
@@ -8158,7 +8351,7 @@ if (
 
       const warningEmbed = new EmbedBuilder()
         .setColor("Red")
-        .setTitle("🚨 BLACKLISTED PLAYER DETECTED")
+        .setTitle("BLACKLISTED PLAYER DETECTED")
         .setDescription(
           `Found **${matches.length} blacklisted player(s)** in the /who screenshot.\n\n` +
           blacklistResults
