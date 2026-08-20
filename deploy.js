@@ -406,6 +406,15 @@ new SlashCommandBuilder()
       .setDescription("Choose the role")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("price")
+  .setDescription("Check the current Growtopia item price")
+  .addStringOption(option =>
+    option
+      .setName("item")
+      .setDescription("Item name, example: Golden Angel Wings")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("addqueue")
   .setDescription("Add a song to the music queue")
