@@ -54,6 +54,7 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
+  PermissionFlagsBits,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -7815,14 +7816,10 @@ client.on("messageCreate", async (message) => {
     return;
   }
 // ================= ADMIN /WHO BLACKLIST CHECK =================
-const SCREENSHOT_CHECK_CHANNEL = "1539414735659860048";
-
-if (message.channel.id === SCREENSHOT_CHECK_CHANNEL) {
-
-  // Admin only
-  if (!message.member?.roles.cache.has(adminRole)) {
-    return;
-  }
+if (
+  message.guild &&
+  message.member?.permissions.has(PermissionFlagsBits.Administrator)
+) {
 
   const images = message.attachments.filter(attachment => {
     const type = attachment.contentType || "";
