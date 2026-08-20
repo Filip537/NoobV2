@@ -7816,11 +7816,13 @@ client.on("messageCreate", async (message) => {
     return;
   }
 // ================= ADMIN /WHO BLACKLIST CHECK =================
+// ================= ADMIN /WHO BLACKLIST CHECK =================
 if (
   message.guild &&
   message.member?.permissions.has(PermissionFlagsBits.Administrator)
 ) {
 
+  // Only care about actual image attachments
   const images = message.attachments.filter(attachment => {
     const type = attachment.contentType || "";
     const name = attachment.name || "";
@@ -7831,188 +7833,359 @@ if (
     );
   });
 
+  // IMPORTANT:
+  // Normal messages / non-image attachments = completely ignore
   if (images.size === 0) {
-    return message.reply({
-      content: "❌ Please send a Growtopia `/who` screenshot.",
+    // DO NOT reply
+  } else {
+
+    const image = images.first();
+
+    const scanningMessage = await message.reply({
+      content: "🔍 Checking screenshot for Growtopia /who...",
       allowedMentions: {
         repliedUser: false
       }
     });
-  }
 
-  const image = images.first();
+    try {
 
-  const scanningMessage = await message.reply({
-    content: "Reading `/who` screenshot and checking blacklist...",
-    allowedMentions: {
-      repliedUser: false
-    }
-  });
+      // Download image
+      const response = await fetch(image.url);
 
-  try {
+      if (!response.ok) {
+        throw new Error(`Image download failed: ${response.status}`);
+      }
 
-    // Download screenshot
-    const response = await fetch(image.url);
+      const arrayBuffer = await response.arrayBuffer();
+      const imageBuffer = Buffer.from(arrayBuffer);
 
-    if (!response.ok) {
-      throw new Error(`Image download failed: ${response.status}`);
-    }
+      // Get image dimensions
+      const metadata = await sharp(imageBuffer).metadata();
 
-    const arrayBuffer = await response.arrayBuffer();
-    const imageBuffer = Buffer.from(arrayBuffer);
+      const imageWidth = metadata.width || 0;
+      const imageHeight = metadata.height || 0;
 
-    // Improve image for OCR
-    const processedImage = await sharp(imageBuffer)
-.resize({
-  width: 1400,
-  withoutEnlargement: false
-})
-      .grayscale()
-      .normalize()
-      .sharpen()
-      .png()
-      .toBuffer();
+      let sharpImage = sharp(imageBuffer);
 
-    // Start OCR
-const worker = await getOCRWorker();
+      /*
+        Growtopia /who is normally near the upper part of the screenshot.
 
-const result = await worker.recognize(processedImage);
+        Full screenshots:
+        crop roughly upper 45%
 
-    const detectedText = result.data.text || "";
+        Already-cropped screenshots:
+        keep the whole thing
+      */
+      if (imageHeight > 600) {
 
-    console.log("========== /WHO OCR ==========");
-    console.log(detectedText);
-    console.log("==============================");
+        const cropHeight = Math.floor(imageHeight * 0.48);
 
-    // Load your existing blacklist.json
-    const blacklist = loadBlacklist();
+        sharpImage = sharpImage.extract({
+          left: 0,
+          top: 0,
+          width: imageWidth,
+          height: cropHeight
+        });
+      }
 
-    // Build searchable blacklist map
-    const blacklistMap = new Map();
+      const processedImage = await sharpImage
+        .resize({
+          width: 1600,
+          withoutEnlargement: false
+        })
+        .grayscale()
+        .normalize()
+        .sharpen()
+        .png()
+        .toBuffer();
 
-    for (const entry of blacklist) {
+      // Cached OCR worker
+      const worker = await getOCRWorker();
 
-      if (!entry.growid) continue;
+      const result = await worker.recognize(processedImage);
 
-      const normalizedGrowID = entry.growid
+      let detectedText = result.data.text || "";
+
+      console.log("========== /WHO OCR ==========");
+      console.log(detectedText);
+      console.log("==============================");
+
+      /*
+        Make OCR text easier to parse.
+
+        Example OCR:
+
+        [08:09:05] Who's in NOOBV2: RetroSG, ERRORIZE, Efkius,
+        ilovemrnizu1001, cimeyol, Minekox, PELASHAHH, TERPICU,
+        Astrifer, SiewMais, JohnnyBerdosa
+      */
+
+      detectedText = detectedText
+        .replace(/\r/g, "\n")
+        .replace(/[ \t]+/g, " ");
+
+      // Find "Who's in"
+      const whoIndex = detectedText
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
+        .search(/who['’]?\s*s?\s+in\s+/i);
 
-      blacklistMap.set(normalizedGrowID, entry);
-    }
+      if (whoIndex === -1) {
 
-    // Get possible usernames from OCR
-    const detectedWords = detectedText
-      .split(/\s+/)
-      .map(word =>
-        word
-          .replace(/[^a-zA-Z0-9]/g, "")
-          .trim()
-      )
-      .filter(word =>
-        word.length >= 3 &&
-        word.length <= 18
-      );
+        return scanningMessage.edit({
+          content:
+            "❌ I found an image, but I couldn't detect a Growtopia `/who` list.\n" +
+            "Make sure the `Who's in WORLD:` text is clearly visible."
+        });
+      }
 
-    const uniqueNames = [...new Set(detectedWords)];
+      // Everything starting from "Who's in"
+      let whoSection = detectedText.slice(whoIndex);
 
-    const matches = [];
+      /*
+        Stop reading when another obvious chat line begins.
 
-    // Compare detected names against blacklist
-    for (const detectedName of uniqueNames) {
+        Common examples:
+        [W]
+        [S]
+        /who command line
+        World NOOBV2...
+        Xenonite...
+      */
+      const stopPatterns = [
+        /\n\s*\[[WS]\]/i,
+        /\n\s*World\s+/i,
+        /\n\s*Xenonite/i,
+        /\n\s*Click profile/i
+      ];
 
-      const normalizedName = detectedName
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
+      let stopIndex = -1;
 
-      const blacklistEntry =
-        blacklistMap.get(normalizedName);
+      for (const pattern of stopPatterns) {
+        const match = whoSection.match(pattern);
 
-      if (blacklistEntry) {
-
-        // Avoid duplicates
-        const alreadyFound = matches.some(
-          item =>
-            item.entry.growid.toLowerCase() ===
-            blacklistEntry.growid.toLowerCase()
-        );
-
-        if (!alreadyFound) {
-          matches.push({
-            detectedName,
-            entry: blacklistEntry
-          });
+        if (
+          match &&
+          typeof match.index === "number" &&
+          match.index > 0
+        ) {
+          if (stopIndex === -1 || match.index < stopIndex) {
+            stopIndex = match.index;
+          }
         }
       }
-    }
 
-    // ================= NO BLACKLIST FOUND =================
+      if (stopIndex !== -1) {
+        whoSection = whoSection.slice(0, stopIndex);
+      }
 
-    if (matches.length === 0) {
+      console.log("========== /WHO SECTION ==========");
+      console.log(whoSection);
+      console.log("===================================");
 
-      const clearEmbed = new EmbedBuilder()
-        .setColor("Green")
-        .setTitle("✅ World Blacklist Scan")
-        .setDescription(
-          `No blacklisted GrowIDs were detected.\n\n` +
-          `**Blacklist database:** ${blacklist.length} entries\n` +
-          `**Possible words/names detected:** ${uniqueNames.length}`
+      /*
+        Remove:
+        Who's in NOOBV2:
+
+        We only want everything AFTER the first colon.
+      */
+      const colonIndex = whoSection.indexOf(":");
+
+      if (colonIndex === -1) {
+        return scanningMessage.edit({
+          content:
+            "❌ I detected `/who`, but I couldn't read the player list properly."
+        });
+      }
+
+      let namesText = whoSection.slice(colonIndex + 1);
+
+      // OCR may put usernames on multiple lines
+      namesText = namesText
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      /*
+        Growtopia /who separates names by commas.
+
+        Example:
+        RetroSG, ERRORIZE, Efkius, ilovemrnizu1001
+      */
+      const detectedNames = namesText
+        .split(",")
+        .map(name =>
+          name
+            .trim()
+            // only GrowID-like characters
+            .replace(/[^a-zA-Z0-9_]/g, "")
         )
-        .setImage(image.url)
+        .filter(name =>
+          name.length >= 2 &&
+          name.length <= 24
+        );
+
+      // Remove duplicates
+      const uniqueNames = [
+        ...new Map(
+          detectedNames.map(name => [
+            name.toLowerCase(),
+            name
+          ])
+        ).values()
+      ];
+
+      console.log("Detected /who names:", uniqueNames);
+
+      if (uniqueNames.length === 0) {
+        return scanningMessage.edit({
+          content:
+            "❌ `/who` was detected, but I couldn't extract any GrowIDs."
+        });
+      }
+
+      // ================= BLACKLIST MATCHING =================
+
+      // Reads blacklist.json every time
+      const blacklist = loadBlacklist();
+
+      const blacklistMap = new Map();
+
+      for (const entry of blacklist) {
+
+        if (!entry?.growid) continue;
+
+        const normalizedGrowID = entry.growid
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "");
+
+        if (!normalizedGrowID) continue;
+
+        blacklistMap.set(
+          normalizedGrowID,
+          entry
+        );
+      }
+
+      const matches = [];
+
+      for (const detectedName of uniqueNames) {
+
+        const normalizedName = detectedName
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "");
+
+        const blacklistEntry =
+          blacklistMap.get(normalizedName);
+
+        // EXACT MATCH ONLY
+        if (blacklistEntry) {
+
+          const alreadyAdded = matches.some(
+            match =>
+              match.entry.growid.toLowerCase() ===
+              blacklistEntry.growid.toLowerCase()
+          );
+
+          if (!alreadyAdded) {
+            matches.push({
+              detectedName,
+              entry: blacklistEntry
+            });
+          }
+        }
+      }
+
+      console.log(
+        "Blacklist matches:",
+        matches.map(match => match.entry.growid)
+      );
+
+      // ================= CLEAR =================
+
+      if (matches.length === 0) {
+
+        let detectedList = uniqueNames
+          .map(name => `\`${name}\``)
+          .join(", ");
+
+        // Discord embed protection
+        if (detectedList.length > 2500) {
+          detectedList =
+            detectedList.slice(0, 2500) + "...";
+        }
+
+        const clearEmbed = new EmbedBuilder()
+          .setColor("Green")
+          .setTitle("✅ /who Blacklist Scan Clear")
+          .setDescription(
+            `No blacklisted GrowIDs were found.\n\n` +
+            `**Players detected: ${uniqueNames.length}**\n` +
+            detectedList
+          )
+          .setThumbnail(message.author.displayAvatarURL())
+          .setFooter({
+            text: `Blacklist database: ${blacklist.length} entries`
+          })
+          .setTimestamp();
+
+        return scanningMessage.edit({
+          content: "",
+          embeds: [clearEmbed]
+        });
+      }
+
+      // ================= BLACKLIST FOUND =================
+
+      let blacklistResults = matches
+        .map((match, index) => {
+
+          const entry = match.entry;
+
+          return (
+            `### 🚨 ${index + 1}. ${entry.growid}\n` +
+            `**Reason:** ${entry.reason || "Unknown"}\n` +
+            `**Proof:** ${entry.proof || "Unknown"}`
+          );
+
+        })
+        .join("\n\n");
+
+      if (blacklistResults.length > 3500) {
+        blacklistResults =
+          blacklistResults.slice(0, 3500) + "...";
+      }
+
+      const warningEmbed = new EmbedBuilder()
+        .setColor("Red")
+        .setTitle("🚨 BLACKLISTED PLAYER DETECTED")
+        .setDescription(
+          `Found **${matches.length} blacklisted player(s)** in the /who screenshot.\n\n` +
+          blacklistResults
+        )
+        .setThumbnail(message.author.displayAvatarURL())
         .setFooter({
-          text: "OCR can make mistakes. Manually verify important results."
+          text:
+            `${uniqueNames.length} players detected • ` +
+            `${blacklist.length} blacklist entries checked`
         })
         .setTimestamp();
 
       return scanningMessage.edit({
         content: "",
-        embeds: [clearEmbed]
+        embeds: [warningEmbed]
+      });
+
+    } catch (error) {
+
+      console.error("Blacklist /who OCR Error:", error);
+
+      return scanningMessage.edit({
+        content:
+          "❌ I couldn't scan this screenshot.\n" +
+          "Check `pm2 logs` for the OCR error."
       });
     }
-
-    // ================= BLACKLIST FOUND =================
-
-    const blacklistResults = matches
-      .map((match, index) => {
-
-        const entry = match.entry;
-
-        return (
-          `### ${index + 1}. ${entry.growid}\n` +
-          `**Reason:** ${entry.reason || "Unknown"}\n` +
-          `**Proof:** ${entry.proof || "Unknown"}`
-        );
-
-      })
-      .join("\n\n");
-
-    const warningEmbed = new EmbedBuilder()
-      .setColor("Red")
-      .setTitle("BLACKLISTED PLAYER DETECTED")
-.setDescription(
-  `Found **${matches.length} blacklisted player(s)** in the /who screenshot.\n\n` +
-  blacklistResults
-)
-      .setImage(image.url)
-      .setFooter({
-        text: "Manually verify OCR results before taking action."
-      })
-      .setTimestamp();
-
-    return scanningMessage.edit({
-      content: "",
-      embeds: [warningEmbed]
-    });
-
-  } catch (error) {
-
-    console.error("Blacklist OCR Error:", error);
-
-    return scanningMessage.edit({
-      content:
-        "❌ I couldn't read this screenshot.\n" +
-        "Please try a clearer Growtopia `/who` screenshot."
-    });
   }
 }
   // ================= MYSTATS TRACKER =================
