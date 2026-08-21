@@ -14,6 +14,123 @@ async function getOCRWorker() {
 
   return ocrWorker;
 }
+
+function normalizeGrowID(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+function levenshtein(a, b) {
+  a = normalizeGrowID(a);
+  b = normalizeGrowID(b);
+
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const matrix = Array.from(
+    { length: b.length + 1 },
+    () => new Array(a.length + 1).fill(0)
+  );
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i][0] = i;
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      const cost =
+        b[i - 1] === a[j - 1] ? 0 : 1;
+
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+function getBlacklistMatch(detectedName, blacklist) {
+  const detected = normalizeGrowID(detectedName);
+
+  if (!detected) return null;
+
+  // 1. Exact match first
+  for (const entry of blacklist) {
+    if (!entry?.growid) continue;
+
+    const blacklisted =
+      normalizeGrowID(entry.growid);
+
+    if (detected === blacklisted) {
+      return {
+        entry,
+        type: "exact",
+        distance: 0
+      };
+    }
+  }
+
+  // 2. Close OCR match
+  let bestMatch = null;
+
+  for (const entry of blacklist) {
+    if (!entry?.growid) continue;
+
+    const blacklisted =
+      normalizeGrowID(entry.growid);
+
+    if (!blacklisted) continue;
+
+    const lengthDifference = Math.abs(
+      detected.length - blacklisted.length
+    );
+
+    if (lengthDifference > 2) continue;
+
+    const longest = Math.max(
+      detected.length,
+      blacklisted.length
+    );
+
+    let maxDistance = 0;
+
+    // Short names need stricter matching
+    if (longest >= 8) {
+      maxDistance = 2;
+    } else if (longest >= 5) {
+      maxDistance = 1;
+    }
+
+    if (maxDistance === 0) continue;
+
+    const distance = levenshtein(
+      detected,
+      blacklisted
+    );
+
+    if (
+      distance <= maxDistance &&
+      (!bestMatch || distance < bestMatch.distance)
+    ) {
+      bestMatch = {
+        entry,
+        type: "fuzzy",
+        distance
+      };
+    }
+  }
+
+  return bestMatch;
+}
 const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
@@ -9004,48 +9121,58 @@ if (
 
       let sharpImage = sharp(imageBuffer);
 
-      /*
-        Growtopia /who is normally near the upper part of the screenshot.
 
-        Full screenshots:
-        crop roughly upper 45%
+// First OCR version
+const processedImage1 = await sharp(imageBuffer)
+  .resize({
+    width: 2200,
+    withoutEnlargement: false
+  })
+  .grayscale()
+  .normalize()
+  .sharpen({
+    sigma: 1.2
+  })
+  .png()
+  .toBuffer();
 
-        Already-cropped screenshots:
-        keep the whole thing
-      */
+// Second OCR version with stronger contrast
+const processedImage2 = await sharp(imageBuffer)
+  .resize({
+    width: 2600,
+    withoutEnlargement: false
+  })
+  .grayscale()
+  .normalize()
+  .linear(1.4, -20)
+  .sharpen({
+    sigma: 1.5
+  })
+  .threshold(145)
+  .png()
+  .toBuffer();
 
+const worker = await getOCRWorker();
 
-      const processedImage = await sharpImage
-        .resize({
-          width: 1600,
-          withoutEnlargement: false
-        })
-        .grayscale()
-        .normalize()
-        .sharpen()
-        .png()
-        .toBuffer();
+const result1 =
+  await worker.recognize(processedImage1);
 
-      // Cached OCR worker
-      const worker = await getOCRWorker();
+const result2 =
+  await worker.recognize(processedImage2);
 
-      const result = await worker.recognize(processedImage);
+const text1 = result1.data.text || "";
+const text2 = result2.data.text || "";
 
-      let detectedText = result.data.text || "";
+// Use both OCR results
+let detectedText = `${text1}\n${text2}`;
 
-      console.log("========== /WHO OCR ==========");
-      console.log(detectedText);
-      console.log("==============================");
+console.log("========== OCR PASS 1 ==========");
+console.log(text1);
 
-      /*
-        Make OCR text easier to parse.
+console.log("========== OCR PASS 2 ==========");
+console.log(text2);
 
-        Example OCR:
-
-        [08:09:05] Who's in NOOBV2: RetroSG, ERRORIZE, Efkius,
-        ilovemrnizu1001, cimeyol, Minekox, PELASHAHH, TERPICU,
-        Astrifer, SiewMais, JohnnyBerdosa
-      */
+console.log("================================");
 
       detectedText = detectedText
         .replace(/\r/g, "\n")
@@ -9132,103 +9259,122 @@ if (
         .replace(/\s+/g, " ")
         .trim();
 
-      /*
-        Growtopia /who separates names by commas.
+// =====================================================
+// BETTER PLAYER NAME EXTRACTION
+// =====================================================
 
-        Example:
-        RetroSG, ERRORIZE, Efkius, ilovemrnizu1001
-      */
-      const detectedNames = namesText
-        .split(",")
-        .map(name =>
-          name
-            .trim()
-            // only GrowID-like characters
-            .replace(/[^a-zA-Z0-9_]/g, "")
-        )
-        .filter(name =>
-          name.length >= 2 &&
-          name.length <= 24
-        );
+const detectedNames = [];
 
-      // Remove duplicates
-      const uniqueNames = [
-        ...new Map(
-          detectedNames.map(name => [
-            name.toLowerCase(),
-            name
-          ])
-        ).values()
-      ];
+// First method: normal comma-separated /who list
+for (const part of namesText.split(",")) {
+  const clean = part
+    .trim()
+    .replace(/[^a-zA-Z0-9_]/g, "");
 
-      console.log("Detected /who names:", uniqueNames);
+  if (
+    clean.length >= 2 &&
+    clean.length <= 24
+  ) {
+    detectedNames.push(clean);
+  }
+}
 
-      if (uniqueNames.length === 0) {
-        return scanningMessage.edit({
-          content:
-            "❌ `/who` was detected, but I couldn't extract any GrowIDs."
-        });
-      }
+// Second method:
+// Detect individual GrowID-looking words too.
+//
+// This helps if OCR sees:
+//
+// Kingassult1 GODXL
+//
+// instead of:
+//
+// Kingassult1, GODXL
+//
+const individualNames =
+  namesText.match(/[a-zA-Z0-9_]{2,24}/g) || [];
 
-      // ================= BLACKLIST MATCHING =================
+for (const name of individualNames) {
+  if (
+    name.length >= 2 &&
+    name.length <= 24
+  ) {
+    detectedNames.push(name);
+  }
+}
 
-      // Reads blacklist.json every time
-      const blacklist = loadBlacklist();
+// Remove duplicates case-insensitively
+const uniqueNames = [
+  ...new Map(
+    detectedNames.map(name => [
+      normalizeGrowID(name),
+      name
+    ])
+  ).values()
+];
 
-      const blacklistMap = new Map();
+console.log(
+  "Detected /who names:",
+  uniqueNames
+);
 
-      for (const entry of blacklist) {
+if (uniqueNames.length === 0) {
+  return scanningMessage.edit({
+    content:
+      "❌ `/who` was detected, but I couldn't extract any GrowIDs."
+  });
+}
 
-        if (!entry?.growid) continue;
+// =====================================================
+// BLACKLIST MATCHING
+// =====================================================
 
-        const normalizedGrowID = entry.growid
-          .toLowerCase()
-          .replace(/[^a-z0-9_]/g, "");
+const blacklist = loadBlacklist();
 
-        if (!normalizedGrowID) continue;
+const matches = [];
 
-        blacklistMap.set(
-          normalizedGrowID,
-          entry
-        );
-      }
+for (const detectedName of uniqueNames) {
 
-      const matches = [];
+  const result = getBlacklistMatch(
+    detectedName,
+    blacklist
+  );
 
-      for (const detectedName of uniqueNames) {
+  if (!result) continue;
 
-        const normalizedName = detectedName
-          .toLowerCase()
-          .replace(/[^a-z0-9_]/g, "");
+  const blacklistEntry = result.entry;
 
-        const blacklistEntry =
-          blacklistMap.get(normalizedName);
+  const alreadyAdded = matches.some(
+    match =>
+      normalizeGrowID(match.entry.growid) ===
+      normalizeGrowID(blacklistEntry.growid)
+  );
 
-        // EXACT MATCH ONLY
-        if (blacklistEntry) {
+  if (alreadyAdded) continue;
 
-          const alreadyAdded = matches.some(
-            match =>
-              match.entry.growid.toLowerCase() ===
-              blacklistEntry.growid.toLowerCase()
-          );
+  matches.push({
+    detectedName,
+    entry: blacklistEntry,
+    matchType: result.type,
+    distance: result.distance
+  });
 
-          if (!alreadyAdded) {
-            matches.push({
-              detectedName,
-              entry: blacklistEntry
-            });
-          }
-        }
-      }
+  console.log(
+    `[BLACKLIST MATCH] detected="${detectedName}" ` +
+    `blacklist="${blacklistEntry.growid}" ` +
+    `type=${result.type} ` +
+    `distance=${result.distance}`
+  );
+}
 
-      console.log(
-        "Blacklist matches:",
-        matches.map(match => match.entry.growid)
-      );
-
-      // ================= CLEAR =================
-
+console.log(
+  "Blacklist matches:",
+  matches.map(match => ({
+    detected: match.detectedName,
+    blacklist: match.entry.growid,
+    type: match.matchType,
+    distance: match.distance
+  }))
+);
       if (matches.length === 0) {
 
         let detectedList = uniqueNames
