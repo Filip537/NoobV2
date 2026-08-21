@@ -1357,7 +1357,6 @@ function loadBlacklist() {
     return [];
   }
 }
-
 function saveBlacklist(data) {
   try {
     if (!Array.isArray(data)) {
@@ -1366,25 +1365,27 @@ function saveBlacklist(data) {
       );
     }
 
-    // Write to temporary file first.
-    // This prevents blacklist.json from being left
-    // half-written/corrupted if something interrupts saving.
+    // Write temporary file first
     const tempFile =
       `${blacklistFile}.tmp`;
 
     fs.writeFileSync(
       tempFile,
-      JSON.stringify(data, null, 2),
+      JSON.stringify(
+        data,
+        null,
+        2
+      ),
       "utf8"
     );
 
-    // Atomically replace real blacklist file
+    // Atomically replace blacklist.json
     fs.renameSync(
       tempFile,
       blacklistFile
     );
 
-    // Verify the file can be read again
+    // Verify file
     const verification =
       JSON.parse(
         fs.readFileSync(
@@ -1398,6 +1399,12 @@ function saveBlacklist(data) {
       `${verification.length} entries to: ${blacklistFile}`
     );
 
+    // =============================
+    // UPDATE LIVE BLACKLIST CHANNEL
+    // =============================
+
+    scheduleLiveBlacklistRefresh();
+
     return true;
 
   } catch (error) {
@@ -1409,7 +1416,6 @@ function saveBlacklist(data) {
     return false;
   }
 }
-
 let blacklistSaveQueue = Promise.resolve();
 
 function addBlacklistEntrySafe(entry) {
@@ -1950,6 +1956,287 @@ function getNumberPad() {
   }
 
   return row;
+}
+
+// =============================
+// LIVE BLACKLIST CHANNEL
+// =============================
+
+const LIVE_BLACKLIST_CHANNEL_ID = "1540358489359261717";
+
+let liveBlacklistRefreshTimer = null;
+let liveBlacklistRefreshing = false;
+let liveBlacklistRefreshAgain = false;
+
+function cleanLiveGrowID(value) {
+  return String(value || "")
+    .replace(/\*\*/g, "")
+    .replace(/^\s+|\s+$/g, "")
+    .trim();
+}
+
+function scheduleLiveBlacklistRefresh(delay = 700) {
+  clearTimeout(liveBlacklistRefreshTimer);
+
+  liveBlacklistRefreshTimer = setTimeout(() => {
+    refreshLiveBlacklistChannel().catch(error => {
+      console.error(
+        "[LIVE BLACKLIST] Refresh error:",
+        error
+      );
+    });
+  }, delay);
+}
+
+async function refreshLiveBlacklistChannel() {
+  // Prevent multiple blacklist updates from fighting each other
+  if (liveBlacklistRefreshing) {
+    liveBlacklistRefreshAgain = true;
+    return;
+  }
+
+  if (!client?.isReady?.()) {
+    return;
+  }
+
+  liveBlacklistRefreshing = true;
+
+  try {
+    const channel = await client.channels
+      .fetch(LIVE_BLACKLIST_CHANNEL_ID)
+      .catch(() => null);
+
+    if (!channel || !channel.isTextBased()) {
+      console.log(
+        "[LIVE BLACKLIST] Channel not found:",
+        LIVE_BLACKLIST_CHANNEL_ID
+      );
+
+      return;
+    }
+
+    const blacklist = loadBlacklist();
+
+    // Clean + remove invalid IDs
+    const growids = blacklist
+      .map(entry => {
+        if (typeof entry === "string") {
+          return cleanLiveGrowID(entry);
+        }
+
+        return cleanLiveGrowID(
+          entry?.growid ??
+          entry?.growID ??
+          entry?.GrowID ??
+          entry?.name
+        );
+      })
+      .filter(Boolean);
+
+    // Remove duplicate GrowIDs, case-insensitive
+    const seen = new Set();
+
+    const uniqueGrowIDs = growids.filter(growid => {
+      const normalized =
+        growid.toLowerCase();
+
+      if (seen.has(normalized)) {
+        return false;
+      }
+
+      seen.add(normalized);
+      return true;
+    });
+
+    // Sort alphabetically
+    uniqueGrowIDs.sort((a, b) =>
+      a.localeCompare(
+        b,
+        undefined,
+        {
+          sensitivity: "base"
+        }
+      )
+    );
+
+    // ====================================
+    // DELETE OLD LIVE BLACKLIST MESSAGES
+    // ====================================
+
+    let beforeId = null;
+
+    while (true) {
+      const fetched = await channel.messages.fetch({
+        limit: 100,
+        ...(beforeId
+          ? { before: beforeId }
+          : {})
+      });
+
+      if (!fetched.size) {
+        break;
+      }
+
+      const botMessages = fetched.filter(message =>
+        message.author.id === client.user.id &&
+        (
+          message.embeds.some(embed =>
+            embed.footer?.text?.includes(
+              "NOOBV2_LIVE_BLACKLIST"
+            )
+          ) ||
+          message.content?.includes(
+            "NOOBV2_LIVE_BLACKLIST"
+          )
+        )
+      );
+
+      for (const message of botMessages.values()) {
+        await message
+          .delete()
+          .catch(() => {});
+      }
+
+      beforeId =
+        fetched.last()?.id;
+
+      if (fetched.size < 100) {
+        break;
+      }
+    }
+
+    // ====================================
+    // EMPTY BLACKLIST
+    // ====================================
+
+    if (!uniqueGrowIDs.length) {
+      const embed =
+        new EmbedBuilder()
+          .setColor("Green")
+          .setTitle(
+            "🚫 NoobV2 Live Blacklist"
+          )
+          .setDescription(
+            "There are currently **no blacklisted GrowIDs**."
+          )
+          .addFields({
+            name: "Total Blacklisted",
+            value: "`0`",
+            inline: true
+          })
+          .setFooter({
+            text:
+              "NOOBV2_LIVE_BLACKLIST • Automatically Updated"
+          })
+          .setTimestamp();
+
+      await channel.send({
+        embeds: [embed]
+      });
+
+      return;
+    }
+
+    // ====================================
+    // CREATE PAGES
+    // ====================================
+
+    // 70 IDs per embed keeps us safely under Discord limits
+    const PAGE_SIZE = 70;
+
+    const pages = [];
+
+    for (
+      let i = 0;
+      i < uniqueGrowIDs.length;
+      i += PAGE_SIZE
+    ) {
+      pages.push(
+        uniqueGrowIDs.slice(
+          i,
+          i + PAGE_SIZE
+        )
+      );
+    }
+
+    // ====================================
+    // SEND LIVE BLACKLIST
+    // ====================================
+
+    for (
+      let pageIndex = 0;
+      pageIndex < pages.length;
+      pageIndex++
+    ) {
+      const page = pages[pageIndex];
+
+      const startNumber =
+        pageIndex * PAGE_SIZE;
+
+      const list = page
+        .map(
+          (growid, index) =>
+            `\`${startNumber + index + 1}.\` **${growid}**`
+        )
+        .join("\n");
+
+      const embed =
+        new EmbedBuilder()
+          .setColor("Red")
+          .setTitle(
+            pageIndex === 0
+              ? "🚫 NoobV2 Live Blacklist"
+              : `🚫 Live Blacklist • Page ${pageIndex + 1}`
+          )
+          .setDescription(list)
+          .addFields(
+            {
+              name: "Total Blacklisted",
+              value:
+                `\`${uniqueGrowIDs.length}\``,
+              inline: true
+            },
+            {
+              name: "Page",
+              value:
+                `\`${pageIndex + 1}/${pages.length}\``,
+              inline: true
+            }
+          )
+          .setFooter({
+            text:
+              "NOOBV2_LIVE_BLACKLIST • Updates automatically when someone is blacklisted/unblacklisted"
+          })
+          .setTimestamp();
+
+      await channel.send({
+        embeds: [embed]
+      });
+    }
+
+    console.log(
+      `[LIVE BLACKLIST] Synced ${uniqueGrowIDs.length} GrowIDs`
+    );
+
+  } catch (error) {
+    console.error(
+      "[LIVE BLACKLIST] Error:",
+      error
+    );
+
+  } finally {
+    liveBlacklistRefreshing = false;
+
+    // If blacklist changed while refresh was happening,
+    // refresh once more.
+    if (liveBlacklistRefreshAgain) {
+      liveBlacklistRefreshAgain = false;
+
+      scheduleLiveBlacklistRefresh(
+        500
+      );
+    }
+  }
 }
 function getControls() {
   return new ActionRowBuilder().addComponents(
