@@ -9159,222 +9159,301 @@ const result1 =
 
 const result2 =
   await worker.recognize(processedImage2);
-
-const text1 = result1.data.text || "";
-const text2 = result2.data.text || "";
-
-// Use both OCR results
-let detectedText = `${text1}\n${text2}`;
-
-console.log("========== OCR PASS 1 ==========");
-console.log(text1);
-
-console.log("========== OCR PASS 2 ==========");
-console.log(text2);
-
-console.log("================================");
-
-      detectedText = detectedText
-        .replace(/\r/g, "\n")
-        .replace(/[ \t]+/g, " ");
-
-      // Find "Who's in"
-      const whoIndex = detectedText
-        .toLowerCase()
-        .search(/who['’]?\s*s?\s+in\s+/i);
-
-      if (whoIndex === -1) {
-
-        return scanningMessage.edit({
-          content:
-            "❌ I found an image, but I couldn't detect a Growtopia `/who` list.\n" +
-            "Make sure the `Who's in WORLD:` text is clearly visible."
-        });
-      }
-
-      // Everything starting from "Who's in"
-      let whoSection = detectedText.slice(whoIndex);
-
-      /*
-        Stop reading when another obvious chat line begins.
-
-        Common examples:
-        [W]
-        [S]
-        /who command line
-        World NOOBV2...
-        Xenonite...
-      */
-      const stopPatterns = [
-        /\n\s*\[[WS]\]/i,
-        /\n\s*World\s+/i,
-        /\n\s*Xenonite/i,
-        /\n\s*Click profile/i
-      ];
-
-      let stopIndex = -1;
-
-      for (const pattern of stopPatterns) {
-        const match = whoSection.match(pattern);
-
-        if (
-          match &&
-          typeof match.index === "number" &&
-          match.index > 0
-        ) {
-          if (stopIndex === -1 || match.index < stopIndex) {
-            stopIndex = match.index;
-          }
+  const text1 = result1.data.text || "";
+  const text2 = result2.data.text || "";
+  
+  console.log("========== OCR PASS 1 ==========");
+  console.log(text1);
+  
+  console.log("========== OCR PASS 2 ==========");
+  console.log(text2);
+  
+  console.log("================================");
+  
+  // =====================================================
+  // EXTRACT /WHO NAMES FROM ONE OCR PASS
+  // =====================================================
+  
+  function extractWhoNames(text) {
+    if (!text) return [];
+  
+    const normalizedText = String(text)
+      .replace(/\r/g, "\n")
+      .replace(/[ \t]+/g, " ");
+  
+    const lines = normalizedText.split("\n");
+  
+    let collecting = false;
+    const collectedLines = [];
+  
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
+  
+      if (!line) continue;
+  
+      // Detect:
+      // Who's in NOOBV2:
+      // Who’s in NOOBV2:
+      const whoMatch = line.match(
+        /who['’]?\s*s?\s+in\s+[^:]+:\s*(.*)$/i
+      );
+  
+      if (whoMatch) {
+        collecting = true;
+  
+        if (whoMatch[1]) {
+          collectedLines.push(whoMatch[1]);
         }
+  
+        continue;
       }
-
-      if (stopIndex !== -1) {
-        whoSection = whoSection.slice(0, stopIndex);
+  
+      if (!collecting) continue;
+  
+      // Stop when another Growtopia message starts.
+      //
+      // Examples:
+      // [W][08:32:08]
+      // [i][08:32:07]
+      // [S][08:32:05]
+      if (
+        /^\s*\[[^\]]+\]\s*\[\d{1,2}:\d{2}:\d{2}\]/i.test(line)
+      ) {
+        break;
       }
-
-      console.log("========== /WHO SECTION ==========");
-      console.log(whoSection);
-      console.log("===================================");
-
-      /*
-        Remove:
-        Who's in NOOBV2:
-
-        We only want everything AFTER the first colon.
-      */
-      const colonIndex = whoSection.indexOf(":");
-
-      if (colonIndex === -1) {
-        return scanningMessage.edit({
-          content:
-            "❌ I detected `/who`, but I couldn't read the player list properly."
-        });
+  
+      // Stop at common non-/who lines
+      if (
+        /^world\s+/i.test(line) ||
+        /^xenonite/i.test(line) ||
+        /^click profile/i.test(line)
+      ) {
+        break;
       }
-
-      let namesText = whoSection.slice(colonIndex + 1);
-
-      // OCR may put usernames on multiple lines
-      namesText = namesText
-        .replace(/\n+/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-// =====================================================
-// BETTER PLAYER NAME EXTRACTION
-// =====================================================
-
-const detectedNames = [];
-
-// First method: normal comma-separated /who list
-for (const part of namesText.split(",")) {
-  const clean = part
-    .trim()
-    .replace(/[^a-zA-Z0-9_]/g, "");
-
-  if (
-    clean.length >= 2 &&
-    clean.length <= 24
-  ) {
-    detectedNames.push(clean);
+  
+      // Otherwise it is probably a wrapped continuation
+      // of the same /who list.
+      collectedLines.push(line);
+    }
+  
+    if (collectedLines.length === 0) {
+      return [];
+    }
+  
+    const fullWhoList = collectedLines
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  
+    console.log("RAW /WHO LIST:", fullWhoList);
+  
+    // IMPORTANT:
+    // Growtopia /who uses commas between GrowIDs.
+    const parts = fullWhoList
+      .split(",")
+      .map(part => part.trim())
+      .filter(Boolean);
+  
+    const names = [];
+  
+    for (const part of parts) {
+  
+      // If OCR inserts a space inside ONE GrowID:
+      //
+      // God XL -> GodXL
+      // ilovemrnizu 1001 -> ilovemrnizu1001
+      //
+      const cleaned = part
+        .replace(/\s+/g, "")
+        .replace(/[^a-zA-Z0-9_]/g, "");
+  
+      if (
+        cleaned.length >= 2 &&
+        cleaned.length <= 24
+      ) {
+        names.push(cleaned);
+      }
+    }
+  
+    return names;
   }
-}
-
-// Second method:
-// Detect individual GrowID-looking words too.
-//
-// This helps if OCR sees:
-//
-// Kingassult1 GODXL
-//
-// instead of:
-//
-// Kingassult1, GODXL
-//
-const individualNames =
-  namesText.match(/[a-zA-Z0-9_]{2,24}/g) || [];
-
-for (const name of individualNames) {
+  
+  // =====================================================
+  // READ BOTH OCR PASSES SEPARATELY
+  // =====================================================
+  
+  const namesPass1 = extractWhoNames(text1);
+  const namesPass2 = extractWhoNames(text2);
+  
+  console.log("OCR PASS 1 NAMES:", namesPass1);
+  console.log("OCR PASS 2 NAMES:", namesPass2);
+  
   if (
-    name.length >= 2 &&
-    name.length <= 24
+    namesPass1.length === 0 &&
+    namesPass2.length === 0
   ) {
-    detectedNames.push(name);
+    return scanningMessage.edit({
+      content:
+        "❌ I found an image, but I couldn't detect a Growtopia `/who` list.\n" +
+        "Make sure the `Who's in WORLD:` text is clearly visible."
+    });
   }
-}
-
-// Remove duplicates case-insensitively
-const uniqueNames = [
-  ...new Map(
-    detectedNames.map(name => [
-      normalizeGrowID(name),
-      name
-    ])
-  ).values()
-];
-
-console.log(
-  "Detected /who names:",
-  uniqueNames
-);
-
-if (uniqueNames.length === 0) {
-  return scanningMessage.edit({
-    content:
-      "❌ `/who` was detected, but I couldn't extract any GrowIDs."
-  });
-}
-
-// =====================================================
-// BLACKLIST MATCHING
-// =====================================================
-
-const blacklist = loadBlacklist();
-
-const matches = [];
-
-for (const detectedName of uniqueNames) {
-
-  const result = getBlacklistMatch(
-    detectedName,
-    blacklist
-  );
-
-  if (!result) continue;
-
-  const blacklistEntry = result.entry;
-
-  const alreadyAdded = matches.some(
-    match =>
-      normalizeGrowID(match.entry.growid) ===
-      normalizeGrowID(blacklistEntry.growid)
-  );
-
-  if (alreadyAdded) continue;
-
-  matches.push({
-    detectedName,
-    entry: blacklistEntry,
-    matchType: result.type,
-    distance: result.distance
-  });
-
+  
+  // =====================================================
+  // COMBINE BOTH PASSES
+  // =====================================================
+  
+  const allDetectedNames = [
+    ...namesPass1,
+    ...namesPass2
+  ];
+  
+  const uniqueNames = [
+    ...new Map(
+      allDetectedNames.map(name => [
+        normalizeGrowID(name),
+        name
+      ])
+    ).values()
+  ];
+  
   console.log(
-    `[BLACKLIST MATCH] detected="${detectedName}" ` +
-    `blacklist="${blacklistEntry.growid}" ` +
-    `type=${result.type} ` +
-    `distance=${result.distance}`
+    "Detected /who GrowIDs:",
+    uniqueNames
   );
-}
-
-console.log(
-  "Blacklist matches:",
-  matches.map(match => ({
-    detected: match.detectedName,
-    blacklist: match.entry.growid,
-    type: match.matchType,
-    distance: match.distance
-  }))
-);
+  
+  // =====================================================
+  // LOAD BLACKLIST.JSON
+  // =====================================================
+  
+  const blacklist = loadBlacklist();
+  
+  console.log(
+    `Loaded ${blacklist.length} blacklist entries`
+  );
+  
+  // =====================================================
+  // NORMAL BLACKLIST MATCHING
+  // =====================================================
+  
+  const matches = [];
+  
+  for (const detectedName of uniqueNames) {
+  
+    const result = getBlacklistMatch(
+      detectedName,
+      blacklist
+    );
+  
+    if (!result) continue;
+  
+    const blacklistEntry = result.entry;
+  
+    const alreadyAdded = matches.some(
+      match =>
+        normalizeGrowID(match.entry.growid) ===
+        normalizeGrowID(blacklistEntry.growid)
+    );
+  
+    if (alreadyAdded) continue;
+  
+    matches.push({
+      detectedName,
+      entry: blacklistEntry,
+      matchType: result.type,
+      distance: result.distance
+    });
+  
+    console.log(
+      `[BLACKLIST MATCH] OCR="${detectedName}" ` +
+      `BLACKLIST="${blacklistEntry.growid}" ` +
+      `TYPE=${result.type} ` +
+      `DISTANCE=${result.distance}`
+    );
+  }
+  
+  // =====================================================
+  // FIX FALSE OCR COMMA/SPLIT
+  // =====================================================
+  //
+  // Image says:
+  //
+  // GodXL
+  //
+  // but OCR accidentally says:
+  //
+  // God, XL
+  //
+  // Try:
+  // God + XL = GodXL
+  //
+  // IMPORTANT:
+  // only accept the joined name if blacklist.json
+  // confirms that GrowID.
+  //
+  
+  for (const passNames of [namesPass1, namesPass2]) {
+  
+    for (let i = 0; i < passNames.length - 1; i++) {
+  
+      const first = passNames[i];
+      const second = passNames[i + 1];
+  
+      const joined =
+        `${first}${second}`
+          .replace(/[^a-zA-Z0-9_]/g, "");
+  
+      if (
+        joined.length < 2 ||
+        joined.length > 24
+      ) {
+        continue;
+      }
+  
+      const result = getBlacklistMatch(
+        joined,
+        blacklist
+      );
+  
+      if (!result) continue;
+  
+      const blacklistEntry = result.entry;
+  
+      const alreadyAdded = matches.some(
+        match =>
+          normalizeGrowID(match.entry.growid) ===
+          normalizeGrowID(blacklistEntry.growid)
+      );
+  
+      if (alreadyAdded) continue;
+  
+      matches.push({
+        detectedName: joined,
+        entry: blacklistEntry,
+        matchType: "joined-ocr",
+        distance: result.distance
+      });
+  
+      console.log(
+        `[JOINED OCR] "${first}" + "${second}" => ` +
+        `"${blacklistEntry.growid}"`
+      );
+    }
+  }
+  
+  // =====================================================
+  // FINAL BLACKLIST RESULT
+  // =====================================================
+  
+  console.log(
+    "FINAL BLACKLIST MATCHES:",
+    matches.map(match => ({
+      detected: match.detectedName,
+      blacklist: match.entry.growid,
+      type: match.matchType,
+      distance: match.distance
+    }))
+  );
       if (matches.length === 0) {
 
         let detectedList = uniqueNames
