@@ -8364,7 +8364,16 @@ story.comments.push({
   });
 }
 
-  if (interaction.customId === "blist_search_modal") {
+if (interaction.customId.startsWith("blist_search_modal_")) {
+  const fieldsPart =
+  interaction.customId.replace(
+    "blist_search_modal_",
+    ""
+  );
+
+const fields = fieldsPart
+  ? fieldsPart.split("-").filter(Boolean)
+  : ["growid"];
   const query = interaction.fields
     .getTextInputValue("blist_search_input")
     .trim()
