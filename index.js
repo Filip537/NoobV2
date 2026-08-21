@@ -164,6 +164,99 @@ function findBlacklistInRawWhoText(text, blacklist) {
 
   return found;
 }
+
+function getBlacklistGrowID(entry) {
+  if (typeof entry === "string") {
+    return entry.trim();
+  }
+
+  return String(
+    entry?.growid ??
+    entry?.growID ??
+    entry?.GrowID ??
+    entry?.name ??
+    ""
+  ).trim();
+}
+
+function findGrowIDInsideMergedOCR(candidateText, targetGrowID) {
+  const candidate = normalizeGrowID(candidateText);
+  const target = normalizeGrowID(targetGrowID);
+
+  if (!candidate || !target) return null;
+
+  // Exact name inside merged OCR
+  if (candidate.includes(target)) {
+    return {
+      type: "merged-exact",
+      distance: 0
+    };
+  }
+
+  // Avoid fuzzy matching very short IDs
+  if (target.length < 5) {
+    return null;
+  }
+
+  let maxDistance = 1;
+
+  if (target.length >= 8) {
+    maxDistance = 2;
+  }
+
+  const minLength = Math.max(
+    4,
+    target.length - maxDistance
+  );
+
+  const maxLength = Math.min(
+    candidate.length,
+    target.length + maxDistance
+  );
+
+  let best = null;
+
+  for (
+    let length = minLength;
+    length <= maxLength;
+    length++
+  ) {
+    for (
+      let start = 0;
+      start + length <= candidate.length;
+      start++
+    ) {
+      const window =
+        candidate.slice(
+          start,
+          start + length
+        );
+
+      const distance =
+        levenshtein(
+          window,
+          target
+        );
+
+      if (
+        distance <= maxDistance &&
+        (!best || distance < best.distance)
+      ) {
+        best = {
+          type: "merged-fuzzy",
+          distance,
+          window
+        };
+
+        if (distance === 0) {
+          return best;
+        }
+      }
+    }
+  }
+
+  return best;
+}
 const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
@@ -9500,407 +9593,213 @@ const result2 =
     "Detected /who GrowIDs:",
     uniqueNames
   );
-  
   // =====================================================
-  // LOAD BLACKLIST.JSON
-  // =====================================================
-  
-  const blacklist = loadBlacklist();
-  
-  console.log(
-    `Loaded ${blacklist.length} blacklist entries`
+// LOAD BLACKLIST
+// =====================================================
+
+const rawBlacklist = loadBlacklist();
+
+if (!Array.isArray(rawBlacklist)) {
+  return scanningMessage.edit({
+    content:
+      "❌ Blacklist database failed to load. Scan cancelled."
+  });
+}
+
+const blacklist = rawBlacklist
+  .map(entry => {
+    const growid =
+      getBlacklistGrowID(entry);
+
+    if (!growid) return null;
+
+    if (typeof entry === "string") {
+      return {
+        growid,
+        reason: "Unknown",
+        proof: "Unknown"
+      };
+    }
+
+    return {
+      ...entry,
+      growid
+    };
+  })
+  .filter(Boolean);
+
+
+// Never falsely return green if DB is empty
+if (blacklist.length === 0) {
+  console.error(
+    "[BLACKLIST] 0 usable blacklist entries loaded",
+    blacklistFile
   );
-  
-  console.log("========== BLACKLIST RUNTIME CHECK ==========");
-  console.log("Blacklist path:", blacklistFile);
-  console.log("Blacklist count:", blacklist.length);
-  
-  console.log(
-    "Blacklist normalized names:",
-    blacklist.map(entry => ({
-      original: entry?.growid,
-      normalized: normalizeGrowID(entry?.growid)
-    }))
-  );
-  
-  console.log("=============================================");
+
+  return scanningMessage.edit({
+    content:
+      "❌ Blacklist database has 0 usable GrowIDs. Scan cancelled."
+  });
+}
+
+
+// =====================================================
+// MATCH RESULTS
+// =====================================================
+
 const matches = [];
 
-function addMatch(entry, detectedName, type, distance = 0) {
+function addMatch(
+  entry,
+  detectedName,
+  type,
+  distance = 0
+) {
   if (!entry?.growid) return;
 
-  const key = normalizeGrowID(entry.growid);
+  const key =
+    normalizeGrowID(entry.growid);
 
-  const alreadyExists = matches.some(
-    match =>
-      normalizeGrowID(match.entry?.growid) === key
-  );
+  if (!key) return;
 
-  if (alreadyExists) return;
+  const exists =
+    matches.some(
+      match =>
+        normalizeGrowID(
+          match.entry?.growid
+        ) === key
+    );
+
+  if (exists) return;
 
   matches.push({
-    detectedName: entry.growid,
     entry,
+    detectedName: entry.growid,
     matchType: type,
     distance
   });
 
   console.log(
-    `[BLACKLIST DETECTED] ` +
-    `OCR="${detectedName}" | ` +
-    `BLACKLIST="${entry.growid}" | ` +
-    `TYPE="${type}"`
+    `[BLACKLIST MATCH] OCR="${detectedName}" ` +
+    `BLACKLIST="${entry.growid}" ` +
+    `TYPE="${type}" ` +
+    `DISTANCE=${distance}`
   );
 }
 
 
 // =====================================================
-// 1. CHECK THE ENTIRE RAW OCR TEXT
+// BUILD OCR SOURCES
 // =====================================================
-//
-// Removes:
-// spaces
-// commas
-// punctuation
-// line breaks
-//
-// So:
-//
-// Adryxx, RetroSG, Dryaser
-// Adryxx RetroSG Dryaser
-// AdryxxRetroSGDryaser
-//
-// all become searchable.
-//
 
-const rawOCRCompact = [
-  text1,
-  text2
-]
-  .join("")
-  .toLowerCase()
-  .replace(/[^a-z0-9_]/g, "");
+const candidateTexts = new Set();
+
+for (const name of uniqueNames) {
+  const normalized =
+    normalizeGrowID(name);
+
+  if (normalized) {
+    candidateTexts.add(normalized);
+  }
+}
+
+
+// Merge each complete OCR pass
+const mergedPass1 =
+  normalizeGrowID(
+    namesPass1.join("")
+  );
+
+const mergedPass2 =
+  normalizeGrowID(
+    namesPass2.join("")
+  );
+
+if (mergedPass1) {
+  candidateTexts.add(mergedPass1);
+}
+
+if (mergedPass2) {
+  candidateTexts.add(mergedPass2);
+}
+
+
+// Also use raw OCR text
+const rawOCR1 =
+  normalizeGrowID(text1);
+
+const rawOCR2 =
+  normalizeGrowID(text2);
+
+if (rawOCR1) {
+  candidateTexts.add(rawOCR1);
+}
+
+if (rawOCR2) {
+  candidateTexts.add(rawOCR2);
+}
+
+
+// =====================================================
+// CHECK EVERY BLACKLIST NAME
+// =====================================================
 
 for (const entry of blacklist) {
 
-  if (!entry?.growid) continue;
-
   const blacklistName =
-    normalizeGrowID(entry.growid);
+    getBlacklistGrowID(entry);
 
   if (!blacklistName) continue;
 
-  // Substring matching only for 4+ chars
-  // to avoid false positives from tiny names.
-  if (blacklistName.length >= 4) {
+  for (const candidate of candidateTexts) {
 
-    if (
-      rawOCRCompact.includes(
+    const result =
+      findGrowIDInsideMergedOCR(
+        candidate,
         blacklistName
-      )
-    ) {
-
-      addMatch(
-        entry,
-        entry.growid,
-        "raw-ocr-substring"
       );
-    }
+
+    if (!result) continue;
+
+    addMatch(
+      entry,
+      candidate,
+      result.type,
+      result.distance
+    );
+
+    break;
   }
 }
 
 
-// =====================================================
-// 2. CHECK EVERY PARSED OCR NAME
-// =====================================================
-//
-// Examples:
-//
-// AdryxxRetroSG
-// GODXL
-// Kingassault1Something
-//
-// Every blacklist entry is checked inside each OCR chunk.
-//
-
+// Normal exact/fuzzy fallback
 for (const detectedName of uniqueNames) {
 
-  const detected =
-    normalizeGrowID(detectedName);
+  const result =
+    getBlacklistMatch(
+      detectedName,
+      blacklist
+    );
 
-  if (!detected) continue;
+  if (!result) continue;
 
-  for (const entry of blacklist) {
-
-    if (!entry?.growid) continue;
-
-    const blacklistName =
-      normalizeGrowID(entry.growid);
-
-    if (!blacklistName) continue;
-
-
-    // ===============================================
-    // EXACT MATCH
-    // ===============================================
-
-    if (detected === blacklistName) {
-
-      addMatch(
-        entry,
-        detectedName,
-        "exact"
-      );
-
-      continue;
-    }
-
-
-    // ===============================================
-    // BLACKLIST NAME INSIDE MERGED OCR NAME
-    // ===============================================
-    //
-    // AdryxxRetroSG
-    //       RetroSG
-    //
-    // GodXLAnything
-    // GodXL
-    //
-
-    if (
-      blacklistName.length >= 4 &&
-      detected.includes(blacklistName)
-    ) {
-
-      addMatch(
-        entry,
-        detectedName,
-        "inside-merged-name"
-      );
-
-      continue;
-    }
-
-
-    // ===============================================
-    // OCR NAME INSIDE BLACKLIST NAME
-    // ===============================================
-    //
-    // Useful if OCR accidentally loses a character
-    // or splits part of a longer GrowID.
-    //
-
-    if (
-      detected.length >= 4 &&
-      blacklistName.includes(detected)
-    ) {
-
-      // Only allow if lengths are fairly close
-      if (
-        Math.abs(
-          detected.length -
-          blacklistName.length
-        ) <= 2
-      ) {
-
-        addMatch(
-          entry,
-          detectedName,
-          "partial-ocr"
-        );
-
-        continue;
-      }
-    }
-
-
-    // ===============================================
-    // FUZZY OCR CHECK
-    // ===============================================
-
-    const lengthDifference =
-      Math.abs(
-        detected.length -
-        blacklistName.length
-      );
-
-    if (lengthDifference > 2) {
-      continue;
-    }
-
-    let maxDistance = 0;
-
-    const longest =
-      Math.max(
-        detected.length,
-        blacklistName.length
-      );
-
-    if (longest >= 8) {
-      maxDistance = 2;
-    } else if (longest >= 5) {
-      maxDistance = 1;
-    }
-
-    if (maxDistance === 0) continue;
-
-    const distance =
-      levenshtein(
-        detected,
-        blacklistName
-      );
-
-    if (distance <= maxDistance) {
-
-      addMatch(
-        entry,
-        detectedName,
-        "fuzzy",
-        distance
-      );
-    }
-  }
+  addMatch(
+    result.entry,
+    detectedName,
+    result.type,
+    result.distance
+  );
 }
 
 
-// =====================================================
-// 3. CHECK JOINED NEIGHBOURING OCR NAMES
-// =====================================================
-//
-// OCR:
-//
-// God, XL
-//
-// blacklist:
-//
-// GodXL
-//
-// Also works for ANY other GrowID.
-//
-
-for (const passNames of [
-  namesPass1,
-  namesPass2
-]) {
-
-  // Join 2 names
-  for (
-    let i = 0;
-    i < passNames.length - 1;
-    i++
-  ) {
-
-    const joined =
-      normalizeGrowID(
-        `${passNames[i]}${passNames[i + 1]}`
-      );
-
-    if (!joined) continue;
-
-    for (const entry of blacklist) {
-
-      if (!entry?.growid) continue;
-
-      const blacklistName =
-        normalizeGrowID(entry.growid);
-
-      if (!blacklistName) continue;
-
-      if (
-        joined === blacklistName ||
-        (
-          blacklistName.length >= 4 &&
-          joined.includes(blacklistName)
-        )
-      ) {
-
-        addMatch(
-          entry,
-          joined,
-          "joined-2-ocr"
-        );
-      }
-    }
-  }
-
-
-  // Join 3 names
-  for (
-    let i = 0;
-    i < passNames.length - 2;
-    i++
-  ) {
-
-    const joined =
-      normalizeGrowID(
-        `${passNames[i]}${passNames[i + 1]}${passNames[i + 2]}`
-      );
-
-    if (!joined) continue;
-
-    for (const entry of blacklist) {
-
-      if (!entry?.growid) continue;
-
-      const blacklistName =
-        normalizeGrowID(entry.growid);
-
-      if (!blacklistName) continue;
-
-      if (
-        joined === blacklistName ||
-        (
-          blacklistName.length >= 4 &&
-          joined.includes(blacklistName)
-        )
-      ) {
-
-        addMatch(
-          entry,
-          joined,
-          "joined-3-ocr"
-        );
-      }
-    }
-  }
-}
-
-
-// =====================================================
-// FINAL DEBUG
-// =====================================================
-
 console.log(
-  "======================================"
-);
-
-console.log(
-  "BLACKLIST FILE:",
-  blacklistFile
-);
-
-console.log(
-  "BLACKLIST ENTRIES:",
-  blacklist.length
-);
-
-console.log(
-  "OCR DETECTED NAMES:",
-  uniqueNames
-);
-
-console.log(
-  "BLACKLIST MATCHES:",
+  "FINAL BLACKLIST MATCHES:",
   matches.map(match => ({
     growid: match.entry.growid,
-    ocr: match.detectedName,
     type: match.matchType,
     distance: match.distance
   }))
-);
-
-console.log(
-  "======================================"
 );
       if (matches.length === 0) {
 
