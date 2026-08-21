@@ -9538,6 +9538,77 @@ const rawTextMatches2 =
       matches.push(rawMatch);
     }
   }  
+
+  // =====================================================
+// DETECT BLACKLIST NAME INSIDE MERGED OCR PLAYER NAMES
+// =====================================================
+//
+// Examples:
+//
+// AdryxxRetroSG     -> detects RetroSG
+// HelloGodXLWorld   -> detects GodXL
+// ABCKingassault1   -> detects Kingassault1
+//
+// Works for EVERY blacklist.json entry,
+// not specific names.
+//
+
+for (const detectedName of uniqueNames) {
+
+  const detectedNormalized =
+    normalizeGrowID(detectedName);
+
+  if (!detectedNormalized) continue;
+
+  for (const entry of blacklist) {
+
+    if (!entry?.growid) continue;
+
+    const blacklistNormalized =
+      normalizeGrowID(entry.growid);
+
+    // Don't substring-match extremely short names
+    // because that can cause false positives.
+    if (blacklistNormalized.length < 4) {
+      continue;
+    }
+
+    if (
+      detectedNormalized.includes(
+        blacklistNormalized
+      )
+    ) {
+
+      const alreadyAdded = matches.some(
+        match =>
+          normalizeGrowID(
+            match.entry.growid
+          ) === blacklistNormalized
+      );
+
+      if (!alreadyAdded) {
+
+        matches.push({
+          detectedName:
+            entry.growid,
+
+          entry,
+
+          matchType:
+            "inside-merged-name",
+
+          distance: 0
+        });
+
+        console.log(
+          `[MERGED BLACKLIST MATCH] ` +
+          `OCR="${detectedName}" ` +
+          `contains BLACKLIST="${entry.growid}"`
+        );
+      }
+    }
+  }
+}
   for (const detectedName of uniqueNames) {
   
     const result = getBlacklistMatch(
