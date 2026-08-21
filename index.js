@@ -162,7 +162,9 @@ const words = require("./feature/words.js");
 const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
 const profileFeature = require("./feature/profile.js");
-const blacklistFile = "./blacklist.json";
+const path = require("path");
+
+const blacklistFile = path.join(__dirname, "blacklist.json");
 const socialFeature = require("./feature/social.js");
 const {
   Client,
@@ -1184,15 +1186,170 @@ function makeStoryId() {
   return `${Date.now()}_${Math.floor(Math.random() * 999999)}`;
 }
 
+// =====================================================
+// SAFE BLACKLIST FILE SYSTEM
+// =====================================================
+
 function loadBlacklist() {
-  if (!fs.existsSync(blacklistFile)) {
-    fs.writeFileSync(blacklistFile, "[]");
+  try {
+    if (!fs.existsSync(blacklistFile)) {
+      fs.writeFileSync(
+        blacklistFile,
+        "[]",
+        "utf8"
+      );
+    }
+
+    const raw = fs.readFileSync(
+      blacklistFile,
+      "utf8"
+    );
+
+    if (!raw.trim()) {
+      return [];
+    }
+
+    const data = JSON.parse(raw);
+
+    if (!Array.isArray(data)) {
+      console.error(
+        "blacklist.json is not an array."
+      );
+
+      return [];
+    }
+
+    return data;
+
+  } catch (error) {
+    console.error(
+      "FAILED TO LOAD blacklist.json:",
+      error
+    );
+
+    return [];
   }
-  return JSON.parse(fs.readFileSync(blacklistFile, "utf8"));
 }
 
 function saveBlacklist(data) {
-  fs.writeFileSync(blacklistFile, JSON.stringify(data, null, 2));
+  try {
+    if (!Array.isArray(data)) {
+      throw new Error(
+        "Blacklist data must be an array."
+      );
+    }
+
+    // Write to temporary file first.
+    // This prevents blacklist.json from being left
+    // half-written/corrupted if something interrupts saving.
+    const tempFile =
+      `${blacklistFile}.tmp`;
+
+    fs.writeFileSync(
+      tempFile,
+      JSON.stringify(data, null, 2),
+      "utf8"
+    );
+
+    // Atomically replace real blacklist file
+    fs.renameSync(
+      tempFile,
+      blacklistFile
+    );
+
+    // Verify the file can be read again
+    const verification =
+      JSON.parse(
+        fs.readFileSync(
+          blacklistFile,
+          "utf8"
+        )
+      );
+
+    console.log(
+      `[BLACKLIST SAVE] Successfully saved ` +
+      `${verification.length} entries to: ${blacklistFile}`
+    );
+
+    return true;
+
+  } catch (error) {
+    console.error(
+      "FAILED TO SAVE blacklist.json:",
+      error
+    );
+
+    return false;
+  }
+}
+
+let blacklistSaveQueue = Promise.resolve();
+
+function addBlacklistEntrySafe(entry) {
+
+  blacklistSaveQueue =
+    blacklistSaveQueue.then(async () => {
+
+      const blacklist = loadBlacklist();
+
+      const wantedGrowID =
+        normalizeGrowID(entry.growid);
+
+      const alreadyExists =
+        blacklist.some(existing =>
+          normalizeGrowID(existing.growid) ===
+          wantedGrowID
+        );
+
+      if (alreadyExists) {
+        console.log(
+          `[BLACKLIST] ${entry.growid} already exists`
+        );
+
+        return {
+          success: true,
+          alreadyExists: true
+        };
+      }
+
+      blacklist.push(entry);
+
+      const saved =
+        saveBlacklist(blacklist);
+
+      if (!saved) {
+        throw new Error(
+          `Failed saving ${entry.growid} to blacklist.json`
+        );
+      }
+
+      // Verify that THIS EXACT GrowID now exists
+      const verification =
+        loadBlacklist();
+
+      const found =
+        verification.some(existing =>
+          normalizeGrowID(existing.growid) ===
+          wantedGrowID
+        );
+
+      if (!found) {
+        throw new Error(
+          `Save verification failed for ${entry.growid}`
+        );
+      }
+
+      console.log(
+        `[BLACKLIST] VERIFIED SAVE: ${entry.growid}`
+      );
+
+      return {
+        success: true,
+        alreadyExists: false
+      };
+    });
+
+  return blacklistSaveQueue;
 }
 async function fetchWithTimeout(url, options = {}, timeout = 2500) {
   const controller = new AbortController();
@@ -8811,22 +8968,15 @@ if (interaction.customId.startsWith("report_blacklist_") || interaction.customId
     await finalChannel.send({ content: message });
 await sendBlacklistSeparator(finalChannel);
     // SAVE TO JSON
-    const blacklist = loadBlacklist();
-
-    const exists = blacklist.some(e => e.growid.toLowerCase() === growid.toLowerCase());
-
-    if (!exists) {
-      blacklist.push({
-        growid,
-        reason,
-        proof: "Report System",
-        addedBy: "Report",
-        approvedBy: `<@${interaction.user.id}>`,
-        createdAt: Date.now()
-      });
-
-      saveBlacklist(blacklist);
-    }
+    await addBlacklistEntrySafe({
+      growid: growid.trim(),
+      reason,
+      proof: "Report System",
+      addedBy: "Report",
+      approvedBy: `<@${interaction.user.id}>`,
+      imageUrl: imageUrl || null,
+      createdAt: Date.now()
+    });
 
     embed.setColor("Green").setFooter({ text: "Blacklisted via Report" });
 
@@ -8948,25 +9098,22 @@ if (interaction.customId.startsWith("approve_")) {
   await finalChannel.send({ content: message });
 await sendBlacklistSeparator(finalChannel);
   // save approved blacklist permanently
-  const blacklist = loadBlacklist();
+  const saveResult =
+  await addBlacklistEntrySafe({
+    growid: growid.trim(),
+    reason,
+    proof,
+    addedBy: `<@${ownerId}>`,
+    approvedBy: `<@${interaction.user.id}>`,
+    imageUrl: imageUrl || null,
+    createdAt: Date.now()
+  });
 
-  const alreadyExists = blacklist.some(
-    entry => entry.growid.toLowerCase() === growid.toLowerCase()
+if (!saveResult.success) {
+  throw new Error(
+    `Could not permanently save ${growid}`
   );
-
-  if (!alreadyExists) {
-    blacklist.push({
-      growid,
-      reason,
-      proof,
-      addedBy: `<@${ownerId}>`,
-      approvedBy: `<@${interaction.user.id}>`,
-      imageUrl: imageUrl || null,
-      createdAt: Date.now()
-    });
-
-    saveBlacklist(blacklist);
-  }
+}
 
   embed.setColor("Green").setFooter({ text: "Approved" });
 
