@@ -131,6 +131,39 @@ function getBlacklistMatch(detectedName, blacklist) {
 
   return bestMatch;
 }
+
+function findBlacklistInRawWhoText(text, blacklist) {
+  if (!text) return [];
+
+  const compactOCR = String(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+
+  const found = [];
+
+  for (const entry of blacklist) {
+    if (!entry?.growid) continue;
+
+    const target = normalizeGrowID(entry.growid);
+
+    if (target.length < 4) continue;
+
+    if (compactOCR.includes(target)) {
+      found.push({
+        entry,
+        detectedName: entry.growid,
+        matchType: "raw-text-exact",
+        distance: 0
+      });
+
+      console.log(
+        `[RAW OCR BLACKLIST MATCH] "${entry.growid}" found in OCR`
+      );
+    }
+  }
+
+  return found;
+}
 const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
@@ -9479,12 +9512,32 @@ const result2 =
     `Loaded ${blacklist.length} blacklist entries`
   );
   
+  const rawTextMatches1 =
+  findBlacklistInRawWhoText(text1, blacklist);
+
+const rawTextMatches2 =
+  findBlacklistInRawWhoText(text2, blacklist);
   // =====================================================
   // NORMAL BLACKLIST MATCHING
   // =====================================================
   
   const matches = [];
+
+  for (const rawMatch of [
+    ...rawTextMatches1,
+    ...rawTextMatches2
+  ]) {
   
+    const alreadyAdded = matches.some(
+      match =>
+        normalizeGrowID(match.entry.growid) ===
+        normalizeGrowID(rawMatch.entry.growid)
+    );
+  
+    if (!alreadyAdded) {
+      matches.push(rawMatch);
+    }
+  }  
   for (const detectedName of uniqueNames) {
   
     const result = getBlacklistMatch(
