@@ -1324,7 +1324,6 @@ function addBlacklistEntrySafe(entry) {
     blacklistSaveQueue.then(async () => {
 
       const blacklist = loadBlacklist();
-
       const wantedGrowID =
         normalizeGrowID(entry.growid);
 
@@ -9512,219 +9511,397 @@ const result2 =
     `Loaded ${blacklist.length} blacklist entries`
   );
   
-  const rawTextMatches1 =
-  findBlacklistInRawWhoText(text1, blacklist);
+  console.log("========== BLACKLIST RUNTIME CHECK ==========");
+  console.log("Blacklist path:", blacklistFile);
+  console.log("Blacklist count:", blacklist.length);
+  
+  console.log(
+    "Blacklist normalized names:",
+    blacklist.map(entry => ({
+      original: entry?.growid,
+      normalized: normalizeGrowID(entry?.growid)
+    }))
+  );
+  
+  console.log("=============================================");
+const matches = [];
 
-const rawTextMatches2 =
-  findBlacklistInRawWhoText(text2, blacklist);
-  // =====================================================
-  // NORMAL BLACKLIST MATCHING
-  // =====================================================
-  
-  const matches = [];
+function addMatch(entry, detectedName, type, distance = 0) {
+  if (!entry?.growid) return;
 
-  for (const rawMatch of [
-    ...rawTextMatches1,
-    ...rawTextMatches2
-  ]) {
-  
-    const alreadyAdded = matches.some(
-      match =>
-        normalizeGrowID(match.entry.growid) ===
-        normalizeGrowID(rawMatch.entry.growid)
-    );
-  
-    if (!alreadyAdded) {
-      matches.push(rawMatch);
+  const key = normalizeGrowID(entry.growid);
+
+  const alreadyExists = matches.some(
+    match =>
+      normalizeGrowID(match.entry?.growid) === key
+  );
+
+  if (alreadyExists) return;
+
+  matches.push({
+    detectedName: entry.growid,
+    entry,
+    matchType: type,
+    distance
+  });
+
+  console.log(
+    `[BLACKLIST DETECTED] ` +
+    `OCR="${detectedName}" | ` +
+    `BLACKLIST="${entry.growid}" | ` +
+    `TYPE="${type}"`
+  );
+}
+
+
+// =====================================================
+// 1. CHECK THE ENTIRE RAW OCR TEXT
+// =====================================================
+//
+// Removes:
+// spaces
+// commas
+// punctuation
+// line breaks
+//
+// So:
+//
+// Adryxx, RetroSG, Dryaser
+// Adryxx RetroSG Dryaser
+// AdryxxRetroSGDryaser
+//
+// all become searchable.
+//
+
+const rawOCRCompact = [
+  text1,
+  text2
+]
+  .join("")
+  .toLowerCase()
+  .replace(/[^a-z0-9_]/g, "");
+
+for (const entry of blacklist) {
+
+  if (!entry?.growid) continue;
+
+  const blacklistName =
+    normalizeGrowID(entry.growid);
+
+  if (!blacklistName) continue;
+
+  // Substring matching only for 4+ chars
+  // to avoid false positives from tiny names.
+  if (blacklistName.length >= 4) {
+
+    if (
+      rawOCRCompact.includes(
+        blacklistName
+      )
+    ) {
+
+      addMatch(
+        entry,
+        entry.growid,
+        "raw-ocr-substring"
+      );
     }
-  }  
+  }
+}
 
-  // =====================================================
-// DETECT BLACKLIST NAME INSIDE MERGED OCR PLAYER NAMES
+
+// =====================================================
+// 2. CHECK EVERY PARSED OCR NAME
 // =====================================================
 //
 // Examples:
 //
-// AdryxxRetroSG     -> detects RetroSG
-// HelloGodXLWorld   -> detects GodXL
-// ABCKingassault1   -> detects Kingassault1
+// AdryxxRetroSG
+// GODXL
+// Kingassault1Something
 //
-// Works for EVERY blacklist.json entry,
-// not specific names.
+// Every blacklist entry is checked inside each OCR chunk.
 //
 
 for (const detectedName of uniqueNames) {
 
-  const detectedNormalized =
+  const detected =
     normalizeGrowID(detectedName);
 
-  if (!detectedNormalized) continue;
+  if (!detected) continue;
 
   for (const entry of blacklist) {
 
     if (!entry?.growid) continue;
 
-    const blacklistNormalized =
+    const blacklistName =
       normalizeGrowID(entry.growid);
 
-    // Don't substring-match extremely short names
-    // because that can cause false positives.
-    if (blacklistNormalized.length < 4) {
+    if (!blacklistName) continue;
+
+
+    // ===============================================
+    // EXACT MATCH
+    // ===============================================
+
+    if (detected === blacklistName) {
+
+      addMatch(
+        entry,
+        detectedName,
+        "exact"
+      );
+
       continue;
     }
 
+
+    // ===============================================
+    // BLACKLIST NAME INSIDE MERGED OCR NAME
+    // ===============================================
+    //
+    // AdryxxRetroSG
+    //       RetroSG
+    //
+    // GodXLAnything
+    // GodXL
+    //
+
     if (
-      detectedNormalized.includes(
-        blacklistNormalized
-      )
+      blacklistName.length >= 4 &&
+      detected.includes(blacklistName)
     ) {
 
-      const alreadyAdded = matches.some(
-        match =>
-          normalizeGrowID(
-            match.entry.growid
-          ) === blacklistNormalized
+      addMatch(
+        entry,
+        detectedName,
+        "inside-merged-name"
       );
 
-      if (!alreadyAdded) {
+      continue;
+    }
 
-        matches.push({
-          detectedName:
-            entry.growid,
 
+    // ===============================================
+    // OCR NAME INSIDE BLACKLIST NAME
+    // ===============================================
+    //
+    // Useful if OCR accidentally loses a character
+    // or splits part of a longer GrowID.
+    //
+
+    if (
+      detected.length >= 4 &&
+      blacklistName.includes(detected)
+    ) {
+
+      // Only allow if lengths are fairly close
+      if (
+        Math.abs(
+          detected.length -
+          blacklistName.length
+        ) <= 2
+      ) {
+
+        addMatch(
           entry,
+          detectedName,
+          "partial-ocr"
+        );
 
-          matchType:
-            "inside-merged-name",
+        continue;
+      }
+    }
 
-          distance: 0
-        });
 
-        console.log(
-          `[MERGED BLACKLIST MATCH] ` +
-          `OCR="${detectedName}" ` +
-          `contains BLACKLIST="${entry.growid}"`
+    // ===============================================
+    // FUZZY OCR CHECK
+    // ===============================================
+
+    const lengthDifference =
+      Math.abs(
+        detected.length -
+        blacklistName.length
+      );
+
+    if (lengthDifference > 2) {
+      continue;
+    }
+
+    let maxDistance = 0;
+
+    const longest =
+      Math.max(
+        detected.length,
+        blacklistName.length
+      );
+
+    if (longest >= 8) {
+      maxDistance = 2;
+    } else if (longest >= 5) {
+      maxDistance = 1;
+    }
+
+    if (maxDistance === 0) continue;
+
+    const distance =
+      levenshtein(
+        detected,
+        blacklistName
+      );
+
+    if (distance <= maxDistance) {
+
+      addMatch(
+        entry,
+        detectedName,
+        "fuzzy",
+        distance
+      );
+    }
+  }
+}
+
+
+// =====================================================
+// 3. CHECK JOINED NEIGHBOURING OCR NAMES
+// =====================================================
+//
+// OCR:
+//
+// God, XL
+//
+// blacklist:
+//
+// GodXL
+//
+// Also works for ANY other GrowID.
+//
+
+for (const passNames of [
+  namesPass1,
+  namesPass2
+]) {
+
+  // Join 2 names
+  for (
+    let i = 0;
+    i < passNames.length - 1;
+    i++
+  ) {
+
+    const joined =
+      normalizeGrowID(
+        `${passNames[i]}${passNames[i + 1]}`
+      );
+
+    if (!joined) continue;
+
+    for (const entry of blacklist) {
+
+      if (!entry?.growid) continue;
+
+      const blacklistName =
+        normalizeGrowID(entry.growid);
+
+      if (!blacklistName) continue;
+
+      if (
+        joined === blacklistName ||
+        (
+          blacklistName.length >= 4 &&
+          joined.includes(blacklistName)
+        )
+      ) {
+
+        addMatch(
+          entry,
+          joined,
+          "joined-2-ocr"
+        );
+      }
+    }
+  }
+
+
+  // Join 3 names
+  for (
+    let i = 0;
+    i < passNames.length - 2;
+    i++
+  ) {
+
+    const joined =
+      normalizeGrowID(
+        `${passNames[i]}${passNames[i + 1]}${passNames[i + 2]}`
+      );
+
+    if (!joined) continue;
+
+    for (const entry of blacklist) {
+
+      if (!entry?.growid) continue;
+
+      const blacklistName =
+        normalizeGrowID(entry.growid);
+
+      if (!blacklistName) continue;
+
+      if (
+        joined === blacklistName ||
+        (
+          blacklistName.length >= 4 &&
+          joined.includes(blacklistName)
+        )
+      ) {
+
+        addMatch(
+          entry,
+          joined,
+          "joined-3-ocr"
         );
       }
     }
   }
 }
-  for (const detectedName of uniqueNames) {
-  
-    const result = getBlacklistMatch(
-      detectedName,
-      blacklist
-    );
-  
-    if (!result) continue;
-  
-    const blacklistEntry = result.entry;
-  
-    const alreadyAdded = matches.some(
-      match =>
-        normalizeGrowID(match.entry.growid) ===
-        normalizeGrowID(blacklistEntry.growid)
-    );
-  
-    if (alreadyAdded) continue;
-  
-    matches.push({
-      detectedName,
-      entry: blacklistEntry,
-      matchType: result.type,
-      distance: result.distance
-    });
-  
-    console.log(
-      `[BLACKLIST MATCH] OCR="${detectedName}" ` +
-      `BLACKLIST="${blacklistEntry.growid}" ` +
-      `TYPE=${result.type} ` +
-      `DISTANCE=${result.distance}`
-    );
-  }
-  
-  // =====================================================
-  // FIX FALSE OCR COMMA/SPLIT
-  // =====================================================
-  //
-  // Image says:
-  //
-  // GodXL
-  //
-  // but OCR accidentally says:
-  //
-  // God, XL
-  //
-  // Try:
-  // God + XL = GodXL
-  //
-  // IMPORTANT:
-  // only accept the joined name if blacklist.json
-  // confirms that GrowID.
-  //
-  
-  for (const passNames of [namesPass1, namesPass2]) {
-  
-    for (let i = 0; i < passNames.length - 1; i++) {
-  
-      const first = passNames[i];
-      const second = passNames[i + 1];
-  
-      const joined =
-        `${first}${second}`
-          .replace(/[^a-zA-Z0-9_]/g, "");
-  
-      if (
-        joined.length < 2 ||
-        joined.length > 24
-      ) {
-        continue;
-      }
-  
-      const result = getBlacklistMatch(
-        joined,
-        blacklist
-      );
-  
-      if (!result) continue;
-  
-      const blacklistEntry = result.entry;
-  
-      const alreadyAdded = matches.some(
-        match =>
-          normalizeGrowID(match.entry.growid) ===
-          normalizeGrowID(blacklistEntry.growid)
-      );
-  
-      if (alreadyAdded) continue;
-  
-      matches.push({
-        detectedName: joined,
-        entry: blacklistEntry,
-        matchType: "joined-ocr",
-        distance: result.distance
-      });
-  
-      console.log(
-        `[JOINED OCR] "${first}" + "${second}" => ` +
-        `"${blacklistEntry.growid}"`
-      );
-    }
-  }
-  
-  // =====================================================
-  // FINAL BLACKLIST RESULT
-  // =====================================================
-  
-  console.log(
-    "FINAL BLACKLIST MATCHES:",
-    matches.map(match => ({
-      detected: match.detectedName,
-      blacklist: match.entry.growid,
-      type: match.matchType,
-      distance: match.distance
-    }))
-  );
+
+
+// =====================================================
+// FINAL DEBUG
+// =====================================================
+
+console.log(
+  "======================================"
+);
+
+console.log(
+  "BLACKLIST FILE:",
+  blacklistFile
+);
+
+console.log(
+  "BLACKLIST ENTRIES:",
+  blacklist.length
+);
+
+console.log(
+  "OCR DETECTED NAMES:",
+  uniqueNames
+);
+
+console.log(
+  "BLACKLIST MATCHES:",
+  matches.map(match => ({
+    growid: match.entry.growid,
+    ocr: match.detectedName,
+    type: match.matchType,
+    distance: match.distance
+  }))
+);
+
+console.log(
+  "======================================"
+);
       if (matches.length === 0) {
 
         let detectedList = uniqueNames
