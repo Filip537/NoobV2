@@ -271,6 +271,7 @@ const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
+const dashboard = require("./feature/dashboard.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
@@ -3006,7 +3007,31 @@ async function getGTPrice(itemName) {
     }
   }
 }
+
+
 client.on("interactionCreate", async (interaction) => {
+    const dashboardHandled =
+    await dashboard.handleInteraction(
+      interaction,
+      client
+    );
+
+  if (dashboardHandled) return;
+
+  // ===== DISABLED COMMAND CHECK =====
+
+  if (
+    interaction.isChatInputCommand() &&
+    dashboard.isCommandDisabled(
+      interaction.commandName
+    )
+  ) {
+    return interaction.reply({
+      content:
+        "🚫 This command is currently disabled by an administrator.",
+      ephemeral: true,
+    });
+  }
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "addreaction"

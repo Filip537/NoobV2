@@ -906,6 +906,15 @@ new SlashCommandBuilder()
       )
   ),
   new SlashCommandBuilder()
+  .setName("senddashboard")
+  .setDescription("Send the administrator dashboard")
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("Channel where the dashboard will be sent")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
     .setName("testbday")
     .setDescription("Send a test birthday message (Admin only)"),
 testLevelCommand.data,
