@@ -3319,7 +3319,6 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   await interaction.deferReply({
-    ephemeral: true
   });
 
   try {
