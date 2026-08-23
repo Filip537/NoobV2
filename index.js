@@ -8793,11 +8793,11 @@ if (interaction.customId.startsWith("blist_mode_")) {
   `<:arrow:1442712798969729087> <@&1483241188868882657> - Server Guardians → Helps with blacklisting and managing the server\n` +
   `<:arrow:1442712798969729087> <@&1476701600406835241> - NoobV2 New/Training Admins\n` +
   `<:arrow:1442712798969729087> <@&1412474556077051965> - NoobV2 Members\n\n` +
-
-  `## <:emoji_19:1422900861541289984> Role Tiers\n` +
+`## <:emoji_19:1422900861541289984> Role Tiers\n` +
   `<:arrow:1442712798969729087> <@&1449569489338499182> - Players who have sponsored more than 20 Diamond Locks\n` +
-  `<:arrow:1442712798969729087> <@&1449569268315459724> - Players who have sponsored more than 75 Diamond Locks\n` +
-  `<:arrow:1442712798969729087> <@&1449569557445345301> - Players who have sponsored more than 1.5 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569268315459724> - Players who have sponsored more than 60 Diamond Locks\n` +
+  `<:arrow:1442712798969729087> <@&1449569557445345301> - Players who have sponsored more than 1 Blue Gem Locks\n` +
+  `<:arrow:1442712798969729087> <@&1541083691529273424> - Players who have sponsored more than 10 Blue Gem Locks\n` +
   `<:arrow:1442712798969729087> <@&1449569731680931941> - Players who have sponsored more than 25 Blue Gem Locks\n` +
   `<:arrow:1442712798969729087> <@&1449569838778548224> - Players who have sponsored more than 50 Blue Gem Locks\n` +
   `<:arrow:1442712798969729087> <@&1460469091201449994> - Players who have sponsored more than 100 Blue Gem Locks\n` +
