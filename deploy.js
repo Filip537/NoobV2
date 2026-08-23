@@ -906,6 +906,15 @@ new SlashCommandBuilder()
       )
   ),
   new SlashCommandBuilder()
+  .setName("export")
+  .setDescription("Export all messages from a channel into a text file")
+  .addChannelOption(option =>
+    option
+      .setName("channelid")
+      .setDescription("Channel to export")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("senddashboard")
   .setDescription("Send the administrator dashboard")
   .addChannelOption(option =>
