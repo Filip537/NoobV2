@@ -3299,6 +3299,285 @@ async function getGTPrice(itemName) {
 client.on("interactionCreate", async (interaction) => {
   if (
   interaction.isChatInputCommand() &&
+  interaction.commandName === "importblacklist"
+) {
+  if (
+    !interaction.member.permissions.has(
+      PermissionFlagsBits.Administrator
+    )
+  ) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const attachment =
+    interaction.options.getAttachment("file");
+
+  if (!attachment) {
+    return interaction.reply({
+      content: "❌ Please upload the blacklist export file.",
+      ephemeral: true
+    });
+  }
+
+  if (!attachment.name.toLowerCase().endsWith(".txt")) {
+    return interaction.reply({
+      content: "❌ The blacklist export must be a `.txt` file.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply();
+
+  try {
+    // ================================
+    // DOWNLOAD EXPORTED TXT
+    // ================================
+
+    const response = await fetch(attachment.url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed downloading export: ${response.status}`
+      );
+    }
+
+    const exportText = await response.text();
+
+    // Discord export separates messages using this
+    const messageBlocks = exportText.split(
+      /\n-{20,}\n/g
+    );
+
+    const extractedEntries = [];
+
+    // ================================
+    // EXTRACT BLACKLIST RECORDS
+    // ================================
+
+    for (const block of messageBlocks) {
+      if (!block.trim()) continue;
+
+      // Must actually look like a blacklist record.
+      // This prevents examples such as:
+      // "GrowID: example"
+      // from being imported accidentally.
+      const growMatch = block.match(
+        /(?:\*{0,2})GrowID(?:\*{0,2})\s*:\s*([^\n]+)/i
+      );
+
+      const reasonMatch = block.match(
+        /(?:\*{0,2})Reason(?:\*{0,2})\s*:\s*([^\n]+)/i
+      );
+
+      if (!growMatch || !reasonMatch) {
+        continue;
+      }
+
+      let growIDText = growMatch[1]
+        .replace(/\*\*/g, "")
+        .replace(/`/g, "")
+        .trim();
+
+      let reason = reasonMatch[1]
+        .replace(/\*\*/g, "")
+        .replace(/`/g, "")
+        .trim();
+
+      // ================================
+      // PROOF
+      // ================================
+
+      const proofMatch = block.match(
+        /(?:Blacklisted(?:\s*&)?(?:\s*Proof)?\s*By|Proof\s*By)\s*:\s*([^\n]+)/i
+      );
+
+      let proof = proofMatch
+        ? proofMatch[1]
+            .replace(/\*\*/g, "")
+            .trim()
+        : "Legacy blacklist import";
+
+      // ================================
+      // CLEAN MULTIPLE IDS
+      // ================================
+
+      let possibleIDs = [];
+
+      // Example:
+      // GrowID: Tdlex12b, Maqxq, JohnRichmonds
+      if (growIDText.includes(",")) {
+        possibleIDs.push(
+          ...growIDText.split(",")
+        );
+      }
+
+      // Example:
+      // GrowID: zinthio/hyHypsipyle
+      else if (
+        growIDText.includes("/") &&
+        !growIDText.startsWith("/")
+      ) {
+        possibleIDs.push(
+          ...growIDText.split("/")
+        );
+      }
+
+      else {
+        possibleIDs.push(growIDText);
+      }
+
+      // ================================
+      // CLEAN EACH GROWID
+      // ================================
+
+      for (let growid of possibleIDs) {
+        growid = growid.trim();
+
+        // Remove Markdown
+        growid = growid
+          .replace(/\*\*/g, "")
+          .replace(/`/g, "")
+          .trim();
+
+        // Remove things like:
+        // ObamaFart (lvl125)
+        growid = growid.replace(
+          /\s*\(lvl\s*\d+\)\s*$/i,
+          ""
+        );
+
+        // Skip commands
+        if (growid.startsWith("/")) {
+          continue;
+        }
+
+        // Skip pending placeholders
+        if (
+          growid.includes("<") ||
+          growid.includes(">") ||
+          growid.toLowerCase().includes("pending")
+        ) {
+          continue;
+        }
+
+        // GrowID should contain usable characters
+        if (!/^[A-Za-z0-9_]+$/.test(growid)) {
+          continue;
+        }
+
+        if (growid.length < 2) {
+          continue;
+        }
+
+        extractedEntries.push({
+          growid,
+          reason:
+            reason ||
+            "Imported from legacy blacklist",
+          proof,
+          addedBy:
+            "Blacklist Channel Import",
+          approvedBy:
+            `<@${interaction.user.id}>`,
+          imageUrl: null,
+          createdAt: Date.now()
+        });
+      }
+    }
+
+    // ================================
+    // REMOVE DUPLICATES FROM IMPORT
+    // ================================
+
+    const uniqueMap = new Map();
+
+    for (const entry of extractedEntries) {
+      const key = normalizeGrowID(
+        entry.growid
+      );
+
+      if (!key) continue;
+
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, entry);
+      }
+    }
+
+    const uniqueEntries = [
+      ...uniqueMap.values()
+    ];
+
+    // ================================
+    // ADD TO VPS blacklist.json
+    // ================================
+
+    let added = 0;
+    let duplicates = 0;
+    let failed = 0;
+
+    for (const entry of uniqueEntries) {
+      try {
+        const result =
+          await addBlacklistEntrySafe(entry);
+
+        if (result.alreadyExists) {
+          duplicates++;
+        } else {
+          added++;
+        }
+      } catch (error) {
+        failed++;
+
+        console.error(
+          `[BLACKLIST IMPORT] Failed: ${entry.growid}`,
+          error
+        );
+      }
+    }
+
+    // ================================
+    // VERIFY FINAL BLACKLIST
+    // ================================
+
+    const finalBlacklist =
+      loadBlacklist();
+
+    console.log(
+      `[BLACKLIST IMPORT] Complete. ` +
+      `Added=${added}, ` +
+      `Duplicates=${duplicates}, ` +
+      `Failed=${failed}, ` +
+      `Total=${finalBlacklist.length}`
+    );
+
+    return interaction.editReply({
+      content:
+        `✅ **Blacklist Import Complete**\n\n` +
+        `📄 File: **${attachment.name}**\n` +
+        `🔎 Unique GrowIDs detected: **${uniqueEntries.length}**\n` +
+        `✅ Added to blacklist.json: **${added}**\n` +
+        `♻️ Already existed: **${duplicates}**\n` +
+        `❌ Failed: **${failed}**\n\n` +
+        `📛 Total blacklist entries now: **${finalBlacklist.length}**`
+    });
+
+  } catch (error) {
+    console.error(
+      "Blacklist import error:",
+      error
+    );
+
+    return interaction.editReply({
+      content:
+        "❌ Failed to import the blacklist file. Check the console for the error."
+    });
+  }
+}
+  if (
+  interaction.isChatInputCommand() &&
   interaction.commandName === "export"
 ) {
   // ADMIN ONLY

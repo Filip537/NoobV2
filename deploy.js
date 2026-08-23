@@ -281,6 +281,15 @@ new SlashCommandBuilder()
 )
   ),
   new SlashCommandBuilder()
+  .setName("importblacklist")
+  .setDescription("Import GrowIDs from a blacklist channel export")
+  .addAttachmentOption(option =>
+    option
+      .setName("file")
+      .setDescription("The exported blacklist .txt file")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("business")
   .setDescription("Invest WL into an interactive business")
   .addStringOption(o =>
