@@ -57,13 +57,14 @@ function levenshtein(a, b) {
 
   return matrix[b.length][a.length];
 }
-
 function getBlacklistMatch(detectedName, blacklist) {
   const detected = normalizeGrowID(detectedName);
 
   if (!detected) return null;
 
-  // 1. Exact match first
+  // ==========================================
+  // 1. EXACT MATCH - ALWAYS ACCEPT
+  // ==========================================
   for (const entry of blacklist) {
     if (!entry?.growid) continue;
 
@@ -79,7 +80,9 @@ function getBlacklistMatch(detectedName, blacklist) {
     }
   }
 
-  // 2. Close OCR match
+  // ==========================================
+  // 2. VERY STRICT OCR FUZZY MATCH
+  // ==========================================
   let bestMatch = null;
 
   for (const entry of blacklist) {
@@ -90,36 +93,52 @@ function getBlacklistMatch(detectedName, blacklist) {
 
     if (!blacklisted) continue;
 
-    const lengthDifference = Math.abs(
-      detected.length - blacklisted.length
-    );
+    const lengthDifference =
+      Math.abs(
+        detected.length -
+        blacklisted.length
+      );
 
-    if (lengthDifference > 2) continue;
-
-    const longest = Math.max(
-      detected.length,
-      blacklisted.length
-    );
-
-    let maxDistance = 0;
-
-    // Short names need stricter matching
-    if (longest >= 8) {
-      maxDistance = 2;
-    } else if (longest >= 5) {
-      maxDistance = 1;
+    // Different lengths by more than 1?
+    // Don't consider it.
+    if (lengthDifference > 1) {
+      continue;
     }
 
-    if (maxDistance === 0) continue;
+    const longest =
+      Math.max(
+        detected.length,
+        blacklisted.length
+      );
 
-    const distance = levenshtein(
-      detected,
-      blacklisted
-    );
+    // Short GrowIDs = exact only
+    if (longest < 7) {
+      continue;
+    }
+
+    const distance =
+      levenshtein(
+        detected,
+        blacklisted
+      );
+
+    /*
+      STRICT RULE:
+
+      7-11 chars:
+      max 1 OCR mistake
+
+      12+ chars:
+      max 1 OCR mistake too.
+
+      We deliberately DO NOT allow distance 2 anymore.
+    */
+    const maxDistance = 1;
 
     if (
       distance <= maxDistance &&
-      (!bestMatch || distance < bestMatch.distance)
+      (!bestMatch ||
+        distance < bestMatch.distance)
     ) {
       bestMatch = {
         entry,
@@ -10250,6 +10269,39 @@ const result2 =
     return names;
   }
   
+  function chooseBestOCRName(name1, name2) {
+  if (!name1) return name2;
+  if (!name2) return name1;
+
+  const a = normalizeGrowID(name1);
+  const b = normalizeGrowID(name2);
+
+  if (!a) return name2;
+  if (!b) return name1;
+
+  // Both OCR passes read exactly the same name
+  if (a === b) {
+    return name1;
+  }
+
+  const distance = levenshtein(a, b);
+
+  // If they are reasonably similar,
+  // prefer the longer result because OCR may
+  // have accidentally removed characters.
+  if (distance <= 4) {
+    if (a.length > b.length) {
+      return name1;
+    }
+
+    if (b.length > a.length) {
+      return name2;
+    }
+  }
+
+  // If uncertain, trust pass 1
+  return name1;
+}
   // =====================================================
   // READ BOTH OCR PASSES SEPARATELY
   // =====================================================
