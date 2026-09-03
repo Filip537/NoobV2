@@ -2124,43 +2124,18 @@ async function refreshLiveBlacklistChannel() {
       }
     }
 
-    // ====================================
-    // EMPTY BLACKLIST
-    // ====================================
+if (!uniqueGrowIDs.length) {
+  await channel.send({
+    content:
+      "**NoobV2 Live Blacklist**\n\n" +
+      "There are currently **no blacklisted GrowIDs**.\n\n" +
+      "**Total Blacklisted:** `0`\n" +
+      "NOOBV2_LIVE_BLACKLIST • Automatically Updated"
+  });
 
-    if (!uniqueGrowIDs.length) {
-      const embed =
-        new EmbedBuilder()
-          .setColor("Green")
-          .setTitle(
-            "🚫 NoobV2 Live Blacklist"
-          )
-          .setDescription(
-            "There are currently **no blacklisted GrowIDs**."
-          )
-          .addFields({
-            name: "Total Blacklisted",
-            value: "`0`",
-            inline: true
-          })
-          .setFooter({
-            text:
-              "NOOBV2_LIVE_BLACKLIST • Automatically Updated"
-          })
-          .setTimestamp();
+  return;
+}
 
-      await channel.send({
-        embeds: [embed]
-      });
-
-      return;
-    }
-
-    // ====================================
-    // CREATE PAGES
-    // ====================================
-
-    // 70 IDs per embed keeps us safely under Discord limits
     const PAGE_SIZE = 70;
 
     const pages = [];
@@ -2182,56 +2157,39 @@ async function refreshLiveBlacklistChannel() {
     // SEND LIVE BLACKLIST
     // ====================================
 
-    for (
-      let pageIndex = 0;
-      pageIndex < pages.length;
-      pageIndex++
-    ) {
-      const page = pages[pageIndex];
+for (
+  let pageIndex = 0;
+  pageIndex < pages.length;
+  pageIndex++
+) {
+  const page = pages[pageIndex];
 
-      const startNumber =
-        pageIndex * PAGE_SIZE;
+  const startNumber =
+    pageIndex * PAGE_SIZE;
 
-      const list = page
-        .map(
-          (growid, index) =>
-            `\`${startNumber + index + 1}.\` **${growid}**`
-        )
-        .join("\n");
+  const list = page
+    .map(
+      (growid, index) =>
+        `\`${startNumber + index + 1}.\` **${growid}**`
+    )
+    .join("\n");
 
-      const embed =
-        new EmbedBuilder()
-          .setColor("Red")
-          .setTitle(
-            pageIndex === 0
-              ? "🚫 NoobV2 Live Blacklist"
-              : `🚫 Live Blacklist • Page ${pageIndex + 1}`
-          )
-          .setDescription(list)
-          .addFields(
-            {
-              name: "Total Blacklisted",
-              value:
-                `\`${uniqueGrowIDs.length}\``,
-              inline: true
-            },
-            {
-              name: "Page",
-              value:
-                `\`${pageIndex + 1}/${pages.length}\``,
-              inline: true
-            }
-          )
-          .setFooter({
-            text:
-              "NOOBV2_LIVE_BLACKLIST • Updates automatically when someone is blacklisted/unblacklisted"
-          })
-          .setTimestamp();
+  const title =
+    pageIndex === 0
+      ? "**NoobV2 Live Blacklist**"
+      : `**Live Blacklist • Page ${pageIndex + 1}**`;
 
-      await channel.send({
-        embeds: [embed]
-      });
-    }
+  const content =
+    `${title}\n\n` +
+    `${list}\n\n` +
+    `**Total Blacklisted:** \`${uniqueGrowIDs.length}\`\n` +
+    `**Page:** \`${pageIndex + 1}/${pages.length}\`\n\n` +
+    `NOOBV2_LIVE_BLACKLIST • Updates automatically when someone is blacklisted/unblacklisted`;
+
+  await channel.send({
+    content
+  });
+}
 
     console.log(
       `[LIVE BLACKLIST] Synced ${uniqueGrowIDs.length} GrowIDs`
