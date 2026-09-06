@@ -1213,6 +1213,7 @@ const GUARDIAN_BLACKLIST_ROLES = [
 ];
 const PENDING_CHANNEL = "1481767733304623235";
 const APPROVED_CHANNEL = "1454171558305202348";
+const BLIST_LOG_CHANNEL = "1545972889612845056";
 const PAY_CHANNEL = "1439935159926394960";
 const STORY_CHANNEL = "1493097672373047347";
 const storyFile = "./stories.json";
@@ -1237,6 +1238,61 @@ const updateBroadcastCooldown = new Set();
 const guildFile = "./guildMembers.json";
 const guildThumbnail = "https://media.discordapp.net/attachments/1441484400385720320/1504343505072427120/New_Piskel_36.png?ex=6a06a490&is=6a055310&hm=6788bd09d7274293d3243bc7bfb6b5253c020ddecdbbb79be6ec0bbe937ec924&=&format=webp&quality=lossless";
 
+async function sendBlistLog(client, {
+  action,
+  user,
+  growid = "N/A",
+  reason = "N/A",
+  details = null
+}) {
+  try {
+    const channel = await client.channels.fetch(BLIST_LOG_CHANNEL).catch(() => null);
+
+    if (!channel || !channel.isTextBased()) return;
+
+    const embed = new EmbedBuilder()
+      .setColor(
+        action.includes("DENIED") ? "Red" :
+        action.includes("UNBLACKLIST") ? "Orange" :
+        action.includes("APPROVED") ? "Green" :
+        "Blue"
+      )
+      .setTitle(`Blacklist Log — ${action}`)
+      .addFields(
+        {
+          name: "User",
+          value: `${user} (\`${user.id}\`)`,
+          inline: false
+        },
+        {
+          name: "GrowID",
+          value: `\`${growid}\``,
+          inline: true
+        },
+        {
+          name: "Reason",
+          value: reason || "N/A",
+          inline: false
+        }
+      )
+      .setTimestamp();
+
+    if (details) {
+      embed.addFields({
+        name: "Details",
+        value: details,
+        inline: false
+      });
+    }
+
+    await channel.send({
+      embeds: [embed]
+    });
+
+  } catch (error) {
+    console.error("Blacklist log error:", error);
+  }
+}
 function loadGuildMembers() {
   if (!fs.existsSync(guildFile)) fs.writeFileSync(guildFile, "[]");
 
@@ -4067,6 +4123,15 @@ if (interaction.commandName === "unblist") {
   const growid = interaction.options.getString("growid");
   const blacklistReason = interaction.options.getString("blacklist_reason");
   const unblacklistReason = interaction.options.getString("unblacklist_reason");
+  await sendBlistLog(client, {
+  action: "UNBLACKLIST COMMAND USED",
+  user: interaction.user,
+  growid,
+  reason: unblacklistReason,
+  details:
+    `**Original Blacklist Reason:** ${blacklistReason}\n` +
+    `**Channel:** <#${interaction.channel.id}>`
+});
 const isGuardian = GUARDIAN_BLACKLIST_ROLES.some(roleId =>
   interaction.member.roles.cache.has(roleId)
 );
@@ -4094,7 +4159,15 @@ if (isGuardian) {
   );
 
   saveBlacklist(updatedBlacklist);
-
+await sendBlistLog(client, {
+  action: "GUARDIAN DIRECT UNBLACKLIST",
+  user: interaction.user,
+  growid,
+  reason: unblacklistReason,
+  details:
+    `**Original Blacklist Reason:** ${blacklistReason}\n` +
+    `**Approval:** Bypassed`
+});
   await proofChannel.send({
     content:
 `**Guardian Unblacklist Notification**
@@ -7950,7 +8023,15 @@ if (interaction.commandName === "addblist") {
   const proofUser = interaction.options.getUser("proof");
   const image = interaction.options.getAttachment("image");
   const durationInput = interaction.options.getString("duration");
-
+await sendBlistLog(client, {
+  action: "ADD BLACKLIST COMMAND USED",
+  user: interaction.user,
+  growid,
+  reason,
+  details:
+    `**Proof By:** ${proofUser}\n` +
+    `**Channel:** <#${interaction.channel.id}>`
+});
   let expiresAt = null;
   let durationText = null;
 
@@ -8062,7 +8143,16 @@ if (isGuardian) {
   if (!saveResult.success) {
     throw new Error(`Could not permanently save ${growid}`);
   }
-
+await sendBlistLog(client, {
+  action: "GUARDIAN DIRECT BLACKLIST",
+  user: interaction.user,
+  growid,
+  reason,
+  details:
+    `**Approval:** Bypassed\n` +
+    `**Proof By:** ${proofUser}\n` +
+    `**Duration:** ${durationText || "Permanent"}`
+});
   await proofChannel.send({
     content:
 `**Guardian Blacklist Notification**
@@ -9956,20 +10046,41 @@ const updatedBlacklist = blacklist.filter(
 );
 
 saveBlacklist(updatedBlacklist);
+await sendBlistLog(client, {
+  action: "UNBLACKLIST APPROVED",
+  user: interaction.user,
+  growid,
+  reason: unblacklistReason,
+  details:
+    `**Requested By:** <@${ownerId}>\n` +
+    `**Approved By:** ${interaction.user}\n` +
+    `**Original Blacklist Reason:** ${blacklistReason}`
+});
     embed
       .setColor("Green")
       .setFooter({
         text: `Unblacklist Approved by ${interaction.user.tag}`
       });
 
-  } else {
+} else {
 
-    embed
-      .setColor("Red")
-      .setFooter({
-        text: `Unblacklist Denied by ${interaction.user.tag}`
-      });
-  }
+  await sendBlistLog(client, {
+    action: "UNBLACKLIST DENIED",
+    user: interaction.user,
+    growid,
+    reason: unblacklistReason,
+    details:
+      `**Requested By:** <@${ownerId}>\n` +
+      `**Denied By:** ${interaction.user}\n` +
+      `**Original Blacklist Reason:** ${blacklistReason}`
+  });
+
+  embed
+    .setColor("Red")
+    .setFooter({
+      text: `Unblacklist Denied by ${interaction.user.tag}`
+    });
+}
 
   return interaction.update({
     embeds: [embed],
@@ -10027,11 +10138,36 @@ if (!saveResult.success) {
     `Could not permanently save ${growid}`
   );
 }
-
+await sendBlistLog(client, {
+  action: "BLACKLIST APPROVED",
+  user: interaction.user,
+  growid,
+  reason,
+  details:
+    `**Requested By:** <@${ownerId}>\n` +
+    `**Approved By:** ${interaction.user}\n` +
+    `**Proof By:** ${proof}`
+});
   embed.setColor("Green").setFooter({ text: "Approved" });
 
 } else {
-  embed.setColor("Red").setFooter({ text: "Not Approved" });
+
+  await sendBlistLog(client, {
+    action: "BLACKLIST DENIED",
+    user: interaction.user,
+    growid,
+    reason,
+    details:
+      `**Requested By:** <@${ownerId}>\n` +
+      `**Denied By:** ${interaction.user}\n` +
+      `**Proof By:** ${proof}`
+  });
+
+  embed
+    .setColor("Red")
+    .setFooter({
+      text: `Denied by ${interaction.user.tag}`
+    });
 }
 return interaction.update({
   embeds: [embed],
