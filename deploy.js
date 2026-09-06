@@ -290,6 +290,21 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("changeavar")
+  .setDescription("Temporarily change a user's bot avatar for 5 minutes")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("User to change")
+      .setRequired(true)
+  )
+  .addAttachmentOption(option =>
+    option
+      .setName("avatar")
+      .setDescription("Upload the temporary avatar")
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
   .setName("business")
   .setDescription("Invest WL into an interactive business")
   .addStringOption(o =>

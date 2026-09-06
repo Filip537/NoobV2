@@ -1237,7 +1237,24 @@ const UPDATE_BROADCAST_CHANNEL = "1501004255014686780";
 const updateBroadcastCooldown = new Set();
 const guildFile = "./guildMembers.json";
 const guildThumbnail = "https://media.discordapp.net/attachments/1441484400385720320/1504343505072427120/New_Piskel_36.png?ex=6a06a490&is=6a055310&hm=6788bd09d7274293d3243bc7bfb6b5253c020ddecdbbb79be6ec0bbe937ec924&=&format=webp&quality=lossless";
+const temporaryAvatars = new Map();
 
+function getBotAvatar(user) {
+  const temp = temporaryAvatars.get(user.id);
+
+  if (temp && temp.expiresAt > Date.now()) {
+    return temp.url;
+  }
+
+  if (temp) {
+    temporaryAvatars.delete(user.id);
+  }
+
+  return user.displayAvatarURL({
+    extension: "png",
+    size: 1024
+  });
+}
 async function sendBlistLog(client, {
   action,
   user,
@@ -3337,6 +3354,53 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "changeavar"
+) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return interaction.reply({
+      content: "❌ Administrator only.",
+      ephemeral: true
+    });
+  }
+
+  const targetUser = interaction.options.getUser("user", true);
+  const avatar = interaction.options.getAttachment("avatar", true);
+
+  if (!avatar.contentType?.startsWith("image/")) {
+    return interaction.reply({
+      content: "❌ Please upload a valid image.",
+      ephemeral: true
+    });
+  }
+
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+
+  temporaryAvatars.set(targetUser.id, {
+    url: avatar.url,
+    expiresAt
+  });
+
+  const savedExpiry = expiresAt;
+
+  setTimeout(() => {
+    const current = temporaryAvatars.get(targetUser.id);
+
+    if (
+      current &&
+      current.expiresAt === savedExpiry
+    ) {
+      temporaryAvatars.delete(targetUser.id);
+    }
+  }, 5 * 60 * 1000);
+
+  return interaction.reply({
+    content:
+      `✅ ${targetUser}'s temporary bot avatar has been changed for 5 minutes.`,
+    ephemeral: true
+  });
+}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "importblacklist"
@@ -6419,10 +6483,7 @@ if (interaction.commandName === "spk") {
     // custom avatar -> selected user's avatar -> bot avatar
     const webhookAvatar =
       customAvatar?.url ||
-      member?.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      }) ||
+member ? getBotAvatar(member.user) : null ||
       targetUser?.displayAvatarURL({
         extension: "png",
         size: 1024
@@ -7937,7 +7998,7 @@ if (interaction.commandName === "checkbirthday") {
                     `**Next Birthday:** <t:${Math.floor(nextBirthday.getTime() / 1000)}:D>\n` +
                     `**Countdown:** **${diffDays} day${diffDays === 1 ? "" : "s"}**`
                 )
-                .setThumbnail(target.displayAvatarURL())
+                .setThumbnail(getBotAvatar(target))
         ]
     });
 
