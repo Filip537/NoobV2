@@ -1204,6 +1204,13 @@ const birthdayFile = "./birthdays.json";
 const birthdayChannel = "1411995708403486780";
 const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
+const UNBLACKLIST_CHANNEL = "1505252429967396904";
+
+const GUARDIAN_BLACKLIST_ROLES = [
+  "1446474214755270667",
+  "1449413701756256308",
+  "1528248571898630259"
+];
 const PENDING_CHANNEL = "1481767733304623235";
 const APPROVED_CHANNEL = "1454171558305202348";
 const PAY_CHANNEL = "1439935159926394960";
@@ -4060,7 +4067,51 @@ if (interaction.commandName === "unblist") {
   const growid = interaction.options.getString("growid");
   const blacklistReason = interaction.options.getString("blacklist_reason");
   const unblacklistReason = interaction.options.getString("unblacklist_reason");
+const isGuardian = GUARDIAN_BLACKLIST_ROLES.some(roleId =>
+  interaction.member.roles.cache.has(roleId)
+);
 
+if (isGuardian) {
+  const finalChannel = await client.channels.fetch(UNBLACKLIST_CHANNEL);
+  const proofChannel = await client.channels.fetch(PENDING_CHANNEL);
+
+  await finalChannel.send({
+    content:
+`**Growid:** ${growid}
+**Reason of blacklist:** ${blacklistReason}
+**Reason of unblacklist:** ${unblacklistReason}`
+  });
+
+  await sendBlacklistSeparator(finalChannel);
+
+  const blacklist = loadBlacklist();
+
+  const targetGrowID = normalizeGrowID(growid);
+
+  const updatedBlacklist = blacklist.filter(
+    entry =>
+      normalizeGrowID(entry.growid) !== targetGrowID
+  );
+
+  saveBlacklist(updatedBlacklist);
+
+  await proofChannel.send({
+    content:
+`**Guardian Unblacklist Notification**
+
+<@${interaction.user.id}> has directly unblacklisted **${growid}**.
+
+**Reason of blacklist:** ${blacklistReason}
+**Reason of unblacklist:** ${unblacklistReason}
+
+**Approval:** Bypassed — Guardian role`
+  });
+
+  return interaction.reply({
+    content: `✅ **${growid}** has been directly unblacklisted. No approval required.`,
+    ephemeral: true
+  });
+}
 const embed = new EmbedBuilder()
   .setTitle("Unblacklist Request")
   .setColor("Orange")
@@ -7971,6 +8022,66 @@ if (interaction.commandName === "addblist") {
     embed.setImage(image.url);
   }
 
+  const isGuardian = GUARDIAN_BLACKLIST_ROLES.some(roleId =>
+  interaction.member.roles.cache.has(roleId)
+);
+
+if (isGuardian) {
+  const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
+  const proofChannel = await client.channels.fetch(PENDING_CHANNEL);
+
+  let message = `**GrowID**: ${growid}
+**Reason**: ${reason}
+**Blacklisted & Proof By**: ${proofUser}`;
+
+  if (durationText) {
+    message += `\n**Duration**: ${durationText}`;
+  }
+
+  if (image) {
+    message += `\n${image.url}`;
+  }
+
+  await finalChannel.send({
+    content: message
+  });
+
+  await sendBlacklistSeparator(finalChannel);
+
+  const saveResult = await addBlacklistEntrySafe({
+    growid: growid.trim(),
+    reason,
+    proof: `${proofUser}`,
+    addedBy: `<@${interaction.user.id}>`,
+    approvedBy: `<@${interaction.user.id}> (Guardian Direct)`,
+    imageUrl: image?.url || null,
+    expiresAt,
+    createdAt: Date.now()
+  });
+
+  if (!saveResult.success) {
+    throw new Error(`Could not permanently save ${growid}`);
+  }
+
+  await proofChannel.send({
+    content:
+`**Guardian Blacklist Notification**
+
+<@${interaction.user.id}> has directly blacklisted **${growid}**.
+
+**Reason:** ${reason}
+**Proof By:** ${proofUser}${durationText ? `\n**Duration:** ${durationText}` : ""}
+
+**Approval:** Bypassed — Guardian role`
+  });
+
+  return interaction.reply({
+    content: saveResult.alreadyExists
+      ? `ℹ**${growid}** is already blacklisted. Guardian action was logged.`
+      : `**${growid}** has been directly blacklisted. No approval required.`,
+    ephemeral: true
+  });
+}
   const approve = new ButtonBuilder()
     .setCustomId(`approve_blist_${interaction.user.id}`)
     .setLabel("Approve")
