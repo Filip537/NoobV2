@@ -129,9 +129,6 @@ new SlashCommandBuilder()
   .setName("clearset")
   .setDescription("Remove every item from your current set"),
   new SlashCommandBuilder()
-  .setName("setplanner")
-  .setDescription("Create and save your Growtopia outfit"),
-  new SlashCommandBuilder()
   .setName("sendhelp")
   .setDescription("Send the Help Center panel"),
 new SlashCommandBuilder()
