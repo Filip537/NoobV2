@@ -5,6 +5,11 @@ const { REST, Routes, SlashCommandBuilder } = require("discord.js");
 const worldcup = require("./feature/worldcup");
 
 const commands = [
+  new SlashCommandBuilder() .setName("vendfinder") .setDescription("Search free community-submitted vend listings") .addStringOption(option => option .setName("item") .setDescription("Item name to find") .setRequired(true) .setMinLength(2) .setMaxLength(80) ) .addStringOption(option => option .setName("sort") .setDescription("Sort listings") .addChoices( { name: "Newest first", value: "newest" }, { name: "Oldest first", value: "oldest" }, { name: "Cheapest first", value: "cheapest" } ) ) .addBooleanOption(option => option .setName("accessible") .setDescription("Show only listings marked accessible") ),
+
+new SlashCommandBuilder() .setName("addvend") .setDescription("Add or update your free vend listing") .addStringOption(option => option .setName("world") .setDescription("Growtopia world name") .setRequired(true) .setMaxLength(24) ) .addStringOption(option => option .setName("item") .setDescription("Item being sold") .setRequired(true) .setMinLength(2) .setMaxLength(80) ) .addIntegerOption(option => option .setName("price") .setDescription("Price in World Locks per item") .setRequired(true) .setMinValue(0) ) .addBooleanOption(option => option .setName("accessible") .setDescription("Can visitors reach the vend?") ),
+
+new SlashCommandBuilder() .setName("removevend") .setDescription("Remove your listing (admins can remove any)") .addStringOption(option => option .setName("world") .setDescription("World name") .setRequired(true) ) .addStringOption(option => option .setName("item") .setDescription("Item name") .setRequired(true) ),
 new SlashCommandBuilder()
   .setName("addbirthday")
   .setDescription("Add your birthday")

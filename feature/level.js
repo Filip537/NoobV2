@@ -13,15 +13,38 @@ const XP_COOLDOWN = 45 * 1000;
 const xpCooldowns = new Map();
 
 function loadLevels() {
-  if (!fs.existsSync(levelFile)) {
-    fs.writeFileSync(levelFile, "{}");
-  }
+  try {
+    if (!fs.existsSync(levelFile)) {
+      fs.writeFileSync(levelFile, "{}");
+      return {};
+    }
 
-  return JSON.parse(fs.readFileSync(levelFile, "utf8"));
+    const raw = fs.readFileSync(levelFile, "utf8").trim();
+
+    if (!raw) {
+      fs.writeFileSync(levelFile, "{}");
+      return {};
+    }
+
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error("Failed to load levels.json:", error);
+
+    fs.writeFileSync(levelFile, "{}");
+
+    return {};
+  }
 }
 
 function saveLevels(data) {
-  fs.writeFileSync(levelFile, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(
+      levelFile,
+      JSON.stringify(data, null, 2)
+    );
+  } catch (error) {
+    console.error("Failed to save levels.json:", error);
+  }
 }
 
 function getXPNeeded(level) {

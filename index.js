@@ -11067,8 +11067,12 @@ if (badWord) {
 
   return;
 }
-  // level system
-  level.handleMessage(message);
+// level system
+try {
+  await level.handleMessage(message);
+} catch (error) {
+  console.error("Level system error:", error);
+}
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
