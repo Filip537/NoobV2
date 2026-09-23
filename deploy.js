@@ -51,6 +51,85 @@ new SlashCommandBuilder()
   ),
   new SlashCommandBuilder()
   .setName("setplanner")
+  .setDescription("Create or update your Growtopia set")
+
+  .addStringOption(option =>
+    option
+      .setName("hat")
+      .setDescription("Hat item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("hair")
+      .setDescription("Hair item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("face")
+      .setDescription("Face item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("shirt")
+      .setDescription("Shirt or body item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("pants")
+      .setDescription("Pants item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("feet")
+      .setDescription("Feet item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("hand")
+      .setDescription("Hand item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("wings")
+      .setDescription("Wings item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  )
+
+  .addStringOption(option =>
+    option
+      .setName("back")
+      .setDescription("Back item")
+      .setAutocomplete(true)
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("clearset")
+  .setDescription("Remove every item from your current set"),
+  new SlashCommandBuilder()
+  .setName("setplanner")
   .setDescription("Create and save your Growtopia outfit"),
   new SlashCommandBuilder()
   .setName("sendhelp")

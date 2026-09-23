@@ -3354,20 +3354,38 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+if (interaction.isAutocomplete()) {
   if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "setplanner"
-) {
-  return setplanner.openPlanner(interaction);
+    interaction.commandName ===
+    "setplanner"
+  ) {
+    return setplanner
+      .handleAutocomplete(
+        interaction
+      );
+  }
 }
 
 if (
-  (interaction.isButton() ||
-    interaction.isStringSelectMenu() ||
-    interaction.isModalSubmit()) &&
-  interaction.customId.startsWith("setplanner:")
+  interaction.isChatInputCommand() &&
+  interaction.commandName ===
+    "setplanner"
 ) {
-  return setplanner.handlePlannerInteraction(interaction);
+  return setplanner
+    .handleSetPlanner(
+      interaction
+    );
+}
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName ===
+    "clearset"
+) {
+  return setplanner
+    .handleClearSet(
+      interaction
+    );
 }
   if (interaction.commandName === "sendhelp") {
   const HELP_CHANNEL_ID = "1552281420368707666";

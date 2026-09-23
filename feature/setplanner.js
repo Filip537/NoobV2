@@ -5,158 +5,168 @@ const path = require("node:path");
 const sharp = require("sharp");
 
 const {
-  ActionRowBuilder,
   AttachmentBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  EmbedBuilder,
-  ModalBuilder,
-  StringSelectMenuBuilder,
-  TextInputBuilder,
-  TextInputStyle
+  EmbedBuilder
 } = require("discord.js");
 
 const ROOT = path.join(__dirname, "..");
 const ASSETS = path.join(ROOT, "assets", "setplanner");
+
 const ITEMS_PATH = path.join(ASSETS, "items.json");
 const SPRITES_PATH = path.join(ASSETS, "sprites.png");
-const SAVES_PATH = path.join(ASSETS, "saved-sets.json");
+const SETS_PATH = path.join(ASSETS, "user-sets.json");
 
-const SLOTS = [
-  "Hat",
-  "Hair",
-  "Face",
-  "Shirt",
-  "Pants",
-  "Feet",
-  "Hand",
-  "Back"
-];
+// Discord option name -> display name
+const SLOT_CONFIG = {
+  hat: "Hat",
+  hair: "Hair",
+  face: "Face",
+  shirt: "Shirt",
+  pants: "Pants",
+  feet: "Feet",
+  hand: "Hand",
+  wings: "Wings",
+  back: "Back"
+};
 
-const sessions = new Map();
+let itemsCache = null;
 
-function loadItems() {
-  const raw = JSON.parse(fs.readFileSync(ITEMS_PATH, "utf8"));
+/* =========================================================
+   LOAD ITEMS
+========================================================= */
+
+function getItems() {
+  if (itemsCache) return itemsCache;
+
+  const raw = JSON.parse(
+    fs.readFileSync(ITEMS_PATH, "utf8")
+  );
 
   const list = Array.isArray(raw)
     ? raw
     : Array.isArray(raw.items)
       ? raw.items
-      : null;
+      : [];
 
-  if (!list) {
-    throw new Error(
-      "items.json must contain an array or an object with an items array."
-    );
-  }
-
-  return list
+  itemsCache = list
     .filter(item => item && typeof item.name === "string")
     .map((item, index) => ({
       ...item,
       plannerId: index
     }));
+
+  console.log(
+    `[SetPlanner] Loaded ${itemsCache.length} items.`
+  );
+
+  return itemsCache;
 }
 
-let items;
+/* =========================================================
+   USER SET STORAGE
+========================================================= */
 
-function getItems() {
-  if (!items) items = loadItems();
-  return items;
-}
-
-function readSaves() {
-  if (!fs.existsSync(SAVES_PATH)) return {};
+function loadSets() {
+  if (!fs.existsSync(SETS_PATH)) {
+    return {};
+  }
 
   try {
-    return JSON.parse(fs.readFileSync(SAVES_PATH, "utf8"));
-  } catch {
+    return JSON.parse(
+      fs.readFileSync(SETS_PATH, "utf8")
+    );
+  } catch (error) {
+    console.error(
+      "[SetPlanner] Failed to load user sets:",
+      error
+    );
+
     return {};
   }
 }
 
-function writeSaves(data) {
-  fs.mkdirSync(ASSETS, { recursive: true });
+function saveSets(sets) {
+  fs.mkdirSync(ASSETS, {
+    recursive: true
+  });
 
-  const temp = `${SAVES_PATH}.tmp`;
+  const temp = `${SETS_PATH}.tmp`;
 
-  fs.writeFileSync(temp, JSON.stringify(data, null, 2));
-  fs.renameSync(temp, SAVES_PATH);
+  fs.writeFileSync(
+    temp,
+    JSON.stringify(sets, null, 2)
+  );
+
+  fs.renameSync(temp, SETS_PATH);
 }
 
-function newSession(userId) {
-  return {
-    userId,
-    slot: "Hat",
-    query: "",
-    page: 0,
-    equipped: {}
-  };
-}
+function getUserSet(userId) {
+  const sets = loadSets();
 
-function getSession(userId) {
-  if (!sessions.has(userId)) {
-    sessions.set(userId, newSession(userId));
+  if (!sets[userId]) {
+    sets[userId] = {};
   }
 
-  return sessions.get(userId);
-}
-
-/*
- * Your current JSON has item names and icon positions.
- * It does not reliably identify every item's equipment slot.
- *
- * This function uses an explicit "type" or "slot" field IF
- * you add one to items.json later. Otherwise the item remains
- * uncategorised rather than being assigned an incorrect slot.
- */
-function itemSlot(item) {
-  const value = String(item.slot ?? item.type ?? "")
-    .trim()
-    .toLowerCase();
-
-  const aliases = {
-    hat: "Hat",
-    head: "Hat",
-    hair: "Hair",
-    face: "Face",
-    shirt: "Shirt",
-    body: "Shirt",
-    pants: "Pants",
-    legs: "Pants",
-    feet: "Feet",
-    shoes: "Feet",
-    hand: "Hand",
-    back: "Back",
-    wings: "Back"
+  return {
+    sets,
+    outfit: sets[userId]
   };
-
-  return aliases[value] || null;
 }
 
-function matches(session) {
-  const query = session.query.toLowerCase();
+/* =========================================================
+   ITEM SEARCH
+========================================================= */
 
-  return getItems().filter(item => {
-    const nameMatches = item.name.toLowerCase().includes(query);
-
-    /*
-     * Search all items when no slot metadata is available.
-     * The user chooses which slot to equip the selected item in.
-     */
-    const slot = itemSlot(item);
-    const slotMatches = !slot || slot === session.slot;
-
-    return nameMatches && slotMatches;
-  });
+function normalize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
-function parseSpritePosition(item) {
-  const match = String(item.position || "").match(
+function findItem(name) {
+  if (!name) return null;
+
+  const items = getItems();
+
+  const exact = items.find(
+    item =>
+      item.name.toLowerCase() ===
+      name.toLowerCase()
+  );
+
+  if (exact) return exact;
+
+  const normalizedName = normalize(name);
+
+  const normalizedExact = items.find(
+    item =>
+      normalize(item.name) === normalizedName
+  );
+
+  if (normalizedExact) return normalizedExact;
+
+  return items.find(
+    item =>
+      item.name
+        .toLowerCase()
+        .includes(name.toLowerCase())
+  ) || null;
+}
+
+/* =========================================================
+   SPRITE ICON
+========================================================= */
+
+function getSpritePosition(item) {
+  const match = String(
+    item.position || ""
+  ).match(
     /(-?\d+)px\s+(-?\d+)px/
   );
 
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   return {
     x: Math.abs(Number(match[1])),
@@ -164,11 +174,22 @@ function parseSpritePosition(item) {
   };
 }
 
-async function iconBuffer(item, size = 64) {
-  if (!fs.existsSync(SPRITES_PATH)) return null;
+async function getItemIcon(
+  item,
+  size = 72
+) {
+  if (!item) return null;
 
-  const position = parseSpritePosition(item);
-  if (!position) return null;
+  if (!fs.existsSync(SPRITES_PATH)) {
+    return null;
+  }
+
+  const position =
+    getSpritePosition(item);
+
+  if (!position) {
+    return null;
+  }
 
   try {
     return await sharp(SPRITES_PATH)
@@ -183,10 +204,20 @@ async function iconBuffer(item, size = 64) {
       })
       .png()
       .toBuffer();
-  } catch {
+
+  } catch (error) {
+    console.error(
+      `[SetPlanner] Sprite error for ${item.name}:`,
+      error.message
+    );
+
     return null;
   }
 }
+
+/* =========================================================
+   XML
+========================================================= */
 
 function escapeXml(value) {
   return String(value)
@@ -197,491 +228,403 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-function labelSvg(text, x, y, size = 20) {
-  return `
-    <text
-      x="${x}"
-      y="${y}"
-      fill="#ffffff"
-      font-size="${size}"
-      font-family="sans-serif"
-    >${escapeXml(text)}</text>
-  `;
-}
+/* =========================================================
+   CURRENT PREVIEW
 
-/*
- * This renders an item-based outfit card.
- * It deliberately does NOT place inventory icons on a
- * Growtopian and pretend they are wearable graphics.
- */
-async function renderOutfitCard(session) {
-  const width = 800;
-  const height = 620;
+   IMPORTANT:
+   This currently displays the selected item icons.
+
+   Later this function can be replaced with the actual
+   Growtopian wearable-layer renderer without changing
+   /setplanner.
+========================================================= */
+
+async function renderSet(outfit) {
+  const width = 700;
+  const height = 600;
 
   const background = Buffer.from(`
     <svg width="${width}" height="${height}">
-      <rect width="100%" height="100%" fill="#151923"/>
-      <rect x="24" y="24" width="752" height="572"
-            rx="22" fill="#25364a"/>
-      ${labelSvg("NOOBV2 SET PLANNER", 48, 67, 30)}
-      ${labelSvg("Equipped items", 48, 105, 19)}
-      ${labelSvg(
-        "Character wearable preview: awaiting wearable artwork",
-        48,
-        574,
-        16
-      )}
+      <rect
+        width="700"
+        height="600"
+        fill="#171a21"
+      />
+
+      <rect
+        x="20"
+        y="20"
+        width="660"
+        height="560"
+        rx="22"
+        fill="#242b38"
+      />
+
+      <text
+        x="350"
+        y="65"
+        text-anchor="middle"
+        fill="white"
+        font-size="30"
+        font-family="sans-serif"
+        font-weight="bold"
+      >
+        NOOBV2 SET PLANNER
+      </text>
+
+      <text
+        x="350"
+        y="100"
+        text-anchor="middle"
+        fill="#b9c1ce"
+        font-size="16"
+        font-family="sans-serif"
+      >
+        Current outfit
+      </text>
     </svg>
   `);
 
-  const overlays = [];
-  const equippedEntries = SLOTS.map(slot => ({
-    slot,
-    item: session.equipped[slot]
-  }));
+  const composites = [];
 
-  for (let i = 0; i < equippedEntries.length; i++) {
-    const { slot, item } = equippedEntries[i];
+  const slots =
+    Object.entries(SLOT_CONFIG);
 
-    const column = i % 2;
-    const row = Math.floor(i / 2);
+  for (
+    let index = 0;
+    index < slots.length;
+    index++
+  ) {
+    const [
+      optionName,
+      displayName
+    ] = slots[index];
 
-    const x = 50 + column * 370;
-    const y = 135 + row * 100;
+    const item =
+      outfit[optionName];
 
-    const text = Buffer.from(`
-      <svg width="350" height="80">
-        <rect width="350" height="80" rx="12"
-              fill="#344b64"/>
-        ${labelSvg(slot, 85, 29, 17)}
-        ${labelSvg(
-          item ? item.name.slice(0, 29) : "Nothing equipped",
-          85,
-          56,
-          15
-        )}
+    const column =
+      index % 3;
+
+    const row =
+      Math.floor(index / 3);
+
+    const x =
+      60 + column * 205;
+
+    const y =
+      145 + row * 140;
+
+    const card = Buffer.from(`
+      <svg
+        width="175"
+        height="115"
+      >
+        <rect
+          width="175"
+          height="115"
+          rx="14"
+          fill="#303949"
+        />
+
+        <text
+          x="87"
+          y="90"
+          text-anchor="middle"
+          fill="#ffffff"
+          font-size="14"
+          font-family="sans-serif"
+        >
+          ${escapeXml(displayName)}
+        </text>
+
+        <text
+          x="87"
+          y="108"
+          text-anchor="middle"
+          fill="#aeb8c7"
+          font-size="11"
+          font-family="sans-serif"
+        >
+          ${
+            item
+              ? escapeXml(
+                  item.name.slice(0, 23)
+                )
+              : "Empty"
+          }
+        </text>
       </svg>
     `);
 
-    overlays.push({
-      input: text,
+    composites.push({
+      input: card,
       left: x,
       top: y
     });
 
     if (item) {
-      const icon = await iconBuffer(item, 56);
+      const icon =
+        await getItemIcon(
+          item,
+          64
+        );
 
       if (icon) {
-        overlays.push({
+        composites.push({
           input: icon,
-          left: x + 12,
-          top: y + 12
+          left: x + 55,
+          top: y + 10
         });
       }
     }
   }
 
   return sharp(background)
-    .composite(overlays)
+    .composite(composites)
     .png()
     .toBuffer();
 }
 
-function buildEmbed(session, results) {
-  const start = session.page * 25;
-  const pageItems = results.slice(start, start + 25);
+/* =========================================================
+   EMBED
+========================================================= */
 
-  const equipped = SLOTS.map(slot => {
-    const item = session.equipped[slot];
-    return `**${slot}:** ${item ? item.name : "Empty"}`;
-  }).join("\n");
+function createEmbed(
+  user,
+  outfit
+) {
+  const equipped = [];
 
-  const resultText = pageItems.length
-    ? pageItems
-        .map((item, index) => {
-          const slot = itemSlot(item);
-          return (
-            `**${start + index + 1}.** ${item.name}` +
-            (slot ? ` · ${slot}` : "")
-          );
-        })
-        .join("\n")
-    : "No matching items.";
+  for (
+    const [
+      optionName,
+      displayName
+    ] of Object.entries(
+      SLOT_CONFIG
+    )
+  ) {
+    const item =
+      outfit[optionName];
+
+    if (item) {
+      equipped.push(
+        `**${displayName}:** ${item.name}`
+      );
+    }
+  }
 
   return new EmbedBuilder()
     .setColor(0x8b5cf6)
-    .setTitle("NoobV2 Set Planner")
-    .setDescription(
-      `**Selected slot:** ${session.slot}\n` +
-      `**Search:** ${session.query || "All items"}\n\n` +
-      equipped
+    .setTitle(
+      `${user.username}'s Set`
     )
-    .addFields({
-      name: `Items · Page ${session.page + 1}`,
-      value: resultText.slice(0, 1024)
-    })
+    .setDescription(
+      equipped.length
+        ? equipped.join("\n")
+        : "No items equipped."
+    )
+    .setImage(
+      "attachment://set.png"
+    )
     .setFooter({
-      text: `${results.length} matching items · Item icons are not wearable layers`
+      text:
+        "Use /setplanner again to change individual items."
     });
 }
 
-function buildComponents(session, results) {
-  const start = session.page * 25;
-  const pageItems = results.slice(start, start + 25);
+/* =========================================================
+   /SETPLANNER
+========================================================= */
 
-  const slotMenu = new StringSelectMenuBuilder()
-    .setCustomId("setplanner:slot")
-    .setPlaceholder(`Equipment slot: ${session.slot}`)
-    .addOptions(
-      SLOTS.map(slot => ({
-        label: slot,
-        value: slot,
-        default: slot === session.slot
-      }))
-    );
-
-  const rows = [
-    new ActionRowBuilder().addComponents(slotMenu)
-  ];
-
-  if (pageItems.length) {
-    const itemMenu = new StringSelectMenuBuilder()
-      .setCustomId("setplanner:item")
-      .setPlaceholder("Choose an item to equip")
-      .addOptions(
-        pageItems.map(item => ({
-          label: item.name.slice(0, 100),
-          value: String(item.plannerId),
-          description:
-            `Equip in ${session.slot}`.slice(0, 100)
-        }))
-      );
-
-    rows.push(
-      new ActionRowBuilder().addComponents(itemMenu)
-    );
-  }
-
-  rows.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("setplanner:search")
-        .setLabel("Search")
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId("setplanner:remove")
-        .setLabel("Remove item")
-        .setStyle(ButtonStyle.Secondary),
-
-      new ButtonBuilder()
-        .setCustomId("setplanner:save")
-        .setLabel("Save set")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId("setplanner:load")
-        .setLabel("Load set")
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
-
-  rows.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("setplanner:previous")
-        .setLabel("Previous")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(session.page === 0),
-
-      new ButtonBuilder()
-        .setCustomId("setplanner:next")
-        .setLabel("Next")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(start + 25 >= results.length),
-
-      new ButtonBuilder()
-        .setCustomId("setplanner:reset")
-        .setLabel("Reset")
-        .setStyle(ButtonStyle.Danger)
-    )
-  );
-
-  return rows;
-}
-
-async function panelPayload(session) {
-  const results = matches(session);
-  const maxPage = Math.max(0, Math.ceil(results.length / 25) - 1);
-
-  session.page = Math.min(session.page, maxPage);
-
-  const image = await renderOutfitCard(session);
-
-  return {
-    embeds: [buildEmbed(session, results)],
-    components: buildComponents(session, results),
-    files: [
-      new AttachmentBuilder(image, {
-        name: "setplanner.png"
-      })
-    ]
-  };
-}
-
-async function openPlanner(interaction) {
-  const session = getSession(interaction.user.id);
-
+async function handleSetPlanner(
+  interaction
+) {
   await interaction.deferReply();
 
-  return interaction.editReply(
-    await panelPayload(session)
-  );
-}
-
-async function updatePanel(interaction, session) {
-  await interaction.deferUpdate();
-
-  return interaction.editReply(
-    await panelPayload(session)
-  );
-}
-
-async function handlePlannerInteraction(interaction) {
-  if (
-    !interaction.isButton() &&
-    !interaction.isStringSelectMenu() &&
-    !interaction.isModalSubmit()
-  ) {
-    return false;
-  }
-
-  if (!interaction.customId.startsWith("setplanner:")) {
-    return false;
-  }
-
-  const session = getSession(interaction.user.id);
-  const action = interaction.customId.split(":")[1];
-
   try {
-    if (interaction.isModalSubmit()) {
-      if (action === "search-submit") {
-        session.query =
-          interaction.fields.getTextInputValue("query").trim();
+    const {
+      sets,
+      outfit
+    } = getUserSet(
+      interaction.user.id
+    );
 
-        session.page = 0;
-        return updatePanel(interaction, session);
-      }
+    const notFound = [];
 
-      if (action === "save-submit") {
-        const name = interaction.fields
-          .getTextInputValue("setname")
-          .trim()
-          .slice(0, 40);
+    let changed = false;
 
-        const saves = readSaves();
-
-        saves[interaction.user.id] ||= {};
-        saves[interaction.user.id][name] =
-          Object.fromEntries(
-            Object.entries(session.equipped).map(
-              ([slot, item]) => [slot, item.plannerId]
-            )
-          );
-
-        writeSaves(saves);
-
-        return interaction.reply({
-          content: `Saved your set as **${name}**.`,
-          ephemeral: true
-        });
-      }
-    }
-
-    if (interaction.isStringSelectMenu()) {
-      if (action === "slot") {
-        session.slot = interaction.values[0];
-        session.page = 0;
-
-        return updatePanel(interaction, session);
-      }
-
-      if (action === "item") {
-        const id = Number(interaction.values[0]);
-        const item = getItems().find(
-          entry => entry.plannerId === id
+    for (
+      const optionName of Object.keys(
+        SLOT_CONFIG
+      )
+    ) {
+      const value =
+        interaction.options.getString(
+          optionName
         );
 
-        if (!item) {
-          return interaction.reply({
-            content: "That item could not be found.",
-            ephemeral: true
-          });
-        }
-
-        const actualSlot = itemSlot(item);
-
-        if (actualSlot && actualSlot !== session.slot) {
-          return interaction.reply({
-            content:
-              `${item.name} belongs to ${actualSlot}, ` +
-              `not ${session.slot}.`,
-            ephemeral: true
-          });
-        }
-
-        session.equipped[session.slot] = item;
-
-        return updatePanel(interaction, session);
+      if (!value) {
+        continue;
       }
 
-      if (action === "load-select") {
-        const name = interaction.values[0];
-        const saves = readSaves();
-        const saved = saves[interaction.user.id]?.[name];
+      const item =
+        findItem(value);
 
-        if (!saved) {
-          return interaction.reply({
-            content: "That saved set no longer exists.",
-            ephemeral: true
-          });
-        }
-
-        const allItems = getItems();
-        session.equipped = {};
-
-        for (const [slot, id] of Object.entries(saved)) {
-          if (!SLOTS.includes(slot)) continue;
-
-          const item = allItems.find(
-            entry => entry.plannerId === id
-          );
-
-          if (item) session.equipped[slot] = item;
-        }
-
-        return updatePanel(interaction, session);
+      if (!item) {
+        notFound.push(value);
+        continue;
       }
+
+      outfit[optionName] =
+        item;
+
+      changed = true;
     }
 
-    if (interaction.isButton()) {
-      if (action === "search") {
-        const input = new TextInputBuilder()
-          .setCustomId("query")
-          .setLabel("Item name")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(false)
-          .setMaxLength(80)
-          .setValue(session.query);
+    if (changed) {
+      sets[
+        interaction.user.id
+      ] = outfit;
 
-        const modal = new ModalBuilder()
-          .setCustomId("setplanner:search-submit")
-          .setTitle("Search Growtopia items")
-          .addComponents(
-            new ActionRowBuilder().addComponents(input)
-          );
-
-        return interaction.showModal(modal);
-      }
-
-      if (action === "save") {
-        const input = new TextInputBuilder()
-          .setCustomId("setname")
-          .setLabel("Set name")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
-          .setMaxLength(40);
-
-        const modal = new ModalBuilder()
-          .setCustomId("setplanner:save-submit")
-          .setTitle("Save your outfit")
-          .addComponents(
-            new ActionRowBuilder().addComponents(input)
-          );
-
-        return interaction.showModal(modal);
-      }
-
-      if (action === "load") {
-        const saves = readSaves();
-        const names = Object.keys(
-          saves[interaction.user.id] || {}
-        ).slice(0, 25);
-
-        if (!names.length) {
-          return interaction.reply({
-            content: "You haven't saved any sets yet.",
-            ephemeral: true
-          });
-        }
-
-        const menu = new StringSelectMenuBuilder()
-          .setCustomId("setplanner:load-select")
-          .setPlaceholder("Choose a saved set")
-          .addOptions(
-            names.map(name => ({
-              label: name,
-              value: name
-            }))
-          );
-
-        return interaction.reply({
-          content: "Choose a set to load:",
-          components: [
-            new ActionRowBuilder().addComponents(menu)
-          ],
-          ephemeral: true
-        });
-      }
-
-      if (action === "remove") {
-        delete session.equipped[session.slot];
-      }
-
-      if (action === "previous") {
-        session.page = Math.max(0, session.page - 1);
-      }
-
-      if (action === "next") {
-        session.page++;
-      }
-
-      if (action === "reset") {
-        sessions.set(
-          interaction.user.id,
-          newSession(interaction.user.id)
-        );
-
-        return updatePanel(
-          interaction,
-          getSession(interaction.user.id)
-        );
-      }
-
-      return updatePanel(interaction, session);
+      saveSets(sets);
     }
 
-    return true;
+    const image =
+      await renderSet(
+        outfit
+      );
+
+    const embed =
+      createEmbed(
+        interaction.user,
+        outfit
+      );
+
+    let content;
+
+    if (notFound.length) {
+      content =
+        "Could not find: " +
+        notFound
+          .map(
+            name =>
+              `**${name}**`
+          )
+          .join(", ");
+    }
+
+    return interaction.editReply({
+      content,
+      embeds: [embed],
+      files: [
+        new AttachmentBuilder(
+          image,
+          {
+            name: "set.png"
+          }
+        )
+      ]
+    });
+
   } catch (error) {
-    console.error("Set Planner error:", error);
+    console.error(
+      "[SetPlanner] Error:",
+      error
+    );
 
-    const message = {
-      content: "Something went wrong with Set Planner.",
-      ephemeral: true
-    };
-
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp(message).catch(() => {});
-    } else {
-      await interaction.reply(message).catch(() => {});
-    }
-
-    return true;
+    return interaction.editReply({
+      content:
+        "Set Planner failed to generate your set."
+    });
   }
+}
+
+/* =========================================================
+   /CLEARSET
+========================================================= */
+
+async function handleClearSet(
+  interaction
+) {
+  try {
+    const sets =
+      loadSets();
+
+    delete sets[
+      interaction.user.id
+    ];
+
+    saveSets(sets);
+
+    return interaction.reply({
+      content:
+        "Your entire set has been cleared.",
+      ephemeral: true
+    });
+
+  } catch (error) {
+    console.error(
+      "[SetPlanner] Clear error:",
+      error
+    );
+
+    return interaction.reply({
+      content:
+        "Failed to clear your set.",
+      ephemeral: true
+    });
+  }
+}
+
+/* =========================================================
+   AUTOCOMPLETE
+========================================================= */
+
+async function handleAutocomplete(
+  interaction
+) {
+  const focused =
+    interaction.options.getFocused(
+      true
+    );
+
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      SLOT_CONFIG,
+      focused.name
+    )
+  ) {
+    return interaction.respond([]);
+  }
+
+  const query =
+    focused.value
+      .toLowerCase()
+      .trim();
+
+  const results =
+    getItems()
+      .filter(item =>
+        item.name
+          .toLowerCase()
+          .includes(query)
+      )
+      .slice(0, 25);
+
+  return interaction.respond(
+    results.map(item => ({
+      name:
+        item.name.slice(0, 100),
+
+      value:
+        item.name.slice(0, 100)
+    }))
+  );
 }
 
 module.exports = {
-  openPlanner,
-  handlePlannerInteraction
+  handleSetPlanner,
+  handleClearSet,
+  handleAutocomplete
 };
