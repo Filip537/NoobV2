@@ -155,15 +155,6 @@ new SlashCommandBuilder()
       .setAutocomplete(true)
   ),
 
-new SlashCommandBuilder()
-  .setName("sendgif")
-  .setDescription("Send a saved GIF")
-  .addStringOption(o =>
-    o.setName("name")
-      .setDescription("GIF name")
-      .setRequired(true)
-      .setAutocomplete(true)
-  ),
   new SlashCommandBuilder()
 .setName("coinflip")
 .setDescription("Bet your WL on a coin flip.")
@@ -219,57 +210,6 @@ new SlashCommandBuilder()
       .setDescription("Amount of WL")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("rps")
-  .setDescription("Challenge someone to Rock Paper Scissors")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("bombpass")
-  .setDescription("Challenge someone to Bomb Pass")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-
-new SlashCommandBuilder()
-  .setName("battle")
-  .setDescription("Challenge someone to an Arena Battle")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("User to challenge")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("bet")
-      .setDescription("WL bet amount")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("slot")
-  .setDescription("Test your luck with the slot machine"),
-  new SlashCommandBuilder()
-  .setName("wiki")
-  .setDescription("Open the NoobV2 wiki menu"),
-
-new SlashCommandBuilder()
-  .setName("editwiki")
-  .setDescription("Add or remove wiki selectors"),
 new SlashCommandBuilder()
   .setName("whatsmydare")
   .setDescription("Get a random dare that will not repeat in 1 day"),
@@ -284,49 +224,6 @@ new SlashCommandBuilder()
   { name: "Level", value: "level" },
   { name: "World Locks", value: "wl" }
 )
-  ),
-  new SlashCommandBuilder()
-  .setName("importblacklist")
-  .setDescription("Import GrowIDs from a blacklist channel export")
-  .addAttachmentOption(option =>
-    option
-      .setName("file")
-      .setDescription("The exported blacklist .txt file")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("changeavar")
-  .setDescription("Temporarily change a user's bot avatar for 5 minutes")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("User to change")
-      .setRequired(true)
-  )
-  .addAttachmentOption(option =>
-    option
-      .setName("avatar")
-      .setDescription("Upload the temporary avatar")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("business")
-  .setDescription("Invest WL into an interactive business")
-  .addStringOption(o =>
-    o.setName("type")
-      .setDescription("Choose business type")
-      .setRequired(true)
-      .addChoices(
-        { name: "Restaurant", value: "restaurant" },
-        { name: "Mining Company", value: "mining" },
-        { name: "Delivery Company", value: "delivery" },
-        { name: "Fishing Boat", value: "fishing" }
-      )
-  )
-  .addIntegerOption(o =>
-    o.setName("investment")
-      .setDescription("Amount of WL to invest")
-      .setRequired(true)
   ),
   new SlashCommandBuilder()
   .setName("sendupdates")
