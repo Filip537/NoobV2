@@ -49,7 +49,9 @@ new SlashCommandBuilder()
       .setMinValue(1900)
       .setMaxValue(new Date().getFullYear())
   ),
-  
+  new SlashCommandBuilder()
+  .setName("sendhelp")
+  .setDescription("Send the Help Center panel"),
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")

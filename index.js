@@ -3353,6 +3353,86 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "sendhelp") {
+  const HELP_CHANNEL_ID = "1552281420368707666";
+
+  if (!interaction.member.roles.cache.has(adminRole)) {
+    return interaction.reply({
+      content: "No permission.",
+      ephemeral: true
+    });
+  }
+
+  const channel = interaction.guild.channels.cache.get(
+    HELP_CHANNEL_ID
+  );
+
+  if (!channel) {
+    return interaction.reply({
+      content: "Help channel not found.",
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("NoobV2 Help Center")
+    .setColor("Blue")
+    .setDescription(
+      "Welcome to the NoobV2 Help Center.\n\n" +
+      "Choose a category below to view commands and information."
+    )
+    .setFooter({
+      text: "NoobV2 • Help Center"
+    });
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("help_menu")
+    .setPlaceholder("Select a help category")
+    .addOptions(
+      {
+        label: "Profile & Social",
+        description: "Profiles, posts, stories and highlights",
+        value: "help_profile"
+      },
+      {
+        label: "Leveling",
+        description: "Levels, XP, roles and leaderboard",
+        value: "help_leveling"
+      },
+      {
+        label: "Vend Finder",
+        description: "Find and submit vend listings",
+        value: "help_vend"
+      },
+      {
+        label: "World Tools",
+        description: "World-related tools",
+        value: "help_world"
+      },
+      {
+        label: "Fun Commands",
+        description: "Games and entertainment",
+        value: "help_fun"
+      },
+      {
+        label: "Utility Commands",
+        description: "Other useful commands",
+        value: "help_utility"
+      }
+    );
+
+  const row = new ActionRowBuilder().addComponents(menu);
+
+  await channel.send({
+    embeds: [embed],
+    components: [row]
+  });
+
+  return interaction.reply({
+    content: `Help Center sent to <#${HELP_CHANNEL_ID}>.`,
+    ephemeral: true
+  });
+}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "changeavar"
@@ -7170,45 +7250,60 @@ const percent = Math.floor(Math.random() * 500) + 1;
     content: message
   });
 }
-  if (interaction.commandName === "help") {
+if (interaction.commandName === "help") {
+  const HELP_CHANNEL_ID = "1552281420368707666";
+
+  if (interaction.channelId !== HELP_CHANNEL_ID) {
+    return interaction.reply({
+      content: `Please use <#${HELP_CHANNEL_ID}> for the Help Center.`,
+      ephemeral: true
+    });
+  }
+
   const helpEmbed = new EmbedBuilder()
-    .setTitle("NoobV2 Help Menu")
+    .setTitle("NoobV2 Help Center")
     .setColor("Blue")
     .setDescription(
-      "Please use the dropdown menu below to view all available bot commands by category."
+      "Welcome to the NoobV2 Help Center.\n\n" +
+      "Use the dropdown menu below to browse commands and features."
     )
     .setFooter({
-      text: "NoobV2 Command Help Panel"
+      text: "NoobV2 • Help Center"
     });
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId("help_menu")
-    .setPlaceholder("Select a command category")
+    .setPlaceholder("Select a help category")
     .addOptions(
       {
-        label: "Profile Commands",
-        description: "Profile, stories, posts, highlights",
+        label: "Profile & Social",
+        description: "Profiles, posts, stories and highlights",
         value: "help_profile"
       },
       {
-        label: "Moderation Commands",
-        description: "Blacklist and word moderation",
-        value: "help_moderation"
+        label: "Leveling",
+        description: "Levels, XP, roles and leaderboard",
+        value: "help_leveling"
+      },
+      {
+        label: "Vend Finder",
+        description: "Find and submit vend listings",
+        value: "help_vend"
+      },
+      {
+        label: "World Tools",
+        description: "World and Growtopia-related tools",
+        value: "help_world"
       },
       {
         label: "Fun Commands",
-        description: "Games, quotes, dice, WYR",
+        description: "Games and entertainment commands",
         value: "help_fun"
       },
       {
         label: "Utility Commands",
-        description: "General utility and info commands",
+        description: "Other useful commands",
         value: "help_utility"
-      },
-      {
-        label: "Admin Commands",
-        description: "Admin-only setup and management",
-        value: "help_admin"
       }
     );
 
@@ -7216,7 +7311,7 @@ const percent = Math.floor(Math.random() * 500) + 1;
 
   return interaction.reply({
     embeds: [helpEmbed],
-    components: [row],
+    components: [row]
   });
 }
   if (interaction.isChatInputCommand() && (
@@ -8576,101 +8671,91 @@ const row2 = new ActionRowBuilder().addComponents(
   }
 }
 
-if (interaction.customId === "help_menu") {
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId === "help_menu"
+) {
   const value = interaction.values[0];
 
+  let embed = new EmbedBuilder()
+    .setColor("Blue")
+    .setFooter({
+      text: "NoobV2 • Help Center"
+    });
+
   if (value === "help_profile") {
-    const embed = new EmbedBuilder()
-      .setTitle("Profile Commands")
-      .setColor("Blue")
+    embed
+      .setTitle("Profile & Social")
       .setDescription(
-        `<:arrow:1442712798969729087> **/createprofile** — Create your profile\n` +
-        `<:arrow:1442712798969729087> **/profile** — View your own profile\n` +
-        `<:arrow:1442712798969729087> **/viewprofile** — View another user's profile\n` +
-        `<:arrow:1442712798969729087> **/poststory** — Post a story for 24 hours\n` +
-        `<:arrow:1442712798969729087> **/postnote** — Post a note for 24 hours\n` +
-        `<:arrow:1442712798969729087> **/postfeed** — Post a permanent photo or reel\n` +
-        `<:arrow:1442712798969729087> **/highlights** — View story highlights`
+        "**/createprofile** — Create your profile\n" +
+        "**/profile** — View your profile\n" +
+        "**/viewprofile** — View another user's profile\n" +
+        "**/poststory** — Post a story for 24 hours\n" +
+        "**/postnote** — Post a note for 24 hours\n" +
+        "**/postfeed** — Post a permanent photo or reel\n" +
+        "**/highlights** — View story highlights"
       );
-
-return interaction.update({
-  embeds: [embed],
-  components: [interaction.message.components[0]]
-});
   }
 
-  if (value === "help_moderation") {
-    const embed = new EmbedBuilder()
-      .setTitle("Moderation Commands")
-      .setColor("Blue")
+  else if (value === "help_leveling") {
+    embed
+      .setTitle("Leveling")
       .setDescription(
-        `<:arrow:1442712798969729087> **/addblist** — Submit a blacklist request\n` +
-        `<:arrow:1442712798969729087> **/blist** — View approved blacklist entries\n` +
-        `<:arrow:1442712798969729087> **/scanblist** — Rebuild blacklist data from channel\n` +
-        `<:arrow:1442712798969729087> **/wordban** — Add a banned word\n` +
-        `<:arrow:1442712798969729087> **/editwordban** — Remove a banned word\n` +
-        `<:arrow:1442712798969729087> **/wordbanlist** — View banned words`
+        "**/leaderboard** — View the server leaderboard\n\n" +
+        "**How Leveling Works**\n" +
+        "Send messages in the server to earn XP and increase your level.\n\n" +
+        "**Level Roles**\n" +
+        "Level 10 — <@&1551190845825220669>\n" +
+        "Level 20 — <@&1451111483269447866>\n" +
+        "Level 40 — <@&1451111522339389493>"
       );
-
-return interaction.update({
-  embeds: [embed],
-  components: [interaction.message.components[0]]
-});
   }
 
-  if (value === "help_fun") {
-    const embed = new EmbedBuilder()
+  else if (value === "help_vend") {
+    embed
+      .setTitle("Vend Finder")
+      .setDescription(
+        "**/vendfinder** — Search for vend listings\n" +
+        "**/addvend** — Submit a vend listing\n" +
+        "**/removevend** — Remove your vend listing\n\n" +
+        "Vend listings are submitted by members and may not always be live-verified."
+      );
+  }
+
+  else if (value === "help_world") {
+    embed
+      .setTitle("World Tools")
+      .setDescription(
+        "**/renderworld** — Render and view a Growtopia world"
+      );
+  }
+
+  else if (value === "help_fun") {
+    embed
       .setTitle("Fun Commands")
-      .setColor("Blue")
       .setDescription(
-        `<:arrow:1442712798969729087> **/wouldyourather** — Play Would You Rather\n` +
-        `<:arrow:1442712798969729087> **/testdice** — Roll a dice\n` +
-        `<:arrow:1442712798969729087> **/quote** — Get a random quote\n` +
-        `<:arrow:1442712798969729087> **/howgay** — Check how gay someone is\n` +
-`<:arrow:1442712798969729087> **/howpro** — Check how pro someone is\n` +
-        `<:arrow:1442712798969729087> **/games** — Open the mini games menu`
+        "**/wouldyourather** — Play Would You Rather\n" +
+        "**/testdice** — Roll a dice\n" +
+        "**/quote** — Get a random quote\n" +
+        "**/howgay** — Generate a random percentage\n" +
+        "**/howpro** — Generate a pro percentage\n" +
+        "**/games** — Open the mini games menu"
       );
-
-return interaction.update({
-  embeds: [embed],
-  components: [interaction.message.components[0]]
-});
   }
 
-  if (value === "help_utility") {
-    const embed = new EmbedBuilder()
+  else if (value === "help_utility") {
+    embed
       .setTitle("Utility Commands")
-      .setColor("Blue")
       .setDescription(
-        `<:arrow:1442712798969729087> **/leaderboard** — View leaderboard rankings\n` +
-        `<:arrow:1442712798969729087> **/help** — View all commands`
+        "**/leaderboard** — View server rankings\n" +
+        "**/help** — Open the Help Center"
       );
-
-return interaction.update({
-  embeds: [embed],
-  components: [interaction.message.components[0]]
-});
   }
 
-  if (value === "help_admin") {
-    const embed = new EmbedBuilder()
-      .setTitle("Admin Commands")
-      .setColor("Blue")
-      .setDescription(
-        `<:arrow:1442712798969729087> **/settings** — Open the settings panel\n` +
-        `<:arrow:1442712798969729087> **/ticketpanel** — Send the ticket panel\n` +
-        `<:arrow:1442712798969729087> **/sendinfo** — Send the server info panel\n` +
-        `<:arrow:1442712798969729087> **/testbday** — Test birthday message\n` +
-        `<:arrow:1442712798969729087> **/addbirthday** — Save your birthday\n` +
-        `<:arrow:1442712798969729087> **/editbday** — Edit your birthday\n` +
-        `<:arrow:1442712798969729087> **/bdaylist** — View saved birthdays`
-      );
-
-return interaction.update({
-  embeds: [embed],
-  components: [interaction.message.components[0]]
-});
-  }
+  return interaction.update({
+    embeds: [embed],
+    components: [interaction.message.components[0]]
+  });
 }
 if (interaction.customId === "blist_fields") {
   const fields = interaction.values;
