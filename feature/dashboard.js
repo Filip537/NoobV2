@@ -12,10 +12,57 @@ const {
   TextInputStyle,
   ChannelType,
   PermissionFlagsBits,
+  AttachmentBuilder,
 } = require("discord.js");
 
 const CONFIG_FILE = path.join(__dirname, "..", "dashboardConfig.json");
+// =============================
+// SAFE FILE EXPORT LIST
+// =============================
 
+const EXPORTABLE_FILES = {
+  birthdays: {
+    name: "birthdays.json",
+    path: path.join(__dirname, "..", "birthdays.json"),
+    description: "Birthday database",
+    emoji: "🎂",
+  },
+
+  blacklist: {
+    name: "blacklist.json",
+    path: path.join(__dirname, "..", "blacklist.json"),
+    description: "GrowID blacklist database",
+    emoji: "🚫",
+  },
+
+  levels: {
+    name: "levels.json",
+    path: path.join(__dirname, "..", "levels.json"),
+    description: "Level and World Lock data",
+    emoji: "📊",
+  },
+
+  wiki: {
+    name: "wikiData.json",
+    path: path.join(__dirname, "..", "wikiData.json"),
+    description: "Wiki database",
+    emoji: "📚",
+  },
+
+  auctions: {
+    name: "auctions.json",
+    path: path.join(__dirname, "..", "auctions.json"),
+    description: "Auction database",
+    emoji: "🔨",
+  },
+
+  dashboard: {
+    name: "dashboardConfig.json",
+    path: path.join(__dirname, "..", "dashboardConfig.json"),
+    description: "Dashboard configuration",
+    emoji: "⚙️",
+  },
+};
 const DEFAULT_CONFIG = {
   disabledCommands: [],
 
@@ -263,13 +310,21 @@ function dashboardComponents() {
           emoji: "📘",
         },
 
-        {
-          label: "Dashboard Settings",
-          description:
-            "Dashboard appearance and audit log",
-          value: "dashboard",
-          emoji: "🧰",
-        }
+{
+  label: "Dashboard Settings",
+  description:
+    "Dashboard appearance and audit log",
+  value: "dashboard",
+  emoji: "🧰",
+},
+
+{
+  label: "File Manager",
+  description:
+    "Export bot JSON database files",
+  value: "files",
+  emoji: "📁",
+}
       );
 
   const refresh =
@@ -376,6 +431,42 @@ function commandRows() {
   ];
 }
 
+function fileManagerRows() {
+  const options = Object.entries(EXPORTABLE_FILES).map(
+    ([value, file]) => ({
+      label: file.name,
+      description: file.description,
+      value,
+      emoji: file.emoji,
+    })
+  );
+
+  const fileMenu =
+    new StringSelectMenuBuilder()
+      .setCustomId("dash_file_export_menu")
+      .setPlaceholder("Choose a file to export")
+      .addOptions(options);
+
+  const buttons =
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("dash_file_export_all")
+        .setLabel("Export All")
+        .setEmoji("📦")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId("dash_file_status")
+        .setLabel("File Status")
+        .setEmoji("📊")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+  return [
+    new ActionRowBuilder().addComponents(fileMenu),
+    buttons,
+  ];
+}
 function ticketRows() {
   return [
     new ActionRowBuilder().addComponents(
@@ -599,6 +690,32 @@ async function showMainMenu(
   });
 }
 
+if (value === "files") {
+  return interaction.reply({
+    embeds: [
+      sectionEmbed(
+        "📁 File Manager",
+
+        "Export important NoobV2 database files directly from the bot.\n\n" +
+
+        "### Available Files\n" +
+        "🎂 `birthdays.json`\n" +
+        "🚫 `blacklist.json`\n" +
+        "📊 `levels.json`\n" +
+        "📚 `wikiData.json`\n" +
+        "🔨 `auctions.json`\n" +
+        "⚙️ `dashboardConfig.json`\n\n" +
+
+        "Select one of the files below or use **Export All**.\n\n" +
+
+        "🔐 Only files approved in the dashboard whitelist can be exported."
+      ),
+    ],
+
+    components: fileManagerRows(),
+    ephemeral: true,
+  });
+}
 async function handleMenu(
   interaction,
   client
@@ -972,7 +1089,113 @@ async function openDashboardTicket(
 // =============================
 // BUTTONS
 // =============================
+// =============================
+// FILE EXPORT SYSTEM
+// =============================
 
+function getExportFile(key) {
+  return EXPORTABLE_FILES[key] || null;
+}
+
+function getFileStats(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {
+      exists: false,
+      size: 0,
+      modified: null,
+    };
+  }
+
+  const stats = fs.statSync(filePath);
+
+  return {
+    exists: true,
+    size: stats.size,
+    modified: stats.mtime,
+  };
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "0 B";
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB",
+  ];
+
+  const index = Math.floor(
+    Math.log(bytes) /
+    Math.log(1024)
+  );
+
+  return (
+    (
+      bytes /
+      Math.pow(1024, index)
+    ).toFixed(2) +
+    " " +
+    units[index]
+  );
+}
+
+async function exportSingleFile(
+  interaction,
+  fileKey
+) {
+  const file =
+    getExportFile(fileKey);
+
+  if (!file) {
+    return interaction.reply({
+      content:
+        "❌ That file is not approved for export.",
+      ephemeral: true,
+    });
+  }
+
+  if (!fs.existsSync(file.path)) {
+    return interaction.reply({
+      content:
+        `❌ \`${file.name}\` does not exist yet.`,
+      ephemeral: true,
+    });
+  }
+
+  const attachment =
+    new AttachmentBuilder(
+      file.path,
+      {
+        name: file.name,
+      }
+    );
+
+  const stats =
+    fs.statSync(file.path);
+
+  const config =
+    loadConfig();
+
+  addAudit(
+    config,
+    interaction,
+    `Exported ${file.name}`
+  );
+
+  saveConfig(config);
+
+  return interaction.reply({
+    content:
+      `${file.emoji} **File Export**\n` +
+      `File: \`${file.name}\`\n` +
+      `Size: **${formatBytes(stats.size)}**`,
+
+    files: [attachment],
+
+    ephemeral: true,
+  });
+}
 async function handleButton(
   interaction,
   client
@@ -2418,7 +2641,20 @@ async function handleInteraction(
 
       return true;
     }
+// FILE EXPORT MENU
 
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId ===
+    "dash_file_export_menu"
+) {
+  await exportSingleFile(
+    interaction,
+    interaction.values[0]
+  );
+
+  return true;
+}
     // BUTTONS
 
     if (interaction.isButton()) {
