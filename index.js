@@ -297,6 +297,7 @@ const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
+const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
@@ -3353,6 +3354,21 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "setplanner"
+) {
+  return setplanner.openPlanner(interaction);
+}
+
+if (
+  (interaction.isButton() ||
+    interaction.isStringSelectMenu() ||
+    interaction.isModalSubmit()) &&
+  interaction.customId.startsWith("setplanner:")
+) {
+  return setplanner.handlePlannerInteraction(interaction);
+}
   if (interaction.commandName === "sendhelp") {
   const HELP_CHANNEL_ID = "1552281420368707666";
 
