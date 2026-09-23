@@ -1843,6 +1843,30 @@ async function sendBlacklistSeparator(channel) {
   }
 }
 
+function getGMT8DateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false
+  }).formatToParts(date);
+
+  const get = (type) =>
+    Number(parts.find(part => part.type === type)?.value || 0);
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second")
+  };
+}
 async function checkBirthdays(forceCheck = false) {
   const now = getGMT8DateParts();
 
