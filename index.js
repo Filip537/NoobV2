@@ -3390,7 +3390,7 @@ client.on("interactionCreate", async (interaction) => {
   interaction.isChatInputCommand() &&
   interaction.commandName === "sendprofessiondashboard"
 ) {
-  return buildRoleFeature.sendDashboard(interaction);
+return buildRoleFeature.execute(interaction);
 }
 if (interaction.isAutocomplete()) {
   if (
@@ -4442,22 +4442,7 @@ if (interaction.commandName === "howfurry") {
 
   return;
 }
-if (interaction.isChatInputCommand()) {
-  const handled =
-    await music.handleCommand(interaction);
 
-  if (handled) return;
-}
-
-if (
-  interaction.isStringSelectMenu() &&
- interaction.customId?.startsWith("musicsearch_")
-) {
-  const handled =
-    await music.handleSelect(interaction);
-
-  if (handled) return;
-}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "furrytest"
