@@ -13,6 +13,11 @@ const cooking = require("./cooking.js");
 
 const LEVELS_PATH = path.join(__dirname, "../levels.json");
 
+// ==========================================
+// CONFIG
+// ==========================================
+
+const DASHBOARD_CHANNEL_ID = "1553581259064745985";
 const COOKING_COST = 1000;
 
 
@@ -41,10 +46,19 @@ function loadLevels() {
 
 
 function saveLevels(data) {
-  fs.writeFileSync(
-    LEVELS_PATH,
-    JSON.stringify(data, null, 2)
-  );
+  try {
+    fs.writeFileSync(
+      LEVELS_PATH,
+      JSON.stringify(data, null, 2)
+    );
+  } catch (err) {
+    console.error(
+      "Failed to save levels.json:",
+      err
+    );
+
+    throw err;
+  }
 }
 
 
@@ -59,7 +73,8 @@ function getUserData(levels, userId) {
       level: 1,
       xp: 0,
       items: {},
-      fishBackpack: []
+      fishBackpack: [],
+      professions: {}
     };
   }
 
@@ -80,82 +95,61 @@ function getUserData(levels, userId) {
 
 
 // ==========================================
-// DASHBOARD EMBED
+// PUBLIC DASHBOARD EMBED
 // ==========================================
+//
+// IMPORTANT:
+// This dashboard is NOT built from user data.
+// Everyone sees exactly the same dashboard.
+//
 
-function buildRoleEmbed(userData) {
-  const cookingUnlocked =
-    userData.professions?.cooking?.unlocked === true;
+function buildRoleEmbed() {
+  return new EmbedBuilder()
+    .setColor(0xFEE75C)
 
-  const cookingStatus =
-    cookingUnlocked
-      ? "Unlocked"
-      : "Locked";
+    .setTitle(
+      "<:bulletin:1447778065512923217> Build Your Role"
+    )
 
-  const cookingLevel =
-    userData.professions?.cooking?.level || 1;
+    .setThumbnail(
+      "https://media.discordapp.net/attachments/1522529403337183376/1553610092836954153/chocoride.png?ex=6ab9dfa6&is=6ab88e26&hm=68fd2cf1d879835600e1a7e0fe3100ed38a121f34c17af56421046aefd9e6dd4&=&format=webp&quality=lossless"
+    )
 
-  const cookingXP =
-    userData.professions?.cooking?.xp || 0;
+    .setDescription(
+      "Choose a profession to unlock and build your character.\n\n" +
 
-  let cookingInfo =
-    `Cost: **${COOKING_COST.toLocaleString()} WL**\n` +
-    `Status: **${cookingStatus}**`;
+      "**Cooking**\n" +
+      "Learn recipes, use ingredients and cook different foods.\n\n" +
 
-  if (cookingUnlocked) {
-    cookingInfo +=
-      `\nCooking Level: **${cookingLevel}**` +
-      `\nCooking XP: **${cookingXP}**`;
-  }
+      `Cost: **${COOKING_COST.toLocaleString()} WL**\n\n` +
 
-return new EmbedBuilder()
-  .setColor(
-    cookingUnlocked
-      ? 0x57F287
-      : 0xFEE75C
-  )
-  .setTitle("<:bulletin:1447778065512923217> Build Your Role")
-  .setThumbnail(
-    "https://media.discordapp.net/attachments/1522529403337183376/1553610092836954153/chocoride.png?ex=6ab9dfa6&is=6ab88e26&hm=68fd2cf1d879835600e1a7e0fe3100ed38a121f34c17af56421046aefd9e6dd4&=&format=webp&quality=lossless"
-  )
-  .setDescription(
-    "Choose a profession to unlock and build your character.\n\n" +
+      "Click the button below to unlock or open Cooking."
+    )
 
-    "**Cooking**\n" +
-    "Learn recipes, use ingredients and cook different foods.\n\n" +
-
-    cookingInfo +
-
-    `\n\nYour Balance: **${(userData.wl || 0).toLocaleString()} WL**`
-  )
-  .setFooter({
-    text: "More professions will be added later."
-  });
+    .setFooter({
+      text: "More professions will be added later."
+    });
 }
 
-function buildRoleButtons(userData) {
-  const cookingUnlocked =
-    userData.professions?.cooking?.unlocked === true;
 
-  const button = new ButtonBuilder()
-    .setCustomId(
-      cookingUnlocked
-        ? "profession_open_cooking"
-        : "profession_unlock_cooking"
-    )
-    .setLabel(
-      cookingUnlocked
-        ? "Open Cooking"
-        : "Unlock Cooking"
-    )
-    .setStyle(
-      cookingUnlocked
-        ? ButtonStyle.Success
-        : ButtonStyle.Primary
-    );
+// ==========================================
+// PUBLIC DASHBOARD BUTTONS
+// ==========================================
+//
+// The public button NEVER changes.
+//
+// We check whether the person owns Cooking
+// only after THEY click it.
+//
+
+function buildRoleButtons() {
+  const cookingButton = new ButtonBuilder()
+    .setCustomId("profession_cooking")
+    .setLabel("Cooking")
+    .setStyle(ButtonStyle.Primary);
 
   return new ActionRowBuilder()
-    .addComponents(button);
+    .addComponents(cookingButton);
 }
 
 
@@ -164,33 +158,100 @@ function buildRoleButtons(userData) {
 // ==========================================
 
 async function sendDashboard(interaction) {
-  const levels = loadLevels();
+  try {
 
-  const userData = getUserData(
-    levels,
-    interaction.user.id
-  );
+    // Find the exact dashboard channel
+    const channel =
+      interaction.client.channels.cache.get(
+        DASHBOARD_CHANNEL_ID
+      ) ||
+      await interaction.client.channels.fetch(
+        DASHBOARD_CHANNEL_ID
+      ).catch(() => null);
 
-  saveLevels(levels);
 
-  const payload = {
-    embeds: [
-      buildRoleEmbed(userData)
-    ],
+    if (!channel) {
+      await safeReply(interaction, {
+        content:
+          `Could not find dashboard channel <#${DASHBOARD_CHANNEL_ID}>.`,
+        ephemeral: true
+      });
 
-    components: [
-      buildRoleButtons(userData)
-    ]
-  };
+      return;
+    }
 
-  if (
-    interaction.replied ||
-    interaction.deferred
-  ) {
-    return interaction.followUp(payload);
+
+    if (!channel.isTextBased()) {
+      await safeReply(interaction, {
+        content:
+          "The configured dashboard channel is not a text channel.",
+        ephemeral: true
+      });
+
+      return;
+    }
+
+
+    // Send PUBLIC dashboard
+    await channel.send({
+      embeds: [
+        buildRoleEmbed()
+      ],
+
+      components: [
+        buildRoleButtons()
+      ]
+    });
+
+
+    // Confirmation only visible to command user
+    await safeReply(interaction, {
+      content:
+        `Build Your Role dashboard sent to <#${DASHBOARD_CHANNEL_ID}>.`,
+      ephemeral: true
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      "Failed to send Build Your Role dashboard:",
+      error
+    );
+
+
+    await safeReply(interaction, {
+      content:
+        "Failed to send the Build Your Role dashboard.",
+      ephemeral: true
+    });
   }
+}
 
-  return interaction.reply(payload);
+
+// ==========================================
+// SAFE REPLY
+// ==========================================
+
+async function safeReply(interaction, payload) {
+  try {
+
+    if (
+      interaction.replied ||
+      interaction.deferred
+    ) {
+      return await interaction.followUp(payload);
+    }
+
+    return await interaction.reply(payload);
+
+  } catch (error) {
+
+    console.error(
+      "Failed to reply to interaction:",
+      error
+    );
+  }
 }
 
 
@@ -208,18 +269,20 @@ async function execute(interaction) {
 // ==========================================
 
 async function handleButton(interaction) {
+
   if (!interaction.isButton()) {
     return false;
   }
 
+
+  // New universal public button
   if (
     interaction.customId !==
-      "profession_unlock_cooking" &&
-    interaction.customId !==
-      "profession_open_cooking"
+    "profession_cooking"
   ) {
     return false;
   }
+
 
   const levels = loadLevels();
 
@@ -229,33 +292,31 @@ async function handleButton(interaction) {
   );
 
 
+  // Save in case missing default fields
+  levels[interaction.user.id] = userData;
+  saveLevels(levels);
+
+
   // ========================================
-  // OPEN COOKING
+  // USER ALREADY OWNS COOKING
   // ========================================
 
   if (
-    interaction.customId ===
-    "profession_open_cooking"
+    userData.professions?.cooking?.unlocked === true
   ) {
-    if (
-      !userData.professions?.cooking?.unlocked
-    ) {
-      await interaction.reply({
-        content:
-          "You haven't unlocked Cooking yet.",
-        ephemeral: true
-      });
-
-      return true;
-    }
 
     try {
-await cooking.open(interaction);
+
+      // Opens THEIR Cooking Simulator
+      await cooking.open(interaction);
+
     } catch (error) {
+
       console.error(
         "Failed to open Cooking Simulator:",
         error
       );
+
 
       if (
         !interaction.replied &&
@@ -267,6 +328,7 @@ await cooking.open(interaction);
           ephemeral: true
         }).catch(() => {});
       }
+
     }
 
     return true;
@@ -274,34 +336,27 @@ await cooking.open(interaction);
 
 
   // ========================================
-  // ALREADY UNLOCKED
-  // ========================================
-
-  if (
-    userData.professions?.cooking?.unlocked
-  ) {
-    await interaction.reply({
-      content:
-        "You already unlocked Cooking.",
-      ephemeral: true
-    });
-
-    return true;
-  }
-
-
-  // ========================================
-  // CHECK WL
+  // USER DOES NOT OWN COOKING
   // ========================================
 
   const currentWL =
     Number(userData.wl || 0);
 
+
+  // ========================================
+  // NOT ENOUGH WL
+  // ========================================
+
   if (currentWL < COOKING_COST) {
+
     await interaction.reply({
       content:
-        `You need **${COOKING_COST.toLocaleString()} WL** to unlock Cooking.\n` +
-        `You currently have **${currentWL.toLocaleString()} WL**.`,
+        `🔒 **Cooking Profession Locked**\n\n` +
+        `Cost: **${COOKING_COST.toLocaleString()} WL**\n` +
+        `Your Balance: **${currentWL.toLocaleString()} WL**\n\n` +
+        `You need **${(
+          COOKING_COST - currentWL
+        ).toLocaleString()} more WL** to unlock Cooking.`,
       ephemeral: true
     });
 
@@ -316,6 +371,7 @@ await cooking.open(interaction);
   userData.wl =
     currentWL - COOKING_COST;
 
+
   userData.professions.cooking = {
     unlocked: true,
     level: 1,
@@ -323,38 +379,27 @@ await cooking.open(interaction);
     unlockedAt: Date.now()
   };
 
+
   levels[interaction.user.id] =
     userData;
+
 
   saveLevels(levels);
 
 
   // ========================================
-  // UPDATE DASHBOARD
+  // PRIVATE SUCCESS MESSAGE
   // ========================================
 
-  await interaction.update({
-    embeds: [
-      buildRoleEmbed(userData)
-    ],
-
-    components: [
-      buildRoleButtons(userData)
-    ]
-  });
-
-
-  // ========================================
-  // SUCCESS MESSAGE
-  // ========================================
-
-  await interaction.followUp({
+  await interaction.reply({
     content:
-      "Cooking profession unlocked! " +
-      "**1,000 WL** has been deducted from your balance.\n\n" +
-      "Press **Open Cooking** to enter the Cooking Simulator.",
+      `🍳 **Cooking Profession Unlocked!**\n\n` +
+      `**${COOKING_COST.toLocaleString()} WL** has been deducted.\n` +
+      `Remaining Balance: **${userData.wl.toLocaleString()} WL**\n\n` +
+      `Click **Cooking** on the dashboard again to enter the Cooking Simulator.`,
     ephemeral: true
   });
+
 
   return true;
 }
