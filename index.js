@@ -5241,10 +5241,7 @@ if (interaction.isButton()) {
   const handled = await business.handleButton(interaction);
   if (handled) return;
 }
-  if (interaction.isChatInputCommand()) {
-  const handled = await casino.handleCommand(interaction);
-  if (handled) return;
-}
+
 if (interaction.isButton()) {
   const handled = await profileFeature.handleButton(interaction);
   if (handled) return;
@@ -5258,19 +5255,8 @@ if (interaction.isButton()) {
   const handled = await casino.handleButton(interaction);
   if (handled) return;
 }
-  if (interaction.isChatInputCommand()) {
-  const handled = await pvp.handleCommand(interaction);
-  if (handled) return;
-}
 
-if (interaction.isButton()) {
-  const handled = await pvp.handleButton(interaction);
-  if (handled) return;
-}
-  if (interaction.isChatInputCommand()) {
-  const handled = await casino.handleCommand(interaction);
-  if (handled) return;
-}
+
   if (interaction.isChatInputCommand()) {
   const handled = await gamble.handleCommand(interaction);
   if (handled) return;
