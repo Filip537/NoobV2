@@ -4451,7 +4451,7 @@ if (interaction.isChatInputCommand()) {
 
 if (
   interaction.isStringSelectMenu() &&
-  interaction.customId.startsWith("musicsearch_")
+ interaction.customId?.startsWith("musicsearch_")
 ) {
   const handled =
     await music.handleSelect(interaction);
@@ -4473,7 +4473,7 @@ if (interaction.isButton()) {
 }
 if (
   interaction.isButton() &&
-  interaction.customId.startsWith("furrytest_")
+interaction.customId?.startsWith("furrytest_")
 ) {
   return furryTest.handleButton(interaction);
 }
@@ -4481,7 +4481,7 @@ if (
 
 if (
   interaction.isStringSelectMenu() &&
-  interaction.customId.startsWith("mystats_range_")
+interaction.customId?.startsWith("mystats_range_")
 ) {
   const targetId =
     interaction.customId.replace(
@@ -8983,8 +8983,8 @@ if (interaction.customId === "blist_fields") {
 
 // ================= BLIST MODE =================
 
-if (interaction.customId.startsWith("blist_mode_")) {
-  const fieldsPart =
+if (interaction.customId?.startsWith("blist_mode_")) {
+      const fieldsPart =
     interaction.customId.replace("blist_mode_", "");
 
   const fields = fieldsPart
@@ -9218,7 +9218,7 @@ if (interaction.isModalSubmit()) {
   // ================= MYSTATS CUSTOM RANGE =================
 
 if (
-  interaction.customId.startsWith(
+ interaction.customId?.startsWith(
     "mystats_custom_"
   )
 ) {
@@ -9345,7 +9345,7 @@ if (
     ephemeral: true
   });
 }
-  if (interaction.customId.startsWith("auction_bid_modal_")) {
+  if (interaction.customId?.startsWith("auction_bid_modal_")) {
   const auctionId = interaction.customId.replace("auction_bid_modal_", "");
   const bidText = interaction.fields.getTextInputValue("auction_bid_amount").trim();
   const bidAmount = Number(bidText);
@@ -9409,7 +9409,7 @@ if (
     ephemeral: true
   });
 }
-if (interaction.customId.startsWith("comment_modal_")) {
+if (interaction.customId?.startsWith("comment_modal_")) {
   const storyId = interaction.customId.replace("comment_modal_", "");
   const comment = interaction.fields.getTextInputValue("comment_input");
 
@@ -9434,8 +9434,7 @@ story.comments.push({
   });
 }
 
-if (interaction.customId.startsWith("blist_search_modal_")) {
-  const fieldsPart =
+if (interaction.customId?.startsWith("blist_search_modal_")) {  const fieldsPart =
   interaction.customId.replace(
     "blist_search_modal_",
     ""
@@ -9489,8 +9488,8 @@ if (handledSocialModal !== false) return;
   return settings.handleModal(interaction);
 }
 
-if (interaction.customId.startsWith("role_")) {
-  const roleId = interaction.customId.replace("role_", "");
+if (interaction.customId?.startsWith("role_")) {
+    const roleId = interaction.customId.replace("role_", "");
 
   const colorRoleIds = [
     "1491016531176456272", // Red
@@ -9593,7 +9592,7 @@ if (interaction.isButton()) {
   if (handled) return;
 }
 
-if (interaction.customId.startsWith("wiki_confirm_add_")) {
+if (interaction.customId?.startsWith("wiki_confirm_add_")) {
   if (!interaction.member.permissions.has("Administrator")) {
     return interaction.reply({
       content: "❌ Administrator only.",
@@ -9631,7 +9630,7 @@ if (interaction.customId.startsWith("wiki_confirm_add_")) {
   });
 }
 
-if (interaction.customId.startsWith("wiki_cancel_add_")) {
+if (interaction.customId?.startsWith("wiki_cancel_add_")) {
   const tempId = interaction.customId.replace("wiki_cancel_add_", "");
   pendingWikiEdits.delete(tempId);
 
@@ -9665,7 +9664,7 @@ if (interaction.customId === "wiki_remove_button") {
     ephemeral: true
   });
 }
-  if (interaction.customId.startsWith("auction_preview_yes_")) {
+  if (interaction.customId?.startsWith("auction_preview_yes_")) {
   const auctionId = interaction.customId.replace("auction_preview_yes_", "");
   const auctions = loadAuctions();
   const auction = auctions.find(a => a.auctionId === auctionId);
@@ -9713,7 +9712,7 @@ if (interaction.customId === "wiki_remove_button") {
   });
 }
 
-if (interaction.customId.startsWith("auction_preview_no_")) {
+if (interaction.customId?.startsWith("auction_preview_no_")) {
   const auctionId = interaction.customId.replace("auction_preview_no_", "");
   let auctions = loadAuctions();
 
@@ -9733,7 +9732,7 @@ if (interaction.customId.startsWith("auction_preview_no_")) {
   });
 }
 
-if (interaction.customId.startsWith("auction_bid_")) {
+if (interaction.customId?.startsWith("auction_bid_")) {
   const auctionId = interaction.customId.replace("auction_bid_", "");
   const auctions = loadAuctions();
   const auction = auctions.find(a => a.auctionId === auctionId);
@@ -9762,7 +9761,7 @@ if (interaction.customId.startsWith("auction_bid_")) {
   return interaction.showModal(modal);
 }
 
-if (interaction.customId.startsWith("auction_confirm_")) {
+if (interaction.customId?.startsWith("auction_confirm_")) {
   const auctionId = interaction.customId.replace("auction_confirm_", "");
   const auctions = loadAuctions();
   const auction = auctions.find(a => a.auctionId === auctionId);
@@ -9795,8 +9794,8 @@ if (interaction.customId.startsWith("auction_confirm_")) {
   });
 }
   if (
-  interaction.customId.startsWith("team_agree_") ||
-  interaction.customId.startsWith("team_decline_")
+  interaction.customId?.startsWith("team_agree_") ||
+  interaction.customId?.startsWith("team_decline_")
 ) {
   const parts = interaction.customId.split("_");
   const action = parts[1];
@@ -9889,7 +9888,7 @@ if (interaction.customId === "event_join_button") {
     ephemeral: true
   });
 }
-  if (interaction.customId.startsWith("math_")) {
+  if (interaction.customId?.startsWith("math_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
 
@@ -9902,7 +9901,7 @@ if (interaction.customId === "event_join_button") {
     ephemeral: true
   });
 }
-  if (interaction.customId.startsWith("trivia_")) {
+  if (interaction.customId?.startsWith("trivia_")) {
 
   const [, chosen, correct] = interaction.customId.split("_");
 
@@ -9915,7 +9914,7 @@ if (interaction.customId === "event_join_button") {
     ephemeral: true
   });
 }
-  if (interaction.customId.startsWith("comment_")) {
+  if (interaction.customId?.startsWith("comment_")) {
   const storyId = interaction.customId.replace("comment_", "");
 
   const modal = new ModalBuilder()
@@ -9933,7 +9932,7 @@ if (interaction.customId === "event_join_button") {
   return interaction.showModal(modal);
 }
 
-  if (interaction.customId.startsWith("like_")) {
+  if (interaction.customId?.startsWith("like_")) {
   const storyId = interaction.customId.replace("like_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -9957,7 +9956,7 @@ if (interaction.customId === "event_join_button") {
     ephemeral: true
   });
 }
-if (interaction.customId.startsWith("highlight_")) {
+if (interaction.customId?.startsWith("highlight_")) {
   const storyId = interaction.customId.replace("highlight_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -10000,7 +9999,7 @@ if (interaction.customId.startsWith("highlight_")) {
   const handledSocialButton = await socialFeature.handleButton(interaction);
 if (handledSocialButton !== false) return;
 
-if (interaction.customId.startsWith("view_note_")) {
+if (interaction.customId?.startsWith("view_note_")) {
   const storyId = interaction.customId.replace("view_note_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -10051,7 +10050,7 @@ if (interaction.customId.startsWith("view_note_")) {
     ephemeral: true
   });
 }
- if (interaction.customId.startsWith("view_story_")) {
+ if (interaction.customId?.startsWith("view_story_")) {
   const storyId = interaction.customId.replace("view_story_", "");
   const stories = loadStories();
   const story = stories.find(s => s.storyId === storyId);
@@ -10144,13 +10143,13 @@ if (
 ) {
   return settings.handleButton(interaction, client);
 }
-  if (interaction.customId.startsWith("wyr_")) {
+  if (interaction.customId?.startsWith("wyr_")) {
     return wyr.handleButton(interaction);
   }
 
   // ===== BLACKLIST APPROVE / DENY =====
   // ===== REPORT SYSTEM =====
-if (interaction.customId.startsWith("report_blacklist_") || interaction.customId.startsWith("report_deny_")) {
+if (interaction.customId?.startsWith("report_blacklist_") || interaction.customId?.startsWith("report_deny_")) {
 
   const embed = EmbedBuilder.from(interaction.message.embeds[0]);
   const fields = embed.data.fields;
@@ -10158,7 +10157,7 @@ if (interaction.customId.startsWith("report_blacklist_") || interaction.customId
   const growid = fields.find(f => f.name === "GrowID").value;
   const reason = fields.find(f => f.name === "Reason").value;
 
-  if (interaction.customId.startsWith("report_blacklist_")) {
+  if (interaction.customId?.startsWith("report_blacklist_")) {
 
     const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
@@ -10195,8 +10194,8 @@ await sendBlacklistSeparator(finalChannel);
 }
 // ================= UNBLACKLIST APPROVE / DENY =================
 if (
-  interaction.customId.startsWith("approve_unblist_") ||
-  interaction.customId.startsWith("deny_unblist_")
+  interaction.customId?.startsWith("approve_unblist_") ||
+  interaction.customId?.startsWith("deny_unblist_")
 ) {
 
   const ownerId = interaction.customId.split("_").pop();
@@ -10223,7 +10222,7 @@ if (
   const unblacklistReason =
     fields.find(f => f.name === "Reason of Unblacklist")?.value || "Unknown";
 
-  if (interaction.customId.startsWith("approve_unblist_")) {
+  if (interaction.customId?.startsWith("approve_unblist_")) {
 
     const finalChannel = await client.channels.fetch(
       "1505252429967396904"
@@ -10289,7 +10288,7 @@ await sendBlistLog(client, {
     components: []
   });
 }
-  if (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_")) {
+  if (interaction.customId?.startsWith("approve_") || interaction.customId?.startsWith("deny_")) {
 
 const ownerId = interaction.customId.split("_").pop();
     const SELF_APPROVE_ROLE = "1448858787296317553";
@@ -10310,7 +10309,7 @@ const ownerId = interaction.customId.split("_").pop();
     const reason = fields.find(f => f.name === "Reason").value;
     const proof = fields.find(f => f.name === "Proof By").value;
 
-if (interaction.customId.startsWith("approve_")) {
+if (interaction.customId?.startsWith("approve_")) {
 
   const finalChannel = await client.channels.fetch(APPROVED_CHANNEL);
 
