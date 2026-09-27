@@ -1839,6 +1839,42 @@ async function sendBlacklistSeparator(channel) {
     console.error("Blacklist separator webhook error:", error);
   }
 }
+function getGMT8DateParts() {
+  const now = new Date();
+
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore", // GMT+8
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const parts = formatter.formatToParts(now);
+
+  const get = (type) =>
+    parts.find(part => part.type === type)?.value;
+
+  const year = Number(get("year"));
+  const month = Number(get("month"));
+  const day = Number(get("day"));
+  const hour = Number(get("hour"));
+  const minute = Number(get("minute"));
+  const second = Number(get("second"));
+
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+    dateKey: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  };
+}
 
 async function checkBirthdays(forceCheck = false) {
   const now = getGMT8DateParts();
