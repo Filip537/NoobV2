@@ -250,7 +250,7 @@ async function handleButton(interaction) {
     }
 
     try {
-      await cooking.openCooking(interaction);
+await cooking.open(interaction);
     } catch (error) {
       console.error(
         "Failed to open Cooking Simulator:",

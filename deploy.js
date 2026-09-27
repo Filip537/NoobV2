@@ -130,7 +130,13 @@ new SlashCommandBuilder()
   .setDescription("Remove every item from your current set"),
 new SlashCommandBuilder()
   .setName("senddashboard")
-  .setDescription("Send the Build Your Role dashboard"),
+  .setDescription("Send the Build Your Role dashboard")
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("Channel to send the dashboard to")
+      .setRequired(true)
+  ),
   new SlashCommandBuilder()
   .setName("sendhelp")
   .setDescription("Send the Help Center panel"),
