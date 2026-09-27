@@ -293,14 +293,10 @@ const call = require("./feature/call.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
+const buildRoleFeature = require("./feature/buildrole");
 const furryTest = require("./feature/furrytest.js");
-const task = require("./feature/task.js");
-const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
 const setplanner = require("./feature/setplanner");
-const business = require("./feature/business.js");
-const casino = require("./feature/casino.js");
-const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
 const level = require("./feature/level.js");
 const stickerGif = require("./feature/stickerGif.js");
@@ -3354,6 +3350,12 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "sendprofessiondashboard"
+) {
+  return buildRoleFeature.sendDashboard(interaction);
+}
 if (interaction.isAutocomplete()) {
   if (
     interaction.commandName ===
@@ -4427,6 +4429,12 @@ if (
   return furryTest.execute(interaction);
 }
 
+if (interaction.isButton()) {
+  const handledBuildRole =
+    await buildRoleFeature.handleButton(interaction);
+
+  if (handledBuildRole) return;
+}
 if (
   interaction.isButton() &&
   interaction.customId.startsWith("furrytest_")
