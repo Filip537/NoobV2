@@ -108,32 +108,30 @@ function buildRoleEmbed(userData) {
       `\nCooking XP: **${cookingXP}**`;
   }
 
-  return new EmbedBuilder()
-    .setColor(
-      cookingUnlocked
-        ? 0x57F287
-        : 0xFEE75C
-    )
-    .setTitle("Build Your Role")
-    .setDescription(
-      "Choose a profession to unlock and build your character.\n\n" +
+return new EmbedBuilder()
+  .setColor(
+    cookingUnlocked
+      ? 0x57F287
+      : 0xFEE75C
+  )
+  .setTitle("<:bulletin:1447778065512923217> Build Your Role")
+  .setThumbnail(
+    "https://media.discordapp.net/attachments/1522529403337183376/1553610092836954153/chocoride.png?ex=6ab9dfa6&is=6ab88e26&hm=68fd2cf1d879835600e1a7e0fe3100ed38a121f34c17af56421046aefd9e6dd4&=&format=webp&quality=lossless"
+  )
+  .setDescription(
+    "Choose a profession to unlock and build your character.\n\n" +
 
-      "**Cooking**\n" +
-      "Learn recipes, use ingredients and cook different foods.\n\n" +
+    "**Cooking**\n" +
+    "Learn recipes, use ingredients and cook different foods.\n\n" +
 
-      cookingInfo +
+    cookingInfo +
 
-      `\n\nYour Balance: **${(userData.wl || 0).toLocaleString()} WL**`
-    )
-    .setFooter({
-      text: "More professions will be added later."
-    });
+    `\n\nYour Balance: **${(userData.wl || 0).toLocaleString()} WL**`
+  )
+  .setFooter({
+    text: "More professions will be added later."
+  });
 }
-
-
-// ==========================================
-// DASHBOARD BUTTON
-// ==========================================
 
 function buildRoleButtons(userData) {
   const cookingUnlocked =
