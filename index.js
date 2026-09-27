@@ -6418,6 +6418,17 @@ if (interaction.isModalSubmit() && interaction.customId === "ticket_add_user_mod
   return ticket.handleModal(interaction);
 }
 
+if (
+  interaction.isButton() &&
+  (
+    interaction.customId === "profession_cooking" ||
+    interaction.customId === "profession_unlock_cooking" ||
+    interaction.customId === "profession_open_cooking"
+  )
+) {
+  return await buildRoleFeature.handleButton(interaction);
+}
+
 if (interaction.isButton() && interaction.customId === "close_ticket") {
   return ticket.handleButton(interaction);
 }
