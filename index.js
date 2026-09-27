@@ -3355,6 +3355,12 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "senddashboard"
+) {
+  return buildRoleFeature.sendDashboard(interaction);
+}
     // ==========================================
   // COOKING SYSTEM
   // ==========================================

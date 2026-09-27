@@ -128,8 +128,8 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("clearset")
   .setDescription("Remove every item from your current set"),
-  new SlashCommandBuilder()
-  .setName("sendprofessiondashboard")
+new SlashCommandBuilder()
+  .setName("senddashboard")
   .setDescription("Send the Build Your Role dashboard"),
   new SlashCommandBuilder()
   .setName("sendhelp")
