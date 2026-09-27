@@ -297,6 +297,7 @@ const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
+const buildRoleFeature = require("./feature/buildrole");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
@@ -3354,6 +3355,33 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+    // ==========================================
+  // COOKING SYSTEM
+  // ==========================================
+
+  if (
+    interaction.isButton() &&
+    interaction.customId.startsWith("cook_")
+  ) {
+    return cookingFeature.handleButton(interaction);
+  }
+
+  if (
+    interaction.isStringSelectMenu() &&
+    interaction.customId.startsWith("cook_")
+  ) {
+    return cookingFeature.handleSelect(interaction);
+  }
+
+  if (
+    interaction.isButton() &&
+    (
+      interaction.customId === "profession_unlock_cooking" ||
+      interaction.customId === "profession_open_cooking"
+    )
+  ) {
+    return buildRoleFeature.handleButton(interaction);
+  }
 if (interaction.isAutocomplete()) {
   if (
     interaction.commandName ===
