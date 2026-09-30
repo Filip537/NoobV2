@@ -298,6 +298,7 @@ const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
 const buildRoleFeature = require("./feature/buildrole");
+const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
 const casino = require("./feature/casino.js");
