@@ -724,13 +724,6 @@ new SlashCommandBuilder()
     new SlashCommandBuilder()
   .setName("salesman")
   .setDescription("Exchange your stuffs for World Locks"),
-    new SlashCommandBuilder()
-  .setName("shop")
-  .setDescription("Open the item shop"),
-new SlashCommandBuilder()
-  .setName("sendtask")
-  .setDescription("Send the daily task panel"),
-
 new SlashCommandBuilder()
   .setName("trade")
   .setDescription("Trade items with another user")
