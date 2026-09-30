@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const testLevelCommand = require("./commands/testlevelup.js");
-const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { REST, Routes, SlashCommandBuilder,  PermissionFlagsBits } = require("discord.js");
 const worldcup = require("./feature/worldcup");
 
 const commands = [
