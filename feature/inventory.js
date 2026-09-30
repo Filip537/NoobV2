@@ -16,7 +16,49 @@ const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
 const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
 const fishFolder = path.join(__dirname, "..", "fish");
+const cookingFolder = path.join(__dirname, "..", "images", "cooking");
 
+const COOKING_ITEM_IMAGES = {
+  apple: "Apple.webp",
+  avocado: "Avocado.webp",
+  bacon: "Bacon.webp",
+  bakingChocolate: "Baking_Chocolate.webp",
+  blueberry: "Blueberry.webp",
+  caramel: "Caramel.webp",
+  cherry: "Cherry.webp",
+  chickenMeat: "Chicken_Meat.webp",
+  coconutMilk: "Coconut_Milk.webp",
+  cornMeal: "Corn_Meal.webp",
+  crushedIce: "Crushed_Ice.webp",
+  dough: "Dough.webp",
+  egg: "Egg.webp",
+  fishChunk: "Fish_Chunk.webp",
+  flour: "Flour.webp",
+  groundBeef: "Ground_Beef.webp",
+  groundNutmeg: "Ground_Nutmeg.webp",
+  habaneroPepper: "Habanero_Pepper.webp",
+  honey: "Honey.webp",
+  lemon: "Lemon.webp",
+  lettuce: "Lettuce.webp",
+  marshmallow: "Marshmallow.webp",
+  milk: "Milk.webp",
+  onion: "Onion.webp",
+  orangeJuice: "Orange_Juice.webp",
+  pepper: "Pepper.webp",
+  pineappleSlice: "Pineapple_Slice.webp",
+  potato: "Potato.webp",
+  rice: "Rice.webp",
+  salsa: "Salsa.webp",
+  salt: "Salt.webp",
+  sprigOfMint: "Sprig_of_Mint.webp",
+  sugar: "Sugar.webp",
+  sweetPotatoMash: "Sweet_Potato_Mash.webp",
+  sweetPotatoTots: "Sweet_Potato_Tots.webp",
+  swissCheeseBlock: "Swiss_Cheese_Block.webp",
+  tomato: "Tomato.webp",
+  waterBucket: "Water_Bucket.webp",
+  chipsAndGuacamole: "Chips_And_Guacamole.webp"
+};
 const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
 
 const BASE_EXTRA_SLOT_COST = 100;
@@ -137,6 +179,18 @@ function getAllInventoryItems(data) {
     });
   }
 
+  // Cooking ingredients / cooked foods
+for (const [key, file] of Object.entries(COOKING_ITEM_IMAGES)) {
+  const amount = Number(data.items?.[key] || 0);
+
+  if (amount <= 0) continue;
+
+  items.push({
+    type: "image",
+    imagePath: path.join(cookingFolder, file),
+    amount
+  });
+}
   const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
 
   const mergedFish = new Map();

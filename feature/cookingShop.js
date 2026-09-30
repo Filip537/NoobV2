@@ -14,7 +14,7 @@ const LEVELS_PATH =
     "../levels.json"
   );
 
-const CHEF_PACK_PRICE = 25;
+const CHEF_PACK_PRICE = 3;
 
 // These keys match the keys used by
 // your Cooking recipe system.
