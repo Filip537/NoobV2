@@ -3357,6 +3357,30 @@ async function getGTPrice(itemName) {
 client.on("interactionCreate", async (interaction) => {
   if (
   interaction.isChatInputCommand() &&
+  interaction.commandName === "sendtask"
+) {
+  return cookingFeature.sendTask(interaction);
+}
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "shop"
+) {
+  return cookingFeature.openShop(interaction);
+}
+
+if (
+  interaction.isButton() &&
+  (
+    interaction.customId.startsWith("cook_") ||
+    interaction.customId.startsWith("cookingtask_") ||
+    interaction.customId.startsWith("cookingshop_")
+  )
+) {
+  return cookingFeature.handleButton(interaction);
+}
+  if (
+  interaction.isChatInputCommand() &&
   interaction.commandName === "senddashboard"
 ) {
   return buildRoleFeature.sendDashboard(interaction);

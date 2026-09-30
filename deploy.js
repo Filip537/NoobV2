@@ -138,6 +138,26 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
   new SlashCommandBuilder()
+  .setName("sendtask")
+  .setDescription("Send the Cooking Task panel")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  )
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription(
+        "Channel to send the Cooking Task panel to"
+      )
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("shop")
+  .setDescription(
+    "Open the NoobV2 shop"
+  ),
+  new SlashCommandBuilder()
   .setName("sendhelp")
   .setDescription("Send the Help Center panel"),
 new SlashCommandBuilder()
