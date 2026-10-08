@@ -301,9 +301,6 @@ const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
-
-const hiddenVoting = require("./features/hiddenvote");
-
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -3359,17 +3356,6 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
-
-if (
-  (interaction.isChatInputCommand() &&
-    interaction.commandName === "hiddenvote") ||
-  (interaction.isButton() &&
-    interaction.customId.startsWith("hv_vote:"))
-) {
-  return hiddenVoting.hvHandle(interaction, client);
-}
-
-
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "sendtask"

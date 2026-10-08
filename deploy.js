@@ -912,32 +912,6 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
   .setName("furrytest")
   .setDescription("Find out how furry you really are"),
-
-new SlashCommandBuilder()
-  .setName("hiddenvote")
-  .setDescription("Create a secret voting poll")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-  .addStringOption(option =>
-    option
-      .setName("question")
-      .setDescription("The voting question")
-      .setRequired(true)
-      .setMaxLength(150)
-  )
-  .addStringOption(option =>
-    option
-      .setName("options")
-      .setDescription("Choices separated by |, e.g. 🔥 Red | 🦊 Niri")
-      .setRequired(true)
-      .setMaxLength(1500)
-  )
-  .addStringOption(option =>
-    option
-      .setName("duration")
-      .setDescription("How long voting lasts, e.g. 30m, 5h, 1d, 7d")
-      .setRequired(true)
-  ),
-
 new SlashCommandBuilder()
   .setName("whosfurry")
   .setDescription("Spot a random furry member"),
