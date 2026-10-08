@@ -301,6 +301,9 @@ const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
+
+const hiddenVoting = require("./features/hiddenvote");
+
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -3357,371 +3360,31 @@ async function getGTPrice(itemName) {
 
 client.on("interactionCreate", async (interaction) => {
 
-
-const hvFs = require("fs");
-const hvPath = require("path");
-
-const {
-  EmbedBuilder: HVEmbed,
-  ActionRowBuilder: HVRow,
-  ButtonBuilder: HVButton,
-  ButtonStyle: HVStyle,
-  PermissionFlagsBits: HVPermissions
-} = require("discord.js");
-
-const HV_FILE = hvPath.join(__dirname, "hiddenVotes.json");
-const HV_TIMEZONE = "Australia/Melbourne";
-
-function hvLoad() {
+if (
+  (interaction.isChatInputCommand() &&
+    interaction.commandName === "hiddenvote") ||
+  (interaction.isButton() &&
+    interaction.customId.startsWith("hv_vote:"))
+) {
   try {
-    return JSON.parse(hvFs.readFileSync(HV_FILE, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
-function hvSave(data) {
-  const temp = HV_FILE + ".tmp";
-  hvFs.writeFileSync(temp, JSON.stringify(data, null, 2));
-  hvFs.renameSync(temp, HV_FILE);
-}
-
-function hvDateParts(timestamp) {
-  return Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: HV_TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      hourCycle: "h23"
-    })
-      .formatToParts(new Date(timestamp))
-      .filter(p => p.type !== "literal")
-      .map(p => [p.type, p.value])
-  );
-}
-
-function hvNextMidnight() {
-  const now = Date.now();
-  const today = hvDateParts(now);
-
-  let low = now;
-  let high = now + 27 * 60 * 60 * 1000;
-
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    const date = hvDateParts(mid);
-
-    if (
-      date.year === today.year &&
-      date.month === today.month &&
-      date.day === today.day
-    ) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-
-  return high;
-}
-
-function hvEmbed(vote, finished = false) {
-  const counts = vote.options.map((_, index) =>
-    Object.values(vote.votes).filter(v => v === index).length
-  );
-
-  const total = Object.keys(vote.votes).length;
-
-  let description = finished
-    ? "**Voting has ended! Here are the final results.**\n\n"
-    : "**Voting is now open!**\n\n" +
-      "Select one of the buttons below to vote.\n" +
-      "All voting numbers are hidden until midnight.\n\n";
-
-  vote.options.forEach((option, index) => {
-    const name = `${option.emoji || "🔹"} ${option.label}`;
-
-    if (finished) {
-      const count = counts[index];
-      const percent = total
-        ? Math.round((count / total) * 100)
-        : 0;
-
-      description +=
-        `**${name}**\n` +
-        `Votes: **${count}** (${percent}%)\n\n`;
-    } else {
-      description += `**${name}**\n`;
-    }
-  });
-
-  if (finished) {
-    const max = Math.max(...counts);
-    const winners = max > 0
-      ? vote.options
-          .filter((_, i) => counts[i] === max)
-          .map(o => o.label)
-      : [];
-
-    description += "\n";
-
-    if (winners.length === 1) {
-      description += `**Winner: ${winners[0]}**\n`;
-    } else if (winners.length > 1) {
-      description += `**Tie: ${winners.join(", ")}**\n`;
-    } else {
-      description += "No votes were submitted.\n";
-    }
-
-    description += `\n**Total voters:** ${total}`;
-  } else {
-    description +=
-      `\n\n**Ends:** <t:${Math.floor(vote.endsAt / 1000)}:F>\n` +
-      "Vote counts are hidden.\n" +
-      "You may change your vote before closing.";
-  }
-
-  return new HVEmbed()
-    .setColor(finished ? 0x57f287 : 0x5865f2)
-    .setTitle(`🗳 ${vote.title}`)
-    .setDescription(description)
-    .setFooter({
-      text: "NoobV2 Voting System • Secret Ballot"
-    })
-    .setTimestamp();
-}
-
-function hvButtons(vote) {
-  if (vote.closed) return [];
-
-  const rows = [];
-
-  vote.options.forEach((option, index) => {
-    if (index % 5 === 0) {
-      rows.push(new HVRow());
-    }
-
-    const button = new HVButton()
-      .setCustomId(`hv_vote:${vote.id}:${index}`)
-      .setLabel(option.label.slice(0, 80))
-      .setStyle(HVStyle.Secondary);
-
-    if (option.emoji) {
-      try {
-        button.setEmoji(option.emoji);
-      } catch {}
-    }
-
-    rows[rows.length - 1].addComponents(button);
-  });
-
-  return rows;
-}
-
-async function hvClose(client, id) {
-  const data = hvLoad();
-  const vote = data[id];
-
-  if (!vote || vote.closed || Date.now() < vote.endsAt) {
-    return;
-  }
-
-  vote.closed = true;
-  hvSave(data);
-
-  try {
-    const channel = await client.channels.fetch(vote.channelId);
-    const message = await channel.messages.fetch(vote.messageId);
-
-    await message.edit({
-      embeds: [hvEmbed(vote, true)],
-      components: []
-    });
-
-    console.log(`[HiddenVote] Vote ${id} completed.`);
+    await hiddenVoting.hvHandle(interaction, client);
   } catch (error) {
-    console.error("[HiddenVote] Result publication failed:", error);
-  }
-}
+    console.error("[HiddenVote] Interaction error:", error);
 
-async function hvHandle(interaction, client) {
-
-  // ADMIN COMMAND
-  if (
-    interaction.isChatInputCommand() &&
-    interaction.commandName === "hiddenvote"
-  ) {
-    if (
-      !interaction.memberPermissions?.has(
-        HVPermissions.Administrator
-      )
-    ) {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: "❌ Only administrators can create votes.",
+        content: "Voting failed. Please try again.",
         ephemeral: true
-      });
-      return true;
-    }
-
-    const title = interaction.options.getString("question");
-    const rawOptions = interaction.options.getString("options");
-
-    const entries = rawOptions
-      .split("|")
-      .map(x => x.trim())
-      .filter(Boolean);
-
-    if (entries.length < 2 || entries.length > 20) {
-      await interaction.reply({
-        content: "❌ Please provide between 2 and 20 voting options.",
-        ephemeral: true
-      });
-      return true;
-    }
-
-    const options = entries.map(entry => {
-      const match = entry.match(
-        /^(<a?:\w+:\d+>|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s+(.+)$/u
-      );
-
-      return match
-        ? { emoji: match[1], label: match[2].trim() }
-        : { emoji: null, label: entry };
-    });
-
-    if (options.some(o => !o.label || o.label.length > 80)) {
-      await interaction.reply({
-        content: "❌ Each option must have a label of 1–80 characters.",
-        ephemeral: true
-      });
-      return true;
-    }
-
-    await interaction.deferReply({ ephemeral: true });
-
-    const id =
-      Date.now().toString(36) +
-      Math.random().toString(36).slice(2, 7);
-
-    const vote = {
-      id,
-      title,
-      options,
-      votes: {},
-      endsAt: hvNextMidnight(),
-      channelId: interaction.channelId,
-      messageId: null,
-      closed: false
-    };
-
-    try {
-      const message = await interaction.channel.send({
-        embeds: [hvEmbed(vote)],
-        components: hvButtons(vote),
-        allowedMentions: { parse: [] }
-      });
-
-      vote.messageId = message.id;
-
-      const data = hvLoad();
-      data[id] = vote;
-      hvSave(data);
-
+      }).catch(() => {});
+    } else if (interaction.deferred && !interaction.replied) {
       await interaction.editReply({
-        content:
-          "**Hidden vote successfully created!**\n" +
-          `${message.url}\n` +
-          "Results will be revealed automatically at midnight Melbourne time."
-      });
-    } catch (error) {
-      console.error("[HiddenVote] Creation failed:", error);
-
-      await interaction.editReply({
-        content: "❌ Unable to create voting panel."
-      });
+        content: "Voting failed. Please try again."
+      }).catch(() => {});
     }
-
-    return true;
   }
 
-  // MEMBER VOTING BUTTONS
-  if (
-    interaction.isButton() &&
-    interaction.customId.startsWith("hv_vote:")
-  ) {
-    const [, id, indexString] = interaction.customId.split(":");
-
-    const data = hvLoad();
-    const vote = data[id];
-    const index = Number(indexString);
-
-    if (
-      !vote ||
-      vote.closed ||
-      Date.now() >= vote.endsAt ||
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= vote.options.length
-    ) {
-      await interaction.reply({
-        content: "This voting session has ended or is unavailable.",
-        ephemeral: true
-      });
-
-      if (vote && !vote.closed && Date.now() >= vote.endsAt) {
-        hvClose(client, id);
-      }
-
-      return true;
-    }
-
-    const previousVote = vote.votes[interaction.user.id];
-
-    vote.votes[interaction.user.id] = index;
-    hvSave(data);
-
-    const option = vote.options[index];
-
-    await interaction.reply({
-      content:
-        previousVote === undefined
-          ? `Your vote for **${option.label}** has been recorded privately!`
-          : `Your vote has been updated to **${option.label}**!`,
-      ephemeral: true
-    });
-
-    return true;
-  }
-
-  return false;
+  return;
 }
-
-// AUTOMATIC MIDNIGHT RESULTS
-function hvStart(client) {
-  async function checkVotes() {
-    const data = hvLoad();
-
-    for (const [id, vote] of Object.entries(data)) {
-      if (!vote.closed && Date.now() >= vote.endsAt) {
-        await hvClose(client, id);
-      }
-    }
-  }
-
-  if (client.isReady()) {
-    checkVotes();
-  } else {
-    client.once("ready", checkVotes);
-  }
-
-  const timer = setInterval(checkVotes, 30000);
-  timer.unref?.();
-}
-
-hvStart(client);
-
 
   if (
   interaction.isChatInputCommand() &&
@@ -11758,6 +11421,8 @@ client.on("roleUpdate", async (oldRole, newRole) => {
 
   await sendLog(ROLE_LOG_CHANNEL, embed);
 });
+
+hvStart(client);
 client.login(process.env.TOKEN);
 
 module.exports = client;
