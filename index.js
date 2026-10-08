@@ -3366,25 +3366,9 @@ if (
   (interaction.isButton() &&
     interaction.customId.startsWith("hv_vote:"))
 ) {
-  try {
-    await hiddenVoting.hvHandle(interaction, client);
-  } catch (error) {
-    console.error("[HiddenVote] Interaction error:", error);
-
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: "Voting failed. Please try again.",
-        ephemeral: true
-      }).catch(() => {});
-    } else if (interaction.deferred && !interaction.replied) {
-      await interaction.editReply({
-        content: "Voting failed. Please try again."
-      }).catch(() => {});
-    }
-  }
-
-  return;
+  return hiddenVoting.hvHandle(interaction, client);
 }
+
 
   if (
   interaction.isChatInputCommand() &&
@@ -11422,7 +11406,9 @@ client.on("roleUpdate", async (oldRole, newRole) => {
   await sendLog(ROLE_LOG_CHANNEL, embed);
 });
 
-hvStart(client);
+
+hiddenVoting.hvStart(client);
+
 client.login(process.env.TOKEN);
 
 module.exports = client;
