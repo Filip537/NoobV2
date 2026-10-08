@@ -11405,10 +11405,6 @@ client.on("roleUpdate", async (oldRole, newRole) => {
 
   await sendLog(ROLE_LOG_CHANNEL, embed);
 });
-
-
-hiddenVoting.hvStart(client);
-
 client.login(process.env.TOKEN);
 
 module.exports = client;
