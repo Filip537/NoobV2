@@ -40,20 +40,26 @@ function buildEmbed(poll) {
   const ended = poll.status === "ended";
   const show = poll.visible || ended;
 
+  const arrow = "<:arrow:1442712798969729087>";
+
   const lines = poll.options.map((option, i) => {
-    if (!show) return `**${i + 1}. ${option}**`;
+    if (!show) {
+      return `${arrow} **${option}**`;
+    }
 
     const count = totals[i];
-    const percent = total ? Math.round(count / total * 100) : 0;
-    const filled = Math.round(percent / 10);
-    const bar = "█".repeat(filled) + "░".repeat(10 - filled);
+    const percent = total
+      ? Math.round((count / total) * 100)
+      : 0;
 
-    return `**${i + 1}. ${option}**\n${bar} ${count} vote(s) (${percent}%)`;
+    return `${arrow} **${option}** — ${count} vote(s) (${percent}%)`;
   });
 
   let result = "";
+
   if (ended) {
     const highest = Math.max(...totals);
+
     const winners = highest > 0
       ? poll.options.filter((_, i) => totals[i] === highest)
       : [];
@@ -68,12 +74,11 @@ function buildEmbed(poll) {
     .setTitle(ended ? "Poll Results" : "Community Poll")
     .setDescription(
       `### ${poll.question}\n\n` +
-      lines.join("\n\n") +
+      lines.join("\n") +
       result +
-      `\n\n**Total votes:** ${show ? total : "Hidden"}` +
-      `\n**Mode:** ${poll.visible ? "Public" : "Hidden"}` +
-      `\n**Status:** ${ended ? "Closed" : "Open"}` +
-      (ended ? "" : `\n**Ends:** <t:${Math.floor(poll.endsAt / 1000)}:R>`)
+      (ended
+        ? ""
+        : `\n\n**Ends:** <t:${Math.floor(poll.endsAt / 1000)}:R>`)
     )
     .setFooter({
       text: ended
@@ -81,6 +86,7 @@ function buildEmbed(poll) {
         : "Choose an option below. You may change your vote."
     });
 }
+
 
 function buildMenu(poll) {
   if (poll.status === "ended") return [];
