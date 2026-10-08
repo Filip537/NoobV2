@@ -44,6 +44,38 @@ function melbourneDate(timestamp) {
 }
 
 function nextMelbourneMidnight() {
+    
+function parseVoteDuration(input) {
+  if (typeof input !== "string") return null;
+
+  const match = input.trim().toLowerCase().match(/^(\d+)(m|h|d|w)$/);
+
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  const unit = match[2];
+
+  const units = {
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000
+  };
+
+  const duration = amount * units[unit];
+
+  // Minimum 1 minute, maximum 30 days
+  if (
+    !Number.isSafeInteger(duration) ||
+    duration < 60 * 1000 ||
+    duration > 30 * 24 * 60 * 60 * 1000
+  ) {
+    return null;
+  }
+
+  return duration;
+}
+
   const now = Date.now();
   const today = melbourneDate(now);
 
@@ -79,8 +111,7 @@ function buildVoteEmbed(vote, finished = false) {
     ? "**Voting has ended! Here are the final results.**\n\n"
     : "**Voting is now open!**\n\n" +
       "Select one of the buttons below to vote.\n" +
-      "All voting numbers are hidden until midnight.\n\n";
-
+"All voting numbers are hidden until voting ends.\n\n";
   vote.options.forEach((option, index) => {
     const name = `${option.emoji || "🔹"} ${option.label}`;
 
@@ -206,8 +237,31 @@ async function hvHandle(interaction, client) {
       return true;
     }
 
-    const title = interaction.options.getString("question");
-    const rawOptions = interaction.options.getString("options");
+
+const title = interaction.options.getString("question");
+const rawOptions = interaction.options.getString("options");
+const durationInput = interaction.options.getString("duration");
+
+const durationMs = parseVoteDuration(durationInput);
+
+if (durationMs === null) {
+  await interaction.reply({
+    content:
+      "Invalid voting duration.\n\n" +
+      "Supported formats:\n" +
+      "`30m` = 30 minutes\n" +
+      "`5h` = 5 hours\n" +
+      "`1d` = 1 day\n" +
+      "`7d` = 7 days\n" +
+      "`1w` = 1 week\n\n" +
+      "Minimum: 1 minute\n" +
+      "Maximum: 30 days",
+    ephemeral: true
+  });
+
+  return true;
+}
+
 
     const entries = rawOptions
       .split("|")
@@ -253,7 +307,7 @@ async function hvHandle(interaction, client) {
       title,
       options,
       votes: {},
-      endsAt: nextMelbourneMidnight(),
+endsAt: Date.now() + durationMs,
       channelId: interaction.channelId,
       messageId: null,
       closed: false
@@ -276,8 +330,7 @@ async function hvHandle(interaction, client) {
         content:
           "**Hidden vote successfully created!**\n" +
           `${message.url}\n` +
-          "Results will be revealed automatically at midnight Melbourne time."
-      });
+`Results will be revealed automatically after ${durationInput}.`      });
     } catch (error) {
       console.error("[HiddenVote] Creation failed:", error);
 
