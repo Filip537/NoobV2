@@ -909,12 +909,40 @@ new SlashCommandBuilder()
       .setDescription("User to check")
       .setRequired(false)
   ),
+  
   new SlashCommandBuilder()
   .setName("furrytest")
   .setDescription("Find out how furry you really are"),
 new SlashCommandBuilder()
   .setName("whosfurry")
   .setDescription("Spot a random furry member"),
+  
+new SlashCommandBuilder()
+  .setName("createpoll")
+  .setDescription("Create a timed public or hidden poll")
+  .addBooleanOption(o =>
+    o.setName("visible")
+      .setDescription("True = show votes, False = hide votes")
+      .setRequired(true)
+  )
+  .addStringOption(o =>
+    o.setName("question")
+      .setDescription("The poll question")
+      .setRequired(true)
+      .setMaxLength(250)
+  )
+  .addStringOption(o =>
+    o.setName("options")
+      .setDescription("Separate choices with | (2-25 choices)")
+      .setRequired(true)
+      .setMaxLength(1900)
+  )
+  .addStringOption(o =>
+    o.setName("duration")
+      .setDescription("Example: 30m, 5h, 1d, 7d")
+      .setRequired(true)
+  ),
+
 new SlashCommandBuilder()
   .setName("legendquest")
   .setDescription("View Legendary Quest steps")

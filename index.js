@@ -290,6 +290,9 @@ const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
+
+const createpoll = require("./feature/createpoll.js");
+
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
@@ -2378,6 +2381,15 @@ cron.schedule("0 * * * *", async () => {
 });
 });
 
+
+setInterval(() => {
+  if (!client.isReady()) return;
+
+  createpoll.checkExpired(client).catch(error => {
+    console.error("[POLL TIMER]", error);
+  });
+}, 15000);
+
 setInterval(async () => {
 
   const blacklistData = loadBlacklist();
@@ -3356,6 +3368,21 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "createpoll"
+) {
+  return createpoll.create(interaction);
+}
+
+if (
+  interaction.isStringSelectMenu() &&
+  interaction.customId.startsWith("poll_vote_")
+) {
+  return createpoll.vote(interaction);
+}
+
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "sendtask"
