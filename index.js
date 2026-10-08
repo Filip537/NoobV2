@@ -2255,8 +2255,7 @@ for (
   const list = page
     .map(
       (growid, index) =>
-        `\`${startNumber + index + 1}.\` **${growid}**`
-    )
+`<:arrow:1442712798969729087> **${growid}**`    )
     .join("\n");
 
   const title =
@@ -8904,8 +8903,7 @@ if (interaction.customId === "blist_fields") {
 
     if (fields.includes("growid")) {
       lines.push(
-        `**${index + 1}. ${entry.growid || "Unknown"}**`
-      );
+`<:arrow:1442712798969729087> **${entry.growid || "Unknown"}**`      );
     }
 
     if (fields.includes("reason")) {
@@ -9084,8 +9082,7 @@ if (interaction.customId.startsWith("blist_mode_")) {
 
     if (fields.includes("growid")) {
       lines.push(
-        `**${index + 1}. ${entry.growid || "Unknown"}**`
-      );
+`<:arrow:1442712798969729087> **${entry.growid || "Unknown"}**`      );
     }
 
     if (fields.includes("reason")) {
@@ -11053,8 +11050,7 @@ console.log(
           const entry = match.entry;
 
           return (
-            `### 🚨 ${index + 1}. ${entry.growid}\n` +
-            `**Reason:** ${entry.reason || "Unknown"}\n` +
+`### <:arrow:1442712798969729087> ${entry.growid}\n` +            `**Reason:** ${entry.reason || "Unknown"}\n` +
             `**Proof:** ${entry.proof || "Unknown"}`
           );
 
