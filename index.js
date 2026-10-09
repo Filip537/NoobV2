@@ -3567,7 +3567,7 @@ if (
     avatar.contentType === "image/svg+xml"
   ) {
     return interaction.reply({
-      content: "❌ Upload a PNG, JPG, GIF or WebP image.",
+      content: "❌ Please upload a valid image.",
       ephemeral: true
     });
   }
@@ -3578,23 +3578,22 @@ if (
     await interaction.guild.members.fetch(targetUser.id);
   } catch {
     return interaction.editReply({
-      content: "❌ That user is not a member of this server."
+      content: "❌ This user is not in the server."
     });
   }
 
   try {
-    await targetUser.send({
+    await interaction.channel.send({
       content:
-        `**Server Avatar Request**\n\n` +
-        `An administrator of **${interaction.guild.name}** ` +
-        `has requested that you use the attached image as your server avatar.\n\n` +
-        `**How to apply:**\n` +
-        `1. Open the server's **Edit Server Profile** settings.\n` +
-        `2. Upload the attached image as your server avatar.\n` +
+        `**Server Avatar Change**\n\n` +
+        `**Member:** ${targetUser}\n` +
+        `**Requested by:** ${interaction.user}\n\n` +
+        `To apply this avatar:\n` +
+        `1. Open **Edit Server Profile**.\n` +
+        `2. Upload the image below.\n` +
         `3. Save your changes.\n\n` +
-        `You can remove it later in the same settings. ` +
-        `Your main Discord avatar will not change.\n\n` +
-        `This is optional and may require Discord Nitro.`,
+        `You can remove the avatar anytime through your server profile settings.\n` +
+        `Your global Discord avatar will remain unchanged.`,
       files: [
         {
           attachment: avatar.url,
@@ -3604,18 +3603,14 @@ if (
     });
 
     return interaction.editReply({
-      content:
-        `✅ Server avatar request sent to ${targetUser} via DM.\n` +
-        `The member must apply it themselves.`
+      content: `✅ Server avatar instructions posted for ${targetUser}.`
     });
 
   } catch (error) {
     console.error("[changeavatar]", error);
 
     return interaction.editReply({
-      content:
-        "❌ Could not send the avatar request. " +
-        "The member may have DMs disabled."
+      content: "❌ Failed to post the server avatar instructions."
     });
   }
 }
