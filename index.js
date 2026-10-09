@@ -61,10 +61,6 @@ function getBlacklistMatch(detectedName, blacklist) {
   const detected = normalizeGrowID(detectedName);
 
   if (!detected) return null;
-
-  // ==========================================
-  // 1. EXACT MATCH - ALWAYS ACCEPT
-  // ==========================================
   for (const entry of blacklist) {
     if (!entry?.growid) continue;
 
@@ -80,9 +76,6 @@ function getBlacklistMatch(detectedName, blacklist) {
     }
   }
 
-  // ==========================================
-  // 2. VERY STRICT OCR FUZZY MATCH
-  // ==========================================
   let bestMatch = null;
 
   for (const entry of blacklist) {
@@ -6670,16 +6663,19 @@ if (interaction.commandName === "spk") {
     // AVATAR PRIORITY:
     // custom avatar -> selected user's avatar -> bot avatar
     const webhookAvatar =
-      customAvatar?.url ||
-member ? getBotAvatar(member.user) : null ||
-      targetUser?.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      }) ||
-      interaction.client.user.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      });
+    customAvatar?.url ??
+    member?.displayAvatarURL({
+      extension: "png",
+      size: 1024
+    }) ??
+    targetUser?.displayAvatarURL({
+      extension: "png",
+      size: 1024
+    }) ??
+    interaction.client.user.displayAvatarURL({
+      extension: "png",
+      size: 1024
+    });
 
     const webhook = await targetChannel.createWebhook({
       name: webhookName.slice(0, 80),
