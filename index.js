@@ -3545,11 +3545,14 @@ if (
     ephemeral: true
   });
 }
-  if (
+if (
   interaction.isChatInputCommand() &&
-  interaction.commandName === "changeavar"
+  interaction.commandName === "changeavatar"
 ) {
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+  if (
+    !interaction.guild ||
+    !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+  ) {
     return interaction.reply({
       content: "❌ Administrator only.",
       ephemeral: true
@@ -3559,38 +3562,62 @@ if (
   const targetUser = interaction.options.getUser("user", true);
   const avatar = interaction.options.getAttachment("avatar", true);
 
-  if (!avatar.contentType?.startsWith("image/")) {
+  if (
+    !avatar.contentType?.startsWith("image/") ||
+    avatar.contentType === "image/svg+xml"
+  ) {
     return interaction.reply({
-      content: "❌ Please upload a valid image.",
+      content: "❌ Upload a PNG, JPG, GIF or WebP image.",
       ephemeral: true
     });
   }
 
-  const expiresAt = Date.now() + 5 * 60 * 1000;
+  await interaction.deferReply({ ephemeral: true });
 
-  temporaryAvatars.set(targetUser.id, {
-    url: avatar.url,
-    expiresAt
-  });
+  try {
+    await interaction.guild.members.fetch(targetUser.id);
+  } catch {
+    return interaction.editReply({
+      content: "❌ That user is not a member of this server."
+    });
+  }
 
-  const savedExpiry = expiresAt;
+  try {
+    await targetUser.send({
+      content:
+        `**Server Avatar Request**\n\n` +
+        `An administrator of **${interaction.guild.name}** ` +
+        `has requested that you use the attached image as your server avatar.\n\n` +
+        `**How to apply:**\n` +
+        `1. Open the server's **Edit Server Profile** settings.\n` +
+        `2. Upload the attached image as your server avatar.\n` +
+        `3. Save your changes.\n\n` +
+        `You can remove it later in the same settings. ` +
+        `Your main Discord avatar will not change.\n\n` +
+        `This is optional and may require Discord Nitro.`,
+      files: [
+        {
+          attachment: avatar.url,
+          name: "server-avatar.png"
+        }
+      ]
+    });
 
-  setTimeout(() => {
-    const current = temporaryAvatars.get(targetUser.id);
+    return interaction.editReply({
+      content:
+        `✅ Server avatar request sent to ${targetUser} via DM.\n` +
+        `The member must apply it themselves.`
+    });
 
-    if (
-      current &&
-      current.expiresAt === savedExpiry
-    ) {
-      temporaryAvatars.delete(targetUser.id);
-    }
-  }, 5 * 60 * 1000);
+  } catch (error) {
+    console.error("[changeavatar]", error);
 
-  return interaction.reply({
-    content:
-      `✅ ${targetUser}'s temporary bot avatar has been changed for 5 minutes.`,
-    ephemeral: true
-  });
+    return interaction.editReply({
+      content:
+        "❌ Could not send the avatar request. " +
+        "The member may have DMs disabled."
+    });
+  }
 }
   if (
   interaction.isChatInputCommand() &&
