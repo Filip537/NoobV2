@@ -10515,14 +10515,14 @@ client.on("messageCreate", async (message) => {
   if (!message.guild) {
     return;
   }
-// ================= ADMIN /WHO BLACKLIST CHECK =================
+// ================= /WHO BLACKLIST CHECK =================
 
-const BLACKLIST_SCREENSHOT_CHANNEL = "1539978534003675276";
+const BLACKLIST_SCREENSHOT_CHANNELS = [
+  "1539978534003675276",
+  "1559161055811207210"
+];
 
-if (
-  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL &&
-  message.member?.permissions.has(PermissionFlagsBits.Administrator)
-) {
+if (BLACKLIST_SCREENSHOT_CHANNELS.includes(message.channel.id)) {
 
   // Only care about actual image attachments
   const images = message.attachments.filter(attachment => {
