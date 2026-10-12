@@ -5,31 +5,14 @@ const sharp = require("sharp");
 const puppeteer = require("puppeteer");
 let ocrWorker = null;
 
-let ocrWorkerPromise = null;
-let ocrQueue = Promise.resolve();
-
 async function getOCRWorker() {
-  if (!ocrWorkerPromise) {
+  if (!ocrWorker) {
     console.log("Loading OCR worker...");
-
-    ocrWorkerPromise = createWorker("eng").catch(error => {
-      ocrWorkerPromise = null;
-      throw error;
-    });
+    ocrWorker = await createWorker("eng");
+    console.log("OCR worker ready.");
   }
 
-  return ocrWorkerPromise;
-}
-
-function runOCRScan(callback) {
-  const task = ocrQueue.then(callback);
-
-  // A failed scan must not block future scans.
-  ocrQueue = task.catch(error => {
-    console.error("[OCR QUEUE]", error);
-  });
-
-  return task;
+  return ocrWorker;
 }
 
 function normalizeGrowID(value) {
@@ -847,89 +830,6 @@ function saveAiMemory(data) {
   fs.writeFileSync(aiMemoryFile, JSON.stringify(data, null, 2));
 }
 const fs = require("fs");
-const SCAN_CHANNEL_ID = "1539978534003675276";
-const SCAN_SETTINGS_FILE = path.join(__dirname, "scanSettings.json");
-
-let scanSettings = {};
-
-try {
-  scanSettings = JSON.parse(
-    fs.readFileSync(SCAN_SETTINGS_FILE, "utf8")
-  );
-} catch {
-  scanSettings = {};
-}
-
-function saveScanSettings() {
-  fs.writeFileSync(
-    SCAN_SETTINGS_FILE,
-    JSON.stringify(scanSettings, null, 2)
-  );
-}
-
-function isScanUnlocked(guildId) {
-  return scanSettings[guildId] === true;
-}
-
-function canUseBlacklistScan(member, channelId, guildId) {
-  if (isScanUnlocked(guildId)) return true;
-
-  return (
-    member.permissions.has(PermissionFlagsBits.Administrator) &&
-    channelId === SCAN_CHANNEL_ID
-  );
-}
-
-async function createBlacklistScanResponse(message) {
-  const fallbackReply = () =>
-    message.reply({
-      content: "Checking screenshot for Growtopia /who...",
-      allowedMentions: { repliedUser: false }
-    });
-
-  // Admin scans use the normal bot message.
-  if (message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return fallbackReply();
-  }
-
-  let webhook;
-
-  try {
-    webhook = await message.channel.createWebhook({
-      name: "Blacklist Scanner",
-      reason: "Temporary webhook for blacklist screenshot scanning"
-    });
-
-    const sentMessage = await webhook.send({
-      content: "Checking screenshot for Growtopia /who...",
-      allowedMentions: { parse: [] },
-      wait: true
-    });
-
-    // Keep compatibility with existing scanningMessage.edit() calls.
-    return {
-      edit: async (options) => {
-        try {
-          return await webhook.editMessage(sentMessage.id, options);
-        } finally {
-          await webhook.delete(
-            "Blacklist screenshot scan completed"
-          ).catch(console.error);
-        }
-      }
-    };
-
-  } catch (error) {
-    console.error("Blacklist scanner webhook error:", error);
-
-    if (webhook) {
-      await webhook.delete().catch(console.error);
-    }
-
-    return fallbackReply();
-  }
-}
-
 const cron = require("node-cron");
 const activityStatsFile = "./activityStats.json";
 
@@ -10590,57 +10490,7 @@ if (interaction.isChannelSelectMenu()) {
 });
 
 client.on("messageCreate", async (message) => {
-  if (!message.guild || message.author.bot) return;
-
-const scanCommand = message.content.trim().toLowerCase();
-
-if (
-  scanCommand === "!unlockscan" ||
-  scanCommand === "!lockscan"
-) {
-  if (
-    !message.member.permissions.has(
-      PermissionFlagsBits.Administrator
-    )
-  ) {
-    await message.reply(
-      "You need Administrator permission to use this command."
-    );
-    return;
-  }
-
-  const unlock = scanCommand === "!unlockscan";
-
-  if (isScanUnlocked(message.guild.id) === unlock) {
-    await message.reply(
-      unlock
-        ? "Blacklist scanning is already unlocked."
-        : "Blacklist scanning is already locked."
-    );
-    return;
-  }
-
-  scanSettings[message.guild.id] = unlock;
-
-  try {
-    saveScanSettings();
-  } catch (error) {
-    console.error("Failed to save scan settings:", error);
-
-    await message.reply(
-      "Failed to save the blacklist scanning settings."
-    );
-    return;
-  }
-
-  await message.reply(
-    unlock
-      ? "**Blacklist Scanner Unlocked**\nEveryone can now scan blacklisted users in any channel."
-      : `**Blacklist Scanner Locked**\nOnly administrators can scan blacklisted users in <#${SCAN_CHANNEL_ID}>.`
-  );
-
-  return;
-}
+  
   if (
   message.channel.id === LOCKE_SOURCE_CHANNEL &&
   !message.author.bot
@@ -10667,14 +10517,13 @@ if (
   }
 // ================= ADMIN /WHO BLACKLIST CHECK =================
 
-const BLACKLIST_SCREENSHOT_CHANNEL = "1539978534003675276";
-
+(
+  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL ||
+  message.channel.id === "1559161055811207210"
+)
 if (
-  canUseBlacklistScan(
-    message.member,
-    message.channel.id,
-    message.guild.id
-  )
+  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL &&
+  message.member?.permissions.has(PermissionFlagsBits.Administrator)
 ) {
 
   // Only care about actual image attachments
@@ -10696,7 +10545,12 @@ if (
 
     const image = images.first();
 
-const scanningMessage = await createBlacklistScanResponse(message);
+    const scanningMessage = await message.reply({
+      content: "Checking screenshot for Growtopia /who...",
+      allowedMentions: {
+        repliedUser: false
+      }
+    });
 
     try {
 
@@ -10749,14 +10603,13 @@ const processedImage2 = await sharp(imageBuffer)
   .png()
   .toBuffer();
 
-const [result1, result2] = await runOCRScan(async () => {
-  const worker = await getOCRWorker();
+const worker = await getOCRWorker();
 
-  const first = await worker.recognize(processedImage1);
-  const second = await worker.recognize(processedImage2);
+const result1 =
+  await worker.recognize(processedImage1);
 
-  return [first, second];
-});
+const result2 =
+  await worker.recognize(processedImage2);
   const text1 = result1.data.text || "";
   const text2 = result2.data.text || "";
   
@@ -10792,33 +10645,9 @@ const [result1, result2] = await runOCRScan(async () => {
       // Detect:
       // Who's in NOOBV2:
       // Who’s in NOOBV2:
-const cleanedLine = line
-  .replace(/[‘’`´]/g, "'")
-  .replace(/[|]/g, "l");
-
-let whoMatch = cleanedLine.match(
-  /\bw[hli1]o\s*'?s?\s+[i1l]n\s+[^:]{2,40}:\s*(.*)$/i
-);
-
-// Fallback for OCR that reads the heading incorrectly.
-// Require a colon and multiple comma-separated names.
-if (!whoMatch) {
-  const colonIndex = cleanedLine.indexOf(":");
-
-  if (colonIndex !== -1) {
-    const beforeColon = cleanedLine.slice(0, colonIndex);
-    const afterColon = cleanedLine.slice(colonIndex + 1);
-
-    const looksLikeWhoHeading =
-      /(?:wh[o0]|w[hli1][o0]|[i1l]n)/i.test(beforeColon) &&
-      beforeColon.length <= 85 &&
-      (afterColon.match(/,/g) || []).length >= 2;
-
-    if (looksLikeWhoHeading) {
-      whoMatch = [cleanedLine, afterColon];
-    }
-  }
-}
+      const whoMatch = line.match(
+        /who['’]?\s*s?\s+in\s+[^:]+:\s*(.*)$/i
+      );
   
       if (whoMatch) {
         collecting = true;
