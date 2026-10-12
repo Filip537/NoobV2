@@ -10517,10 +10517,8 @@ client.on("messageCreate", async (message) => {
   }
 // ================= ADMIN /WHO BLACKLIST CHECK =================
 
-(
-  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL ||
-  message.channel.id === "1559161055811207210"
-)
+const BLACKLIST_SCREENSHOT_CHANNEL = "1539978534003675276";
+
 if (
   message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL &&
   message.member?.permissions.has(PermissionFlagsBits.Administrator)
