@@ -862,6 +862,57 @@ function canUseBlacklistScan(member, channelId, guildId) {
     channelId === SCAN_CHANNEL_ID
   );
 }
+
+async function createBlacklistScanResponse(message) {
+  const fallbackReply = () =>
+    message.reply({
+      content: "Checking screenshot for Growtopia /who...",
+      allowedMentions: { repliedUser: false }
+    });
+
+  // Admin scans use the normal bot message.
+  if (message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return fallbackReply();
+  }
+
+  let webhook;
+
+  try {
+    webhook = await message.channel.createWebhook({
+      name: "Blacklist Scanner",
+      reason: "Temporary webhook for blacklist screenshot scanning"
+    });
+
+    const sentMessage = await webhook.send({
+      content: "Checking screenshot for Growtopia /who...",
+      allowedMentions: { parse: [] },
+      wait: true
+    });
+
+    // Keep compatibility with existing scanningMessage.edit() calls.
+    return {
+      edit: async (options) => {
+        try {
+          return await webhook.editMessage(sentMessage.id, options);
+        } finally {
+          await webhook.delete(
+            "Blacklist screenshot scan completed"
+          ).catch(console.error);
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error("Blacklist scanner webhook error:", error);
+
+    if (webhook) {
+      await webhook.delete().catch(console.error);
+    }
+
+    return fallbackReply();
+  }
+}
+
 const cron = require("node-cron");
 const activityStatsFile = "./activityStats.json";
 
@@ -10628,12 +10679,7 @@ if (
 
     const image = images.first();
 
-    const scanningMessage = await message.reply({
-      content: "Checking screenshot for Growtopia /who...",
-      allowedMentions: {
-        repliedUser: false
-      }
-    });
+const scanningMessage = await createBlacklistScanResponse(message);
 
     try {
 
