@@ -5,14 +5,31 @@ const sharp = require("sharp");
 const puppeteer = require("puppeteer");
 let ocrWorker = null;
 
+let ocrWorkerPromise = null;
+let ocrQueue = Promise.resolve();
+
 async function getOCRWorker() {
-  if (!ocrWorker) {
+  if (!ocrWorkerPromise) {
     console.log("Loading OCR worker...");
-    ocrWorker = await createWorker("eng");
-    console.log("OCR worker ready.");
+
+    ocrWorkerPromise = createWorker("eng").catch(error => {
+      ocrWorkerPromise = null;
+      throw error;
+    });
   }
 
-  return ocrWorker;
+  return ocrWorkerPromise;
+}
+
+function runOCRScan(callback) {
+  const task = ocrQueue.then(callback);
+
+  // A failed scan must not block future scans.
+  ocrQueue = task.catch(error => {
+    console.error("[OCR QUEUE]", error);
+  });
+
+  return task;
 }
 
 function normalizeGrowID(value) {
@@ -863,6 +880,55 @@ function canUseBlacklistScan(member, channelId, guildId) {
   );
 }
 
+async function createBlacklistScanResponse(message) {
+  const fallbackReply = () =>
+    message.reply({
+      content: "Checking screenshot for Growtopia /who...",
+      allowedMentions: { repliedUser: false }
+    });
+
+  // Admin scans use the normal bot message.
+  if (message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return fallbackReply();
+  }
+
+  let webhook;
+
+  try {
+    webhook = await message.channel.createWebhook({
+      name: "Blacklist Scanner",
+      reason: "Temporary webhook for blacklist screenshot scanning"
+    });
+
+    const sentMessage = await webhook.send({
+      content: "Checking screenshot for Growtopia /who...",
+      allowedMentions: { parse: [] },
+      wait: true
+    });
+
+    // Keep compatibility with existing scanningMessage.edit() calls.
+    return {
+      edit: async (options) => {
+        try {
+          return await webhook.editMessage(sentMessage.id, options);
+        } finally {
+          await webhook.delete(
+            "Blacklist screenshot scan completed"
+          ).catch(console.error);
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error("Blacklist scanner webhook error:", error);
+
+    if (webhook) {
+      await webhook.delete().catch(console.error);
+    }
+
+    return fallbackReply();
+  }
+}
 
 const cron = require("node-cron");
 const activityStatsFile = "./activityStats.json";
@@ -10630,12 +10696,7 @@ if (
 
     const image = images.first();
 
-    const scanningMessage = await message.reply({
-      content: "Checking screenshot for Growtopia /who...",
-      allowedMentions: {
-        repliedUser: false
-      }
-    });
+const scanningMessage = await createBlacklistScanResponse(message);
 
     try {
 
@@ -10688,13 +10749,14 @@ const processedImage2 = await sharp(imageBuffer)
   .png()
   .toBuffer();
 
-const worker = await getOCRWorker();
+const [result1, result2] = await runOCRScan(async () => {
+  const worker = await getOCRWorker();
 
-const result1 =
-  await worker.recognize(processedImage1);
+  const first = await worker.recognize(processedImage1);
+  const second = await worker.recognize(processedImage2);
 
-const result2 =
-  await worker.recognize(processedImage2);
+  return [first, second];
+});
   const text1 = result1.data.text || "";
   const text2 = result2.data.text || "";
   
@@ -10730,9 +10792,33 @@ const result2 =
       // Detect:
       // Who's in NOOBV2:
       // Who’s in NOOBV2:
-      const whoMatch = line.match(
-        /who['’]?\s*s?\s+in\s+[^:]+:\s*(.*)$/i
-      );
+const cleanedLine = line
+  .replace(/[‘’`´]/g, "'")
+  .replace(/[|]/g, "l");
+
+let whoMatch = cleanedLine.match(
+  /\bw[hli1]o\s*'?s?\s+[i1l]n\s+[^:]{2,40}:\s*(.*)$/i
+);
+
+// Fallback for OCR that reads the heading incorrectly.
+// Require a colon and multiple comma-separated names.
+if (!whoMatch) {
+  const colonIndex = cleanedLine.indexOf(":");
+
+  if (colonIndex !== -1) {
+    const beforeColon = cleanedLine.slice(0, colonIndex);
+    const afterColon = cleanedLine.slice(colonIndex + 1);
+
+    const looksLikeWhoHeading =
+      /(?:wh[o0]|w[hli1][o0]|[i1l]n)/i.test(beforeColon) &&
+      beforeColon.length <= 85 &&
+      (afterColon.match(/,/g) || []).length >= 2;
+
+    if (looksLikeWhoHeading) {
+      whoMatch = [cleanedLine, afterColon];
+    }
+  }
+}
   
       if (whoMatch) {
         collecting = true;
