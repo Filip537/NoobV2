@@ -61,6 +61,10 @@ function getBlacklistMatch(detectedName, blacklist) {
   const detected = normalizeGrowID(detectedName);
 
   if (!detected) return null;
+
+  // ==========================================
+  // 1. EXACT MATCH - ALWAYS ACCEPT
+  // ==========================================
   for (const entry of blacklist) {
     if (!entry?.growid) continue;
 
@@ -76,6 +80,9 @@ function getBlacklistMatch(detectedName, blacklist) {
     }
   }
 
+  // ==========================================
+  // 2. VERY STRICT OCR FUZZY MATCH
+  // ==========================================
   let bestMatch = null;
 
   for (const entry of blacklist) {
@@ -823,6 +830,38 @@ function saveAiMemory(data) {
   fs.writeFileSync(aiMemoryFile, JSON.stringify(data, null, 2));
 }
 const fs = require("fs");
+const SCAN_CHANNEL_ID = "1539978534003675276";
+const SCAN_SETTINGS_FILE = path.join(__dirname, "scanSettings.json");
+
+let scanSettings = {};
+
+try {
+  scanSettings = JSON.parse(
+    fs.readFileSync(SCAN_SETTINGS_FILE, "utf8")
+  );
+} catch {
+  scanSettings = {};
+}
+
+function saveScanSettings() {
+  fs.writeFileSync(
+    SCAN_SETTINGS_FILE,
+    JSON.stringify(scanSettings, null, 2)
+  );
+}
+
+function isScanUnlocked(guildId) {
+  return scanSettings[guildId] === true;
+}
+
+function canUseBlacklistScan(member, channelId, guildId) {
+  if (isScanUnlocked(guildId)) return true;
+
+  return (
+    member.permissions.has(PermissionFlagsBits.Administrator) &&
+    channelId === SCAN_CHANNEL_ID
+  );
+}
 const cron = require("node-cron");
 const activityStatsFile = "./activityStats.json";
 
@@ -3545,14 +3584,11 @@ if (
     ephemeral: true
   });
 }
-if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "changeavatar"
-) {
   if (
-    !interaction.guild ||
-    !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-  ) {
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "changeavar"
+) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({
       content: "❌ Administrator only.",
       ephemeral: true
@@ -3562,57 +3598,38 @@ if (
   const targetUser = interaction.options.getUser("user", true);
   const avatar = interaction.options.getAttachment("avatar", true);
 
-  if (
-    !avatar.contentType?.startsWith("image/") ||
-    avatar.contentType === "image/svg+xml"
-  ) {
+  if (!avatar.contentType?.startsWith("image/")) {
     return interaction.reply({
       content: "❌ Please upload a valid image.",
       ephemeral: true
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  const expiresAt = Date.now() + 5 * 60 * 1000;
 
-  try {
-    await interaction.guild.members.fetch(targetUser.id);
-  } catch {
-    return interaction.editReply({
-      content: "❌ This user is not in the server."
-    });
-  }
+  temporaryAvatars.set(targetUser.id, {
+    url: avatar.url,
+    expiresAt
+  });
 
-  try {
-    await interaction.channel.send({
-      content:
-        `**Server Avatar Change**\n\n` +
-        `**Member:** ${targetUser}\n` +
-        `**Requested by:** ${interaction.user}\n\n` +
-        `To apply this avatar:\n` +
-        `1. Open **Edit Server Profile**.\n` +
-        `2. Upload the image below.\n` +
-        `3. Save your changes.\n\n` +
-        `You can remove the avatar anytime through your server profile settings.\n` +
-        `Your global Discord avatar will remain unchanged.`,
-      files: [
-        {
-          attachment: avatar.url,
-          name: "server-avatar.png"
-        }
-      ]
-    });
+  const savedExpiry = expiresAt;
 
-    return interaction.editReply({
-      content: `✅ Server avatar instructions posted for ${targetUser}.`
-    });
+  setTimeout(() => {
+    const current = temporaryAvatars.get(targetUser.id);
 
-  } catch (error) {
-    console.error("[changeavatar]", error);
+    if (
+      current &&
+      current.expiresAt === savedExpiry
+    ) {
+      temporaryAvatars.delete(targetUser.id);
+    }
+  }, 5 * 60 * 1000);
 
-    return interaction.editReply({
-      content: "❌ Failed to post the server avatar instructions."
-    });
-  }
+  return interaction.reply({
+    content:
+      `✅ ${targetUser}'s temporary bot avatar has been changed for 5 minutes.`,
+    ephemeral: true
+  });
 }
   if (
   interaction.isChatInputCommand() &&
@@ -6685,19 +6702,16 @@ if (interaction.commandName === "spk") {
     // AVATAR PRIORITY:
     // custom avatar -> selected user's avatar -> bot avatar
     const webhookAvatar =
-    customAvatar?.url ??
-    member?.displayAvatarURL({
-      extension: "png",
-      size: 1024
-    }) ??
-    targetUser?.displayAvatarURL({
-      extension: "png",
-      size: 1024
-    }) ??
-    interaction.client.user.displayAvatarURL({
-      extension: "png",
-      size: 1024
-    });
+      customAvatar?.url ||
+member ? getBotAvatar(member.user) : null ||
+      targetUser?.displayAvatarURL({
+        extension: "png",
+        size: 1024
+      }) ||
+      interaction.client.user.displayAvatarURL({
+        extension: "png",
+        size: 1024
+      });
 
     const webhook = await targetChannel.createWebhook({
       name: webhookName.slice(0, 80),
@@ -10508,6 +10522,57 @@ if (interaction.isChannelSelectMenu()) {
 });
 
 client.on("messageCreate", async (message) => {
+  if (!message.guild || message.author.bot) return;
+
+const scanCommand = message.content.trim().toLowerCase();
+
+if (
+  scanCommand === "!unlockscan" ||
+  scanCommand === "!lockscan"
+) {
+  if (
+    !message.member.permissions.has(
+      PermissionFlagsBits.Administrator
+    )
+  ) {
+    await message.reply(
+      "You need Administrator permission to use this command."
+    );
+    return;
+  }
+
+  const unlock = scanCommand === "!unlockscan";
+
+  if (isScanUnlocked(message.guild.id) === unlock) {
+    await message.reply(
+      unlock
+        ? "Blacklist scanning is already unlocked."
+        : "Blacklist scanning is already locked."
+    );
+    return;
+  }
+
+  scanSettings[message.guild.id] = unlock;
+
+  try {
+    saveScanSettings();
+  } catch (error) {
+    console.error("Failed to save scan settings:", error);
+
+    await message.reply(
+      "Failed to save the blacklist scanning settings."
+    );
+    return;
+  }
+
+  await message.reply(
+    unlock
+      ? "**Blacklist Scanner Unlocked**\nEveryone can now scan blacklisted users in any channel."
+      : `**Blacklist Scanner Locked**\nOnly administrators can scan blacklisted users in <#${SCAN_CHANNEL_ID}>.`
+  );
+
+  return;
+}
   if (
   message.channel.id === LOCKE_SOURCE_CHANNEL &&
   !message.author.bot
@@ -10537,8 +10602,11 @@ client.on("messageCreate", async (message) => {
 const BLACKLIST_SCREENSHOT_CHANNEL = "1539978534003675276";
 
 if (
-  message.channel.id === BLACKLIST_SCREENSHOT_CHANNEL &&
-  message.member?.permissions.has(PermissionFlagsBits.Administrator)
+  canUseBlacklistScan(
+    message.member,
+    message.channel.id,
+    message.guild.id
+  )
 ) {
 
   // Only care about actual image attachments
