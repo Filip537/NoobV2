@@ -742,12 +742,7 @@ new SlashCommandBuilder()
       .setDescription("Example: 10 wl, 1 alpha shark")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("createmarketchannels")
-  .setDescription("Create all 25 marketplace channels")
-  .setDefaultMemberPermissions(
-    PermissionFlagsBits.Administrator
-  ),
+  
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),

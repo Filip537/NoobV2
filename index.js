@@ -300,6 +300,7 @@ const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
+const marketSync = require("./feature/marketsync.js");
 const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
@@ -1115,6 +1116,7 @@ intents: [
 ],
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
+marketSync.startMarketSync(client);
 const sharkfinReplyFile = "./sharkfinReplies.json";
 
 function loadSharkfinReplies() {
@@ -3368,176 +3370,7 @@ async function getGTPrice(itemName) {
 
 client.on("interactionCreate", async (interaction) => {
   
-  // ========================================
-// TEMPORARY MARKET CHANNEL CREATOR
-// ========================================
-
-if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "createmarketchannels"
-) {
-  const {
-    ChannelType,
-    PermissionFlagsBits,
-  } = require("discord.js");
-
-  if (
-    !interaction.memberPermissions?.has(
-      PermissionFlagsBits.Administrator
-    )
-  ) {
-    return interaction.reply({
-      content: "❌ Administrator permission required.",
-      ephemeral: true
-    });
-  }
-
-  await interaction.deferReply({ ephemeral: true });
-
-  const CATEGORY_ID = "1553581191305895996";
-
-  const channels = [
-    "🍓・buy-sell-consumables",
-    "💼・buy-sell-services",
-    "🌎・buy-sell-worlds",
-    "🥷・buy-sell-crime",
-    "💎・buy-sell-gems",
-    "✨・buy-sell-ancestral",
-    "🧪・buy-sell-science",
-    "😊・buy-sell-growmoji",
-    "🧃・buy-sell-packs",
-    "🎨・buy-sell-paints",
-    "🧶・buy-sell-silk",
-    "💥・buy-sell-blast",
-    "🔮・buy-sell-crystals",
-    "🌈・buy-sell-machine",
-    "🎉・buy-sell-jammers",
-    "💣・buy-sell-mines",
-    "🔐・buy-sell-locks",
-    "🎹・buy-sell-music",
-    "🦄・buy-sell-unicorn",
-    "💨・buy-sell-steam",
-    "🧰・buy-sell-providers",
-    "🐉・buy-sell-adventure",
-    "🪨・buy-sell-treasure-map",
-    "🧙・buy-sell-dungeons",
-    "🪄・buy-sell-role-drops",
-  ];
-
-  try {
-    const guild = interaction.guild;
-
-    if (!guild) {
-      return interaction.editReply(
-        "❌ This command must be used in a server."
-      );
-    }
-
-    const category = await guild.channels.fetch(
-      CATEGORY_ID
-    ).catch(() => null);
-
-    if (
-      !category ||
-      category.type !== ChannelType.GuildCategory
-    ) {
-      return interaction.editReply(
-        "❌ Marketplace category not found."
-      );
-    }
-
-    const bot = await guild.members.fetchMe();
-
-    if (
-      !bot.permissions.has(
-        PermissionFlagsBits.ManageChannels
-      )
-    ) {
-      return interaction.editReply(
-        "❌ NoobV2 needs Manage Channels permission."
-      );
-    }
-
-    const allChannels = await guild.channels.fetch();
-
-    const existing = new Map(
-      [...allChannels.values()]
-        .filter(c => c && c.parentId === CATEGORY_ID)
-        .map(c => [c.name, c])
-    );
-
-    let created = 0;
-    let skipped = 0;
-    const errors = [];
-
-    for (const name of channels) {
-      if (existing.has(name)) {
-        skipped++;
-        continue;
-      }
-
-      try {
-        const channel = await guild.channels.create({
-          name,
-          type: ChannelType.GuildText,
-          parent: CATEGORY_ID,
-          topic: "NoobV2 Growtopia Marketplace",
-          reason: "Marketplace channel setup"
-        });
-
-        existing.set(name, channel);
-        created++;
-
-        console.log(`[MARKET] Created ${name}`);
-
-      } catch (err) {
-        console.error(
-          `[MARKET] Failed to create ${name}:`,
-          err
-        );
-
-        errors.push(name);
-      }
-    }
-
-    // Arrange marketplace channels in screenshot order.
-    // This only runs when all channels are available.
-    if (errors.length === 0) {
-      try {
-        const positions = channels.map((name, index) => ({
-          channel: existing.get(name).id,
-          position: index
-        }));
-
-        await guild.channels.setPositions(positions);
-
-      } catch (err) {
-        console.error(
-          "[MARKET] Could not reorder channels:",
-          err
-        );
-      }
-    }
-
-    return interaction.editReply(
-      `✅ **Marketplace Channel Setup Complete!**\n\n` +
-      `📁 Category: <#${CATEGORY_ID}>\n` +
-      `🟢 Created: **${created}**\n` +
-      `⏭️ Already existed: **${skipped}**\n` +
-      `❌ Failed: **${errors.length}**\n\n` +
-      (errors.length
-        ? `Failed channels:\n${errors.join("\n")}`
-        : "All marketplace channels are available.")
-    );
-
-  } catch (err) {
-    console.error("[MARKET CHANNEL SETUP]", err);
-
-    return interaction.editReply(
-      "❌ An error occurred while creating the channels."
-    );
-  }
-}
+  
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "createpoll"
