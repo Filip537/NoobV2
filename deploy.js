@@ -761,94 +761,7 @@ new SlashCommandBuilder()
       .setDescription('Type DELETE to confirm')
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("sendmarketpanel")
-  .setDescription("Send the NoobV2 marketplace panel")
-  .setDefaultMemberPermissions(
-    PermissionFlagsBits.Administrator
-  ),
-new SlashCommandBuilder()
-  .setName("marketlist")
-  .setDescription("Browse all available marketplace listings")
-  .addIntegerOption(o =>
-    o.setName("page")
-      .setDescription("Page number")
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("marketsearch")
-  .setDescription("Search for Growtopia marketplace items")
-  .addStringOption(o =>
-    o.setName("item")
-      .setDescription("Item name")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("page")
-      .setDescription("Page number")
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("mymarket")
-  .setDescription("View your marketplace listings")
-  .addIntegerOption(o =>
-    o.setName("page")
-      .setDescription("Page number")
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("editmarket")
-  .setDescription("Update a marketplace listing price")
-  .addStringOption(o =>
-    o.setName("id")
-      .setDescription("Listing ID")
-      .setRequired(true)
-  )
-  .addIntegerOption(o =>
-    o.setName("price")
-      .setDescription("New price in WL")
-      .setRequired(true)
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("marketfilter")
-  .setDescription("Find marketplace items within your budget")
-  .addIntegerOption(o =>
-    o.setName("maxprice")
-      .setDescription("Maximum price in WL")
-      .setRequired(true)
-      .setMinValue(1)
-  )
-  .addIntegerOption(o =>
-    o.setName("minprice")
-      .setDescription("Minimum price in WL")
-      .setMinValue(0)
-  )
-  .addIntegerOption(o =>
-    o.setName("page")
-      .setDescription("Page number")
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("marketprofile")
-  .setDescription("View a seller's marketplace listings")
-  .addUserOption(o =>
-    o.setName("seller")
-      .setDescription("Select a seller")
-  )
-  .addIntegerOption(o =>
-    o.setName("page")
-      .setDescription("Page number")
-      .setMinValue(1)
-  ),
-new SlashCommandBuilder()
-  .setName("removemarket")
-  .setDescription("Remove your marketplace listing")
-  .addStringOption(o =>
-    o.setName("id")
-      .setDescription("Listing ID to remove")
-      .setRequired(true)
-  ),
+
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),
@@ -926,10 +839,60 @@ new SlashCommandBuilder()
       .setDescription("Example: 30m, 5h, 1d, 7d")
       .setRequired(true)
   ),
+new SlashCommandBuilder()
+  .setName("gtstatus")
+  .setDescription("Check Growtopia public service information"),
+
+new SlashCommandBuilder()
+  .setName("gtonline")
+  .setDescription("Check the reported number of online Growtopia players"),
+
+new SlashCommandBuilder()
+  .setName("gtwotd")
+  .setDescription("View the current Growtopia World of the Day"),
+
+new SlashCommandBuilder()
+  .setName("gtlink")
+  .setDescription("Register your GrowID with NoobV2")
+  .addStringOption(o =>
+    o.setName("growid")
+      .setDescription("Your Growtopia username")
+      .setRequired(true)
+      .setMinLength(3)
+      .setMaxLength(24)
+  ),
+
+new SlashCommandBuilder()
+  .setName("gtprofile")
+  .setDescription("View a user's registered GrowID")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("Discord member (defaults to yourself)")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("registerworld")
+  .setDescription("Add a Growtopia world to your profile")
+  .addStringOption(o =>
+    o.setName("world")
+      .setDescription("World name")
+      .setRequired(true)
+      .setMaxLength(24)
+  ),
+
+new SlashCommandBuilder()
+  .setName("myworlds")
+  .setDescription("View your registered Growtopia worlds")
+  .addUserOption(o =>
+    o.setName("user")
+      .setDescription("Discord member (defaults to yourself)")
+      .setRequired(false)
+  ),
+
 testLevelCommand.data,
 worldcup.data
 ].map(c => c.toJSON());
-
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 (async () => {
