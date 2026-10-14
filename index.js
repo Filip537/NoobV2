@@ -296,8 +296,9 @@ const createpoll = require("./feature/createpoll.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
-const growtopiaSync = require("./feature/growtopiaSync");const furryTest = require("./feature/furrytest.js");
+const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
+const parkour = require("./feature/parkour");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
 const buildRoleFeature = require("./feature/buildrole");
@@ -3367,11 +3368,6 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-  if (await growtopiaSync.handleInteraction(interaction)) {
-    return;
-  }
-}
   if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "deletecategory"
@@ -3515,6 +3511,36 @@ if (
   return cookingFeature.openShop(interaction);
 }
 
+if (
+  interaction.isButton() &&
+  interaction.customId.startsWith("pk:")
+) {
+  console.log(
+    "[PARKOUR BUTTON RECEIVED]",
+    interaction.customId,
+    interaction.user.id
+  );
+
+  try {
+    await parkour.handleInteraction(interaction);
+
+    console.log(
+      "[PARKOUR BUTTON HANDLED]",
+      interaction.customId
+    );
+  } catch (error) {
+    console.error("[PARKOUR BUTTON ERROR]", error);
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: "Parkour interaction error. Check bot logs.",
+        flags: 64
+      }).catch(console.error);
+    }
+  }
+
+  return;
+}
 if (
   interaction.isButton() &&
   (
