@@ -16,7 +16,7 @@ const CHANNELS = {
 const FILE = path.join(__dirname, '..', 'data', 'parkour.json');
 const sessions = new Map();
 const MAX_SESSION_AGE = 30 * 60 * 1000;
-const COOLDOWN = 350;
+const COOLDOWN = 150;
 let leaderboardUpdate = Promise.resolve();
 
 function load() {
