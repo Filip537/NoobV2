@@ -761,7 +761,6 @@ new SlashCommandBuilder()
       .setDescription('Type DELETE to confirm')
       .setRequired(true)
   ),
-
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),
@@ -839,60 +838,10 @@ new SlashCommandBuilder()
       .setDescription("Example: 30m, 5h, 1d, 7d")
       .setRequired(true)
   ),
-new SlashCommandBuilder()
-  .setName("gtstatus")
-  .setDescription("Check Growtopia public service information"),
-
-new SlashCommandBuilder()
-  .setName("gtonline")
-  .setDescription("Check the reported number of online Growtopia players"),
-
-new SlashCommandBuilder()
-  .setName("gtwotd")
-  .setDescription("View the current Growtopia World of the Day"),
-
-new SlashCommandBuilder()
-  .setName("gtlink")
-  .setDescription("Register your GrowID with NoobV2")
-  .addStringOption(o =>
-    o.setName("growid")
-      .setDescription("Your Growtopia username")
-      .setRequired(true)
-      .setMinLength(3)
-      .setMaxLength(24)
-  ),
-
-new SlashCommandBuilder()
-  .setName("gtprofile")
-  .setDescription("View a user's registered GrowID")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("Discord member (defaults to yourself)")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("registerworld")
-  .setDescription("Add a Growtopia world to your profile")
-  .addStringOption(o =>
-    o.setName("world")
-      .setDescription("World name")
-      .setRequired(true)
-      .setMaxLength(24)
-  ),
-
-new SlashCommandBuilder()
-  .setName("myworlds")
-  .setDescription("View your registered Growtopia worlds")
-  .addUserOption(o =>
-    o.setName("user")
-      .setDescription("Discord member (defaults to yourself)")
-      .setRequired(false)
-  ),
-
 testLevelCommand.data,
 worldcup.data
 ].map(c => c.toJSON());
+
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 (async () => {
