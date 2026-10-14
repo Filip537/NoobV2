@@ -296,6 +296,7 @@ const createpoll = require("./feature/createpoll.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
+const market = require("./feature/market.js");
 const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
@@ -3367,10 +3368,28 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
- 
-  // ==========================================
-  // TEMPORARY /deletecategory
-  // ==========================================
+ if (
+  (interaction.isChatInputCommand() &&
+    market.MARKET_COMMANDS.includes(interaction.commandName)) ||
+(interaction.isButton() &&
+    ["market_add", "market_browse", "market_mine"]
+      .includes(interaction.customId)) ||
+(interaction.isModalSubmit() &&
+    interaction.customId === "market_submit")
+) {
+  try {
+    return await market.handleInteraction(interaction);
+  } catch (error) {
+    console.error("[MARKET ERROR]", error);
+if (!interaction.replied && !interaction.deferred) {
+      return interaction.reply({
+        content: "❌ Marketplace error. Please try again.",
+        flags: 64
+      }).catch(console.error);
+    }
+return;
+  }
+}
 
   if (
     interaction.isChatInputCommand() &&

@@ -761,6 +761,94 @@ new SlashCommandBuilder()
       .setDescription('Type DELETE to confirm')
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("sendmarketpanel")
+  .setDescription("Send the NoobV2 marketplace panel")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  ),
+new SlashCommandBuilder()
+  .setName("marketlist")
+  .setDescription("Browse all available marketplace listings")
+  .addIntegerOption(o =>
+    o.setName("page")
+      .setDescription("Page number")
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("marketsearch")
+  .setDescription("Search for Growtopia marketplace items")
+  .addStringOption(o =>
+    o.setName("item")
+      .setDescription("Item name")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("page")
+      .setDescription("Page number")
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("mymarket")
+  .setDescription("View your marketplace listings")
+  .addIntegerOption(o =>
+    o.setName("page")
+      .setDescription("Page number")
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("editmarket")
+  .setDescription("Update a marketplace listing price")
+  .addStringOption(o =>
+    o.setName("id")
+      .setDescription("Listing ID")
+      .setRequired(true)
+  )
+  .addIntegerOption(o =>
+    o.setName("price")
+      .setDescription("New price in WL")
+      .setRequired(true)
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("marketfilter")
+  .setDescription("Find marketplace items within your budget")
+  .addIntegerOption(o =>
+    o.setName("maxprice")
+      .setDescription("Maximum price in WL")
+      .setRequired(true)
+      .setMinValue(1)
+  )
+  .addIntegerOption(o =>
+    o.setName("minprice")
+      .setDescription("Minimum price in WL")
+      .setMinValue(0)
+  )
+  .addIntegerOption(o =>
+    o.setName("page")
+      .setDescription("Page number")
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("marketprofile")
+  .setDescription("View a seller's marketplace listings")
+  .addUserOption(o =>
+    o.setName("seller")
+      .setDescription("Select a seller")
+  )
+  .addIntegerOption(o =>
+    o.setName("page")
+      .setDescription("Page number")
+      .setMinValue(1)
+  ),
+new SlashCommandBuilder()
+  .setName("removemarket")
+  .setDescription("Remove your marketplace listing")
+  .addStringOption(o =>
+    o.setName("id")
+      .setDescription("Listing ID to remove")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),
