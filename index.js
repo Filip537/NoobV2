@@ -3367,101 +3367,125 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+ 
   // ==========================================
-// TEMPORARY /deletecategory COMMAND
-// ==========================================
-
-if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "deletecategory"
-) {
-  if (
-    !interaction.memberPermissions?.has(
-      PermissionFlagsBits.Administrator
-    )
-  ) {
-    return interaction.reply({
-      content: "Only administrators can use this command.",
-      ephemeral: true
-    });
-  }
-
-  const category = interaction.options.getChannel("category");
-  const confirm = interaction.options.getString("confirm");
-
-  if (confirm !== "DELETE") {
-    return interaction.reply({
-      content: "Deletion cancelled. Type DELETE to confirm.",
-      ephemeral: true
-    });
-  }
+  // TEMPORARY /deletecategory
+  // ==========================================
 
   if (
-    !category ||
-    category.type !== 4 ||
-    category.guildId !== interaction.guildId
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "deletecategory"
   ) {
-    return interaction.reply({
-      content: "Please select a valid category.",
-      ephemeral: true
-    });
-  }
-
-  await interaction.deferReply({ ephemeral: true });
-
-  try {
-    const channels = await interaction.guild.channels.fetch();
-
-    const childChannels = channels.filter(
-      channel => channel && channel.parentId === category.id
+    console.log(
+      `[DELETE CATEGORY] Received from ${interaction.user.tag}`
     );
 
-    let deleted = 0;
-    let failed = 0;
+    try {
+      // Acknowledge immediately to prevent timeout
+      await interaction.deferReply({ ephemeral: true });
 
-    // Delete channels inside category first
-    for (const channel of childChannels.values()) {
-      try {
-        await channel.delete(
-          `Temporary category cleanup by ${interaction.user.tag}`
-        );
-        deleted++;
-      } catch (error) {
-        failed++;
-        console.error(
-          `[DELETE CATEGORY] Failed: ${channel.name}`,
-          error
+      if (
+        !interaction.memberPermissions?.has(
+          PermissionFlagsBits.Administrator
+        )
+      ) {
+        return await interaction.editReply(
+          "Only administrators can use this command."
         );
       }
-    }
 
-    // Delete category only if all child channels were deleted
-    if (failed === 0) {
-      await category.delete(
-        `Temporary category cleanup by ${interaction.user.tag}`
+      const category = interaction.options.getChannel("category");
+      const confirm = interaction.options.getString("confirm");
+
+      if (confirm !== "DELETE") {
+        return await interaction.editReply(
+          "Cancelled. Type DELETE exactly in the confirm field."
+        );
+      }
+
+      if (
+        !interaction.guild ||
+        !category ||
+        category.type !== 4 ||
+        category.guildId !== interaction.guildId
+      ) {
+        return await interaction.editReply(
+          "Invalid category selected."
+        );
+      }
+
+      const me = await interaction.guild.members.fetchMe();
+
+      if (
+        !me.permissions.has(PermissionFlagsBits.ManageChannels)
+      ) {
+        return await interaction.editReply(
+          "NoobV2 needs the Manage Channels permission."
+        );
+      }
+
+      const channels = await interaction.guild.channels.fetch();
+
+      const children = channels.filter(
+        channel => channel?.parentId === category.id
       );
 
-      return interaction.editReply({
-        content:
-          `Category deleted successfully.\n` +
-          `Deleted channels: ${deleted}`
-      });
+      console.log(
+        `[DELETE CATEGORY] Deleting ${children.size} channels from ${category.name}`
+      );
+
+      let deleted = 0;
+      let failed = 0;
+
+      for (const channel of children.values()) {
+        try {
+          await channel.delete(
+            `Category cleanup requested by ${interaction.user.tag}`
+          );
+          deleted++;
+        } catch (error) {
+          failed++;
+          console.error(
+            `[DELETE CATEGORY] Failed to delete ${channel.id}`,
+            error
+          );
+        }
+      }
+
+      if (failed > 0) {
+        return await interaction.editReply(
+          `Deleted ${deleted} channels, but ${failed} failed. Category was kept.`
+        );
+      }
+
+      await category.delete(
+        `Category cleanup requested by ${interaction.user.tag}`
+      );
+
+      console.log("[DELETE CATEGORY] Completed successfully");
+
+      return await interaction.editReply(
+        `Successfully deleted the category and ${deleted} channels.`
+      );
+
+    } catch (error) {
+      console.error("[DELETE CATEGORY ERROR]", error);
+
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(
+          "An error occurred. Check the PM2 logs."
+        ).catch(console.error);
+      } else {
+        await interaction.reply({
+          content: "An error occurred. Check the PM2 logs.",
+          ephemeral: true
+        }).catch(console.error);
+      }
+
+      return;
     }
-
-    return interaction.editReply({
-      content:
-        `Deleted ${deleted} channels, but ${failed} failed.\n` +
-        `The category was kept because some channels could not be deleted.`
-    });
-
-  } catch (error) {
-    console.error("[DELETE CATEGORY ERROR]", error);
-
-    return interaction.editReply({
-      content: "Failed to delete the category."
-    });
   }
-}
+
   
 if (
   interaction.isChatInputCommand() &&
