@@ -742,6 +742,12 @@ new SlashCommandBuilder()
       .setDescription("Example: 10 wl, 1 alpha shark")
       .setRequired(true)
   ),
+  new SlashCommandBuilder()
+  .setName("createmarketchannels")
+  .setDescription("Create all 25 marketplace channels")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  ),
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),
@@ -776,113 +782,6 @@ new SlashCommandBuilder()
   .setName("guildlist")
   .setDescription("View all guild members"),
   new SlashCommandBuilder()
-  .setName("wikiitem")
-  .setDescription("Search an item from Growtopia Wiki")
-  .addStringOption(option =>
-    option.setName("item")
-      .setDescription("Item name, example: Dirt or World Lock")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("suggestion")
-  .setDescription("Send a suggestion")
-  .addStringOption(option =>
-    option.setName("title")
-      .setDescription("Suggestion title or command name")
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option.setName("feature")
-      .setDescription("Explain the feature")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-  .setName("whosgay")
-  .setDescription("Spot a random gay member"),
-
-new SlashCommandBuilder()
-  .setName("whospro")
-  .setDescription("Spot a random pro member"),
-    new SlashCommandBuilder()
-  .setName("luck")
-  .setDescription("Check how lucky you are today"),
-
-new SlashCommandBuilder()
-  .setName("today")
-  .setDescription("See your fortune for today"),
-
-new SlashCommandBuilder()
-  .setName("braincells")
-  .setDescription("See how many brain cells you have left")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-new SlashCommandBuilder()
-  .setName("scan")
-  .setDescription("Scan a random user's stats")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("whosmart")
-  .setDescription("Find a random smart member"),
-
-new SlashCommandBuilder()
-  .setName("whosnpc")
-  .setDescription("Find a random NPC"),
-
-new SlashCommandBuilder()
-  .setName("futurejob")
-  .setDescription("Predict your future job")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-
-new SlashCommandBuilder()
-  .setName("futurewife")
-  .setDescription("Predict your future wife")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-new SlashCommandBuilder()
-  .setName("typingrace")
-  .setDescription("Race to type a random sentence"),
-
-new SlashCommandBuilder()
-  .setName("whostraight")
-  .setDescription("Spot a random straight member"),
-new SlashCommandBuilder()
-  .setName("myfavgame")
-  .setDescription("Guess your favorite game")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("Choose a user")
-      .setRequired(false)
-  ),
-  new SlashCommandBuilder()
-  .setName("howfurry")
-  .setDescription("See how furry someone is")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("User to check")
-      .setRequired(false)
-  ),
-  new SlashCommandBuilder()
   .setName("unblist")
   .setDescription("Submit a GrowID to be unblacklisted")
   .addStringOption(o =>
@@ -900,22 +799,6 @@ new SlashCommandBuilder()
       .setDescription("Reason they should be unblacklisted")
       .setRequired(true)
   ),
-  new SlashCommandBuilder()
-  .setName("mystats")
-  .setDescription("Check your or another user's server activity stats")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("User to check")
-      .setRequired(false)
-  ),
-  
-  new SlashCommandBuilder()
-  .setName("furrytest")
-  .setDescription("Find out how furry you really are"),
-new SlashCommandBuilder()
-  .setName("whosfurry")
-  .setDescription("Spot a random furry member"),
   
 new SlashCommandBuilder()
   .setName("createpoll")
@@ -942,38 +825,6 @@ new SlashCommandBuilder()
       .setDescription("Example: 30m, 5h, 1d, 7d")
       .setRequired(true)
   ),
-
-new SlashCommandBuilder()
-  .setName("legendquest")
-  .setDescription("View Legendary Quest steps")
-  .addStringOption(option =>
-    option.setName("quest")
-      .setDescription("Choose a legendary quest")
-      .setRequired(true)
-      .addChoices(
-        { name: "Quest For Honor", value: "honor" },
-        { name: "Quest For Fire", value: "fire" },
-        { name: "Quest Of Steel", value: "steel" },
-        { name: "Quest Of The Heavens", value: "heavens" },
-        { name: "Quest For The Blade", value: "blade" },
-        { name: "Quest For Candour", value: "candour" },
-        { name: "Quest For The Sky", value: "sky" },
-        { name: "Quest Of The Owl", value: "owl" },
-        { name: "Quest Of The Mech", value: "mech" }
-      )
-  ),
-  new SlashCommandBuilder()
-  .setName("export")
-  .setDescription("Export all messages from a channel into a text file")
-  .addChannelOption(option =>
-    option
-      .setName("channelid")
-      .setDescription("Channel to export")
-      .setRequired(true)
-  ),
-  new SlashCommandBuilder()
-    .setName("testbday")
-    .setDescription("Send a test birthday message (Admin only)"),
 testLevelCommand.data,
 worldcup.data
 ].map(c => c.toJSON());
