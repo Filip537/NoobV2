@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const testLevelCommand = require("./commands/testlevelup.js");
-const { REST, Routes, SlashCommandBuilder,  PermissionFlagsBits } = require("discord.js");
+const { REST, Routes, SlashCommandBuilder,  PermissionFlagsBits, ChannelType } = require("discord.js");
 const worldcup = require("./feature/worldcup");
 
 const commands = [
@@ -742,7 +742,25 @@ new SlashCommandBuilder()
       .setDescription("Example: 10 wl, 1 alpha shark")
       .setRequired(true)
   ),
-  
+  new SlashCommandBuilder()
+  .setName("deletecategory")
+  .setDescription("Delete a category and all channels inside it")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  )
+  .addChannelOption(option =>
+    option
+      .setName("category")
+      .setDescription("Select the category to delete")
+      .addChannelTypes(ChannelType.GuildCategory)
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option
+      .setName("confirm")
+      .setDescription('Type DELETE to confirm')
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("fish")
   .setDescription("Go fishing with your fishing rod"),

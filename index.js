@@ -300,7 +300,6 @@ const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
-const marketSync = require("./feature/marketsync.js");
 const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
@@ -1116,7 +1115,6 @@ intents: [
 ],
 partials: ["CHANNEL", "MESSAGE", "GUILD_MEMBER"]
 });
-marketSync.startMarketSync(client);
 const sharkfinReplyFile = "./sharkfinReplies.json";
 
 function loadSharkfinReplies() {
@@ -3369,7 +3367,101 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
-  
+  // ==========================================
+// TEMPORARY /deletecategory COMMAND
+// ==========================================
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "deletecategory"
+) {
+  if (
+    !interaction.memberPermissions?.has(
+      PermissionFlagsBits.Administrator
+    )
+  ) {
+    return interaction.reply({
+      content: "Only administrators can use this command.",
+      ephemeral: true
+    });
+  }
+
+  const category = interaction.options.getChannel("category");
+  const confirm = interaction.options.getString("confirm");
+
+  if (confirm !== "DELETE") {
+    return interaction.reply({
+      content: "Deletion cancelled. Type DELETE to confirm.",
+      ephemeral: true
+    });
+  }
+
+  if (
+    !category ||
+    category.type !== 4 ||
+    category.guildId !== interaction.guildId
+  ) {
+    return interaction.reply({
+      content: "Please select a valid category.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const channels = await interaction.guild.channels.fetch();
+
+    const childChannels = channels.filter(
+      channel => channel && channel.parentId === category.id
+    );
+
+    let deleted = 0;
+    let failed = 0;
+
+    // Delete channels inside category first
+    for (const channel of childChannels.values()) {
+      try {
+        await channel.delete(
+          `Temporary category cleanup by ${interaction.user.tag}`
+        );
+        deleted++;
+      } catch (error) {
+        failed++;
+        console.error(
+          `[DELETE CATEGORY] Failed: ${channel.name}`,
+          error
+        );
+      }
+    }
+
+    // Delete category only if all child channels were deleted
+    if (failed === 0) {
+      await category.delete(
+        `Temporary category cleanup by ${interaction.user.tag}`
+      );
+
+      return interaction.editReply({
+        content:
+          `Category deleted successfully.\n` +
+          `Deleted channels: ${deleted}`
+      });
+    }
+
+    return interaction.editReply({
+      content:
+        `Deleted ${deleted} channels, but ${failed} failed.\n` +
+        `The category was kept because some channels could not be deleted.`
+    });
+
+  } catch (error) {
+    console.error("[DELETE CATEGORY ERROR]", error);
+
+    return interaction.editReply({
+      content: "Failed to delete the category."
+    });
+  }
+}
   
 if (
   interaction.isChatInputCommand() &&
