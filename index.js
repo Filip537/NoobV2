@@ -8534,14 +8534,10 @@ await sendBlistLog(client, {
 });
   await proofChannel.send({
     content:
-`**Guardian Blacklist Notification**
-
+`
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
-**Reason:** ${reason}
-**Proof By:** ${proofUser}${durationText ? `\n**Duration:** ${durationText}` : ""}
-
-**Approval:** Bypassed — Guardian role`
+**Reason:** ${reason}`
   });
 
   return interaction.reply({
