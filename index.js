@@ -1211,14 +1211,6 @@ const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
 const UNBLACKLIST_CHANNEL = "1505252429967396904";
 
-
-const BLIST_EMOJIS = {
-  title: "<:emoji_80:1493601866821533876>",
-  growid: "<:emoji_33:1439047901996126238>",
-  reason: "<:bulletin:1447778065512923217>",
-  proof: "<:ItemSprites82:1456973115858096169>"
-};
-
 const GUARDIAN_BLACKLIST_ROLES = [
   "1446474214755270667",
   "1449413701756256308",
@@ -1836,13 +1828,13 @@ async function sendBlacklistSeparator(channel) {
 
     let webhook = webhooks.find(
       hook =>
-        hook.name === "System" &&
+        hook.name === "Message Separator" &&
         hook.owner?.id === client.user.id
     );
 
     if (!webhook) {
       webhook = await channel.createWebhook({
-        name: "System",
+        name: "Message Separator",
         reason: "Automatic blacklist message separator"
       });
     }
@@ -4548,25 +4540,23 @@ await sendBlistLog(client, {
     ephemeral: true
   });
 }
-
-
 const embed = new EmbedBuilder()
-  .setTitle(`${BLIST_EMOJIS.title} Unblacklist Request`)
+  .setTitle("Unblacklist Request")
   .setColor("Orange")
-  .setThumbnail(BLIST_THUMBNAIL)
+  .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539412749740679179/happy.png?ex=6a863958&is=6a84e7d8&hm=2f42adb7282563cdcdce2a8f3775b5a8540875574af939cb8ca644765af7dfd5&=&format=webp&quality=lossless")
   .addFields(
     {
-      name: `${BLIST_EMOJIS.growid} GrowID`,
+      name: "GrowID",
       value: growid,
       inline: false
     },
     {
-      name: `${BLIST_EMOJIS.reason} Reason of Blacklist`,
+      name: "Reason of Blacklist",
       value: blacklistReason,
       inline: false
     },
     {
-      name: `${BLIST_EMOJIS.reason} Reason of Unblacklist`,
+      name: "Reason of Unblacklist",
       value: unblacklistReason,
       inline: false
     }
@@ -6656,196 +6646,183 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
 }
 
 if (interaction.commandName === "spk") {
-  if (!interaction.inGuild()) {
-    return interaction.reply({
-      content: "This command only works in a server.",
-      ephemeral: true
-    });
-  }
-
-  if (!interaction.memberPermissions.has(
-    PermissionFlagsBits.Administrator
-  )) {
-    return interaction.reply({
-      content: "You need Administrator permission.",
-      ephemeral: true
-    });
-  }
+  if (
+  !interaction.member.permissions.has(PermissionFlagsBits.Administrator)
+) {
+  return interaction.reply({
+    content: "❌ You need Administrator permission to use this command.",
+    ephemeral: true
+  });
+}
 
   await interaction.deferReply({ ephemeral: true });
 
-  try {
-    const targetUser = interaction.options.getUser("user");
-    const message = interaction.options.getString("message");
-    const command = interaction.options.getString("command");
-    const file = interaction.options.getAttachment("file");
-    const customNickname = interaction.options.getString("nickname");
-    const customAvatar = interaction.options.getAttachment("avatar");
+  const targetUser = interaction.options.getUser("user");
+  const message = interaction.options.getString("message");
+  const command = interaction.options.getString("command");
+  const file = interaction.options.getAttachment("file");
+  const targetChannel =
+    interaction.options.getChannel("channel") || interaction.channel;
 
-    const targetChannel =
-      interaction.options.getChannel("channel") ||
-      interaction.channel;
+  const customNickname = interaction.options.getString("nickname");
+  const customAvatar = interaction.options.getAttachment("avatar");
 
-    if (!targetChannel?.isTextBased() ||
-        typeof targetChannel.createWebhook !== "function") {
-      return interaction.editReply(
-        "Please select a regular text channel."
-      );
-    }
+  if (!message && !command && !file) {
+    return interaction.editReply(
+      "❌ Please provide a message, command, or file."
+    );
+  }
 
-    const botPermissions = targetChannel.permissionsFor(
-      interaction.guild.members.me
+  // Commands need a selected user
+  if (command && !targetUser) {
+    return interaction.editReply(
+      "❌ Please select a user when using the command option."
+    );
+  }
+
+  let finalMessage = message || "";
+
+  if (command === "howgay") {
+    const percent = Math.floor(Math.random() * 101);
+    finalMessage = `${targetUser} is **${percent}% gay** 🌈`;
+  }
+
+  if (command === "howpro") {
+    const percent = Math.floor(Math.random() * 501);
+    finalMessage = `${targetUser} is **${percent}% pro** 🔥`;
+  }
+
+  if (command === "fortuneteller") {
+    const fortunes = [
+      "You will have a lucky day soon 🍀",
+      "Someone will surprise you this week ✨",
+      "Your hard work will pay off soon 🔥",
+      "A funny moment is coming your way 😂",
+      "You will receive good news soon 📩",
+      "Be careful, someone is secretly watching you 👀",
+      "Your next decision will be important 🌟",
+      "Money luck is coming your way 💰",
+      "A new friendship may start soon 🤝",
+      "Your future looks bright today 🌈"
+    ];
+
+    finalMessage =
+      `${targetUser}, ` +
+      fortunes[Math.floor(Math.random() * fortunes.length)];
+  }
+
+  if (command === "whosmypartner") {
+    const boostIds = [
+      "1009567472577429515",
+      "987285444754550805",
+      "1146756192710959155",
+      "946556932636950528",
+      "1307800986534019207",
+      "887369211322720297"
+    ];
+
+    const members = interaction.guild.members.cache.filter(member =>
+      !member.user.bot &&
+      member.id !== targetUser.id
     );
 
-    if (!botPermissions?.has([
-      PermissionFlagsBits.ManageWebhooks,
-      PermissionFlagsBits.ViewChannel,
-      PermissionFlagsBits.SendMessages
-    ])) {
-      return interaction.editReply(
-        "I need Manage Webhooks, View Channel and Send Messages permissions."
-      );
-    }
+    const memberPool = [];
 
-    if (!message && !command && !file) {
-      return interaction.editReply(
-        "Please provide a message, command or file."
-      );
-    }
+    members.forEach(member => {
+      memberPool.push(member);
 
-    if (command && !targetUser) {
-      return interaction.editReply(
-        "Please select a user when using a special command."
-      );
-    }
-
-    let finalMessage = message || "";
-
-    if (command === "howgay") {
-      finalMessage =
-        `${targetUser} is ${Math.floor(Math.random() * 101)}% gay`;
-    }
-
-    if (command === "howpro") {
-      finalMessage =
-        `${targetUser} is ${Math.floor(Math.random() * 501)}% pro`;
-    }
-
-    if (command === "fortuneteller") {
-      const fortunes = [
-        "You will have a lucky day soon.",
-        "Someone will surprise you this week.",
-        "Your hard work will pay off soon.",
-        "A funny moment is coming your way.",
-        "You will receive good news soon.",
-        "Your next decision will be important.",
-        "Money luck is coming your way."
-      ];
-
-      finalMessage =
-        `${targetUser}, ${fortunes[Math.floor(
-          Math.random() * fortunes.length
-        )]}`;
-    }
-
-    if (command === "whosmypartner") {
-      const members = await interaction.guild.members.fetch();
-
-      const pool = members.filter(
-        member =>
-          !member.user.bot &&
-          member.id !== targetUser.id
-      );
-
-      if (!pool.size) {
-        return interaction.editReply(
-          "No eligible members were found."
-        );
+      if (boostIds.includes(member.id)) {
+        for (let i = 0; i < 5; i++) {
+          memberPool.push(member);
+        }
       }
+    });
 
-      const partner = pool.random();
-
-      finalMessage =
-        `${targetUser}, your future partner is ${partner}!`;
+    if (memberPool.length === 0) {
+      return interaction.editReply(
+        "❌ I could not find a partner."
+      );
     }
 
-    const member = targetUser
-      ? await interaction.guild.members
-          .fetch(targetUser.id)
-          .catch(() => null)
-      : null;
+    const randomMember =
+      memberPool[Math.floor(Math.random() * memberPool.length)];
 
-    // Custom nickname takes priority.
-    const webhookName = (
-      customNickname?.trim() ||
+    const messages = [
+      `Hello ${targetUser}, your future partner is ${randomMember}. Please enjoy 💖`,
+      `${targetUser}, destiny has chosen ${randomMember} as your future partner 💘`,
+      `Love alert! ${targetUser}, your future partner is ${randomMember} 💕`,
+      `${targetUser}, the bot has matched you with ${randomMember}. Please enjoy 😳`,
+      `Congratulations ${targetUser}! Your future partner is ${randomMember} 🎉`,
+      `${targetUser}, your perfect match is ${randomMember} 💞`,
+      `The love machine says ${targetUser} belongs with ${randomMember} 💗`,
+      `${targetUser}, your future romance starts with ${randomMember} 🌹`,
+      `Breaking news: ${targetUser}'s future partner is ${randomMember} 💌`,
+      `${targetUser}, the stars say your partner is ${randomMember} ✨`
+    ];
+
+    finalMessage =
+      messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  try {
+    let member = null;
+
+    // Only fetch member if user was actually selected
+    if (targetUser) {
+      member = await interaction.guild.members
+        .fetch(targetUser.id)
+        .catch(() => null);
+    }
+
+    // NAME PRIORITY:
+    // custom nickname -> selected user's nickname -> selected username -> default
+    const webhookName =
+      customNickname ||
       member?.displayName ||
       targetUser?.username ||
-      interaction.user.username
-    ).slice(0, 80);
+      "SPK";
 
-    // Custom avatar takes priority over the selected user's avatar.
+    // AVATAR PRIORITY:
+    // custom avatar -> selected user's avatar -> bot avatar
     const webhookAvatar =
       customAvatar?.url ||
-      member?.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      }) ||
+member ? getBotAvatar(member.user) : null ||
       targetUser?.displayAvatarURL({
         extension: "png",
         size: 1024
       }) ||
-      interaction.user.displayAvatarURL({
+      interaction.client.user.displayAvatarURL({
         extension: "png",
         size: 1024
       });
 
-    // Validate custom avatar.
-    if (customAvatar &&
-        !customAvatar.contentType?.startsWith("image/")) {
-      return interaction.editReply(
-        "The avatar attachment must be an image."
-      );
-    }
-
-    // Use a temporary webhook.
     const webhook = await targetChannel.createWebhook({
-      name: "SPK Temporary"
+      name: webhookName.slice(0, 80),
+      avatar: webhookAvatar
     });
 
-    try {
-      await webhook.send({
-        content: finalMessage || undefined,
-        username: webhookName,
-        avatarURL: webhookAvatar,
-        files: file
-          ? [{
-              attachment: file.url,
-              name: file.name || "attachment"
-            }]
-          : [],
-        allowedMentions: {
-          parse: []
-        }
-      });
-    } finally {
-      await webhook.delete().catch(error => {
-        console.error("SPK webhook cleanup error:", error);
-      });
-    }
+    await webhook.send({
+      content: finalMessage || null,
+      files: file ? [file.url] : [],
+      allowedMentions: {
+        parse: []
+      }
+    });
+
+    await webhook.delete().catch(() => {});
 
     return interaction.editReply(
-      `Message successfully sent to ${targetChannel}.`
+      "✅ Message sent successfully."
     );
 
-  } catch (error) {
-    console.error("SPK ERROR:", error);
+  } catch (err) {
+    console.error("SPK ERROR:", err);
 
     return interaction.editReply(
-      `Failed to send message: ${error.message}`
+      `❌ Failed to send the message.\nError: \`${err.message}\``
     );
   }
 }
-
 
   if (interaction.commandName === "sendroleselector") {
   if (!interaction.member.roles.cache.has(adminRole)) {
@@ -8467,44 +8444,43 @@ await sendBlistLog(client, {
     }
   }
 
+  const embed = new EmbedBuilder()
+    .setTitle("Blacklist Request")
+      .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539413485971185705/New_Piskel_37.png?ex=6a863a07&is=6a84e887&hm=0e1c1ed64d1ac7e470544c4298fc7f0cfca40ac70ad0e041bd9e0d2714040be8&=&format=webp&quality=lossless")
+    .setColor("Red")
+    .addFields(
+      {
+        name: "GrowID",
+        value: growid,
+        inline: true
+      },
+      {
+        name: "Reason",
+        value: reason,
+        inline: true
+      },
+      {
+        name: "Proof By",
+        value: `${proofUser}`,
+        inline: true
+      }
+    )
+    .setFooter({
+      text: `Requested by ${interaction.user.tag}`
+    })
+    .setTimestamp();
 
-const embed = new EmbedBuilder()
-  .setTitle(`${BLIST_EMOJIS.title} Blacklist Request`)
-  .setThumbnail(BLIST_THUMBNAIL)
-  .setColor("Red")
-  .addFields(
-    {
-      name: `${BLIST_EMOJIS.growid} GrowID`,
-      value: growid,
-      inline: false
-    },
-    {
-      name: `${BLIST_EMOJIS.reason} Reason`,
-      value: reason,
-      inline: false
-    },
-    {
-      name: `${BLIST_EMOJIS.proof} Proof By`,
-      value: `${proofUser}`,
-      inline: false
-    }
-  )
-  .setFooter({
-    text: `Requested by ${interaction.user.tag}`
-  })
-  .setTimestamp();
+  if (durationText) {
+    embed.addFields({
+      name: "Duration",
+      value: durationText,
+      inline: true
+    });
+  }
 
-if (durationText) {
-  embed.addFields({
-    name: "Duration",
-    value: durationText,
-    inline: false
-  });
-}
-
-if (image) {
-  embed.setImage(image.url);
-}
+  if (image) {
+    embed.setImage(image.url);
+  }
 
   const isGuardian = GUARDIAN_BLACKLIST_ROLES.some(roleId =>
   interaction.member.roles.cache.has(roleId)
@@ -8558,10 +8534,14 @@ await sendBlistLog(client, {
 });
   await proofChannel.send({
     content:
-`
+`**Guardian Blacklist Notification**
+
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
-**Reason:** ${reason}`
+**Reason:** ${reason}
+**Proof By:** ${proofUser}${durationText ? `\n**Duration:** ${durationText}` : ""}
+
+**Approval:** Bypassed — Guardian role`
   });
 
   return interaction.reply({
@@ -10491,18 +10471,9 @@ const ownerId = interaction.customId.split("_").pop();
     const embed = EmbedBuilder.from(interaction.message.embeds[0]);
     const fields = embed.data.fields;
 
-const growid = fields.find(f =>
-  f.name.endsWith("GrowID")
-)?.value;
-
-const reason = fields.find(f =>
-  f.name.endsWith("Reason")
-)?.value;
-
-const proof = fields.find(f =>
-  f.name.endsWith("Proof By")
-)?.value;
-
+    const growid = fields.find(f => f.name === "GrowID").value;
+    const reason = fields.find(f => f.name === "Reason").value;
+    const proof = fields.find(f => f.name === "Proof By").value;
 
 if (interaction.customId.startsWith("approve_")) {
 
