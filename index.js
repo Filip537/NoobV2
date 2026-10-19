@@ -4587,8 +4587,7 @@ const embed = new EmbedBuilder()
   });
 
   return interaction.reply({
-    content: "✅ Unblacklist request submitted.",
-    ephemeral: true
+    content: "<:arrow:1442712798969729087> Unblacklist request submitted.",
   });
 }
 if (interaction.commandName === "howfurry") {
@@ -8567,8 +8566,7 @@ await sendBlistLog(client, {
   });
 
   return interaction.reply({
-    content: "✅ Blacklist request submitted.",
-    ephemeral: true
+    content: "<:arrow:1442712798969729087>Blacklist request submitted.",
   });
 }
 
