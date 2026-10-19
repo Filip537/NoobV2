@@ -4541,22 +4541,22 @@ await sendBlistLog(client, {
   });
 }
 const embed = new EmbedBuilder()
-  .setTitle("Unblacklist Request")
+  .setTitle("<:arrow:1442712798969729087> Unblacklist Request")
   .setColor("Orange")
   .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539412749740679179/happy.png?ex=6a863958&is=6a84e7d8&hm=2f42adb7282563cdcdce2a8f3775b5a8540875574af939cb8ca644765af7dfd5&=&format=webp&quality=lossless")
   .addFields(
     {
-      name: "GrowID",
+      name: "<:arrow:1442712798969729087>GrowID",
       value: growid,
       inline: false
     },
     {
-      name: "Reason of Blacklist",
+      name: "<:arrow:1442712798969729087> Reason of Blacklist",
       value: blacklistReason,
       inline: false
     },
     {
-      name: "Reason of Unblacklist",
+      name: "<:arrow:1442712798969729087> Reason of Unblacklist",
       value: unblacklistReason,
       inline: false
     }
@@ -8445,17 +8445,17 @@ await sendBlistLog(client, {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("Blacklist Request")
+    .setTitle("<:arrow:1442712798969729087> Blacklist Request")
       .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539413485971185705/New_Piskel_37.png?ex=6a863a07&is=6a84e887&hm=0e1c1ed64d1ac7e470544c4298fc7f0cfca40ac70ad0e041bd9e0d2714040be8&=&format=webp&quality=lossless")
     .setColor("Red")
     .addFields(
       {
-        name: "GrowID",
+        name: "<:arrow:1442712798969729087> GrowID",
         value: growid,
         inline: true
       },
       {
-        name: "Reason",
+        name: "<:arrow:1442712798969729087> Reason",
         value: reason,
         inline: true
       },
