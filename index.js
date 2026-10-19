@@ -1211,6 +1211,14 @@ const adminRole = "1411991650573484073";
 const BLIST_ROLE = "1483241188868882657";
 const UNBLACKLIST_CHANNEL = "1505252429967396904";
 
+
+const BLIST_EMOJIS = {
+  title: "<:emoji_80:1493601866821533876>",
+  growid: "<:emoji_33:1439047901996126238>",
+  reason: "<:bulletin:1447778065512923217>",
+  proof: "<:ItemSprites82:1456973115858096169>"
+};
+
 const GUARDIAN_BLACKLIST_ROLES = [
   "1446474214755270667",
   "1449413701756256308",
@@ -1828,13 +1836,13 @@ async function sendBlacklistSeparator(channel) {
 
     let webhook = webhooks.find(
       hook =>
-        hook.name === "Message Separator" &&
+        hook.name === "System" &&
         hook.owner?.id === client.user.id
     );
 
     if (!webhook) {
       webhook = await channel.createWebhook({
-        name: "Message Separator",
+        name: "System",
         reason: "Automatic blacklist message separator"
       });
     }
@@ -4540,23 +4548,25 @@ await sendBlistLog(client, {
     ephemeral: true
   });
 }
+
+
 const embed = new EmbedBuilder()
-  .setTitle("Unblacklist Request")
+  .setTitle(`${BLIST_EMOJIS.title} Unblacklist Request`)
   .setColor("Orange")
-  .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539412749740679179/happy.png?ex=6a863958&is=6a84e7d8&hm=2f42adb7282563cdcdce2a8f3775b5a8540875574af939cb8ca644765af7dfd5&=&format=webp&quality=lossless")
+  .setThumbnail(BLIST_THUMBNAIL)
   .addFields(
     {
-      name: "GrowID",
+      name: `${BLIST_EMOJIS.growid} GrowID`,
       value: growid,
       inline: false
     },
     {
-      name: "Reason of Blacklist",
+      name: `${BLIST_EMOJIS.reason} Reason of Blacklist`,
       value: blacklistReason,
       inline: false
     },
     {
-      name: "Reason of Unblacklist",
+      name: `${BLIST_EMOJIS.reason} Reason of Unblacklist`,
       value: unblacklistReason,
       inline: false
     }
@@ -8457,43 +8467,44 @@ await sendBlistLog(client, {
     }
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle("Blacklist Request")
-      .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539413485971185705/New_Piskel_37.png?ex=6a863a07&is=6a84e887&hm=0e1c1ed64d1ac7e470544c4298fc7f0cfca40ac70ad0e041bd9e0d2714040be8&=&format=webp&quality=lossless")
-    .setColor("Red")
-    .addFields(
-      {
-        name: "GrowID",
-        value: growid,
-        inline: true
-      },
-      {
-        name: "Reason",
-        value: reason,
-        inline: true
-      },
-      {
-        name: "Proof By",
-        value: `${proofUser}`,
-        inline: true
-      }
-    )
-    .setFooter({
-      text: `Requested by ${interaction.user.tag}`
-    })
-    .setTimestamp();
 
-  if (durationText) {
-    embed.addFields({
-      name: "Duration",
-      value: durationText,
-      inline: true
-    });
-  }
+const embed = new EmbedBuilder()
+  .setTitle(`${BLIST_EMOJIS.title} Blacklist Request`)
+  .setThumbnail(BLIST_THUMBNAIL)
+  .setColor("Red")
+  .addFields(
+    {
+      name: `${BLIST_EMOJIS.growid} GrowID`,
+      value: growid,
+      inline: false
+    },
+    {
+      name: `${BLIST_EMOJIS.reason} Reason`,
+      value: reason,
+      inline: false
+    },
+    {
+      name: `${BLIST_EMOJIS.proof} Proof By`,
+      value: `${proofUser}`,
+      inline: false
+    }
+  )
+  .setFooter({
+    text: `Requested by ${interaction.user.tag}`
+  })
+  .setTimestamp();
 
-  if (image) {
-    embed.setImage(image.url);
-  }
+if (durationText) {
+  embed.addFields({
+    name: "Duration",
+    value: durationText,
+    inline: false
+  });
+}
+
+if (image) {
+  embed.setImage(image.url);
+}
 
   const isGuardian = GUARDIAN_BLACKLIST_ROLES.some(roleId =>
   interaction.member.roles.cache.has(roleId)
@@ -8547,14 +8558,10 @@ await sendBlistLog(client, {
 });
   await proofChannel.send({
     content:
-`**Guardian Blacklist Notification**
-
+`
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
-**Reason:** ${reason}
-**Proof By:** ${proofUser}${durationText ? `\n**Duration:** ${durationText}` : ""}
-
-**Approval:** Bypassed — Guardian role`
+**Reason:** ${reason}`
   });
 
   return interaction.reply({
@@ -10484,9 +10491,18 @@ const ownerId = interaction.customId.split("_").pop();
     const embed = EmbedBuilder.from(interaction.message.embeds[0]);
     const fields = embed.data.fields;
 
-    const growid = fields.find(f => f.name === "GrowID").value;
-    const reason = fields.find(f => f.name === "Reason").value;
-    const proof = fields.find(f => f.name === "Proof By").value;
+const growid = fields.find(f =>
+  f.name.endsWith("GrowID")
+)?.value;
+
+const reason = fields.find(f =>
+  f.name.endsWith("Reason")
+)?.value;
+
+const proof = fields.find(f =>
+  f.name.endsWith("Proof By")
+)?.value;
+
 
 if (interaction.customId.startsWith("approve_")) {
 
