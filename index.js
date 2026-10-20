@@ -4541,22 +4541,22 @@ await sendBlistLog(client, {
   });
 }
 const embed = new EmbedBuilder()
-  .setTitle("<:arrow:1442712798969729087> Unblacklist Request")
+  .setTitle("Unblacklist Request")
   .setColor("Orange")
   .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539412749740679179/happy.png?ex=6a863958&is=6a84e7d8&hm=2f42adb7282563cdcdce2a8f3775b5a8540875574af939cb8ca644765af7dfd5&=&format=webp&quality=lossless")
   .addFields(
     {
-      name: "<:arrow:1442712798969729087>GrowID",
+      name: "GrowID",
       value: growid,
       inline: false
     },
     {
-      name: "<:arrow:1442712798969729087> Reason of Blacklist",
+      name: "Reason of Blacklist",
       value: blacklistReason,
       inline: false
     },
     {
-      name: "<:arrow:1442712798969729087> Reason of Unblacklist",
+      name: "Reason of Unblacklist",
       value: unblacklistReason,
       inline: false
     }
@@ -4587,7 +4587,8 @@ const embed = new EmbedBuilder()
   });
 
   return interaction.reply({
-    content: "<:arrow:1442712798969729087> Unblacklist request submitted.",
+    content: "✅ Unblacklist request submitted.",
+    ephemeral: true
   });
 }
 if (interaction.commandName === "howfurry") {
@@ -6642,8 +6643,7 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
       content: `✅ ${target} received **Warn 3**.\nReason: ${reason}\nPunishment: Banned from the server.`
     });
   }
-}
-
+}z
 if (interaction.commandName === "spk") {
   if (
   !interaction.member.permissions.has(PermissionFlagsBits.Administrator)
@@ -8444,17 +8444,17 @@ await sendBlistLog(client, {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("<:arrow:1442712798969729087> Blacklist Request")
+    .setTitle("Blacklist Request")
       .setThumbnail("https://media.discordapp.net/attachments/1413402708949471335/1539413485971185705/New_Piskel_37.png?ex=6a863a07&is=6a84e887&hm=0e1c1ed64d1ac7e470544c4298fc7f0cfca40ac70ad0e041bd9e0d2714040be8&=&format=webp&quality=lossless")
     .setColor("Red")
     .addFields(
       {
-        name: "<:arrow:1442712798969729087> GrowID",
+        name: "GrowID",
         value: growid,
         inline: true
       },
       {
-        name: "<:arrow:1442712798969729087> Reason",
+        name: "Reason",
         value: reason,
         inline: true
       },
@@ -8536,7 +8536,7 @@ await sendBlistLog(client, {
 `
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
-**Reason:** ${reason}`
+**Reason:** ${reason}
   });
 
   return interaction.reply({
@@ -8566,7 +8566,8 @@ await sendBlistLog(client, {
   });
 
   return interaction.reply({
-    content: "<:arrow:1442712798969729087>Blacklist request submitted.",
+    content: "✅ Blacklist request submitted.",
+    ephemeral: true
   });
 }
 
