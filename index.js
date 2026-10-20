@@ -6643,7 +6643,7 @@ if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(int
       content: `✅ ${target} received **Warn 3**.\nReason: ${reason}\nPunishment: Banned from the server.`
     });
   }
-}z
+}
 if (interaction.commandName === "spk") {
   if (
   !interaction.member.permissions.has(PermissionFlagsBits.Administrator)
@@ -8533,11 +8533,14 @@ await sendBlistLog(client, {
 });
   await proofChannel.send({
     content:
-`
+`**Guardian Blacklist Notification**
+
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
 **Reason:** ${reason}
-}`
+**Proof By:** ${proofUser}${durationText ? `\n**Duration:** ${durationText}` : ""}
+
+**Approval:** Bypassed — Guardian role`
   });
 
   return interaction.reply({
