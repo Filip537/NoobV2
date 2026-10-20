@@ -8537,6 +8537,7 @@ await sendBlistLog(client, {
 <@${interaction.user.id}> has directly blacklisted **${growid}**.
 
 **Reason:** ${reason}
+}`
   });
 
   return interaction.reply({
