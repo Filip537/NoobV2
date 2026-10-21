@@ -11354,7 +11354,7 @@ if (badWord) {
   if (!member) return;
 
   const seconds = getNextWordTimeout(message.author.id);
-  const duration = seconds * 1000;
+  const duration = seconds * 5000;
   const until = Date.now() + duration;
 
   protectedTimeouts.set(message.author.id, {
