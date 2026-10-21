@@ -314,7 +314,7 @@ const ticket = require("./feature/ticket.js");
 const settings = require("./feature/settings.js");
 const profileFeature = require("./feature/profile.js");
 const path = require("path");
-
+const lyricsFeature = require("./feature/lyrics.js");
 const blacklistFile = path.join(__dirname, "blacklist.json");
 const socialFeature = require("./feature/social.js");
 const {
@@ -3367,6 +3367,21 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  
+if (
+  interaction.isAutocomplete() &&
+  interaction.commandName === "sendlyrics"
+) {
+  return lyricsFeature.autocomplete(interaction);
+}
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "sendlyrics"
+) {
+  return lyricsFeature.execute(interaction);
+}
+
   if (interaction.isChatInputCommand() && interaction.commandName === 'addreaction') {
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({

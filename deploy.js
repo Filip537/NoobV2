@@ -470,9 +470,17 @@ new SlashCommandBuilder()
       .setDescription("YouTube link or song name")
       .setRequired(true)
   ),
+
 new SlashCommandBuilder()
-  .setName("checkqueue")
-  .setDescription("View the current music queue"),
+  .setName("sendlyrics")
+  .setDescription("Send lyrics from your favourite artists")
+  .addStringOption(option =>
+    option
+      .setName("select")
+      .setDescription("Search for a song")
+      .setRequired(true)
+      .setAutocomplete(true)
+  ),
 
 new SlashCommandBuilder()
   .setName("stop")
