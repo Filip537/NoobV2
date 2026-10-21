@@ -471,15 +471,6 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 new SlashCommandBuilder()
-  .setName("addreaction")
-  .setDescription("Add 16 random reactions to a message")
-  .addStringOption(option =>
-    option
-      .setName("messageid")
-      .setDescription("The ID of the message to react to")
-      .setRequired(true)
-  ),
-new SlashCommandBuilder()
   .setName("checkqueue")
   .setDescription("View the current music queue"),
 
