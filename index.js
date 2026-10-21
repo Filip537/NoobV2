@@ -3367,6 +3367,69 @@ async function getGTPrice(itemName) {
 
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isChatInputCommand() && interaction.commandName === 'addreaction') {
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    return interaction.reply({
+      content: '❌ Only administrators can use this command.',
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const messageId = interaction.options.getString('messageid');
+
+// Fetch all custom emojis from this Discord server
+const serverEmojis = await interaction.guild.emojis.fetch();
+
+// Only use emojis available to the bot
+const emojis = serverEmojis
+  .filter(emoji => emoji.available)
+  .map(emoji => emoji.id);
+
+if (emojis.length === 0) {
+  return interaction.editReply({
+    content: '❌ This server has no available custom emojis.'
+  });
+}
+
+  try {
+    const message = await interaction.channel.messages.fetch(messageId);
+// Randomly select up to 17 unique server emojis
+const shuffled = [...emojis];
+
+for (let i = shuffled.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+}
+
+const selected = shuffled.slice(0, 17);
+
+    let added = 0;
+
+    for (const emoji of selected) {
+      try {
+        await message.react(emoji);
+        added++;
+      } catch (error) {
+        console.error(`Failed to add reaction ${emoji}:`, error);
+      }
+    }
+
+    await interaction.editReply({
+      content: `✅ Added **${added}/17** random reactions to the message!`
+    });
+
+  } catch (error) {
+    console.error('Add reaction error:', error);
+
+    await interaction.editReply({
+      content: '❌ Message not found. Make sure the message ID is correct and the message is in this channel.'
+    });
+  }
+
+  return;
+}
   if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "deletecategory"

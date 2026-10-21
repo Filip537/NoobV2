@@ -189,6 +189,16 @@ new SlashCommandBuilder()
       .setRequired(false)
   ),
   new SlashCommandBuilder()
+  .setName('addreaction')
+  .setDescription('Add ## random emoji reactions to a message')
+  .addStringOption(option =>
+    option
+      .setName('messageid')
+      .setDescription('The ID of the message')
+      .setRequired(true)
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder()
   .setName("hownoob")
   .setDescription("See how noob someone is")
   .addUserOption(option =>
