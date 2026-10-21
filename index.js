@@ -11348,13 +11348,16 @@ if (message.channel.id === PAY_CHANNEL) {
 const badWord = words.containsBadWord(message.content);
 
 if (badWord) {
-  if (message.author.id === WORD_BYPASS_ID) return;
+if (
+  message.author.id === WORD_BYPASS_ID ||
+  message.member?.permissions.has(PermissionFlagsBits.Administrator)
+) return;
 
   const member = await message.guild.members.fetch(message.author.id).catch(() => null);
   if (!member) return;
 
   const seconds = getNextWordTimeout(message.author.id);
-  const duration = seconds * 5000;
+  const duration = seconds * 1000;
   const until = Date.now() + duration;
 
   protectedTimeouts.set(message.author.id, {
