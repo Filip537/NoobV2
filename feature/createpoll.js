@@ -302,8 +302,139 @@ if (!latest[poll.id]) continue;
   }
 }
 
+async function viewPoll(interaction) {
+  const OWNER_ID = "1108921222030426172";
+
+  if (interaction.user.id !== OWNER_ID) {
+    return interaction.reply({
+      content: "❌ You do not have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const messageId = interaction.options.getString("messageid");
+    const data = load();
+
+    const poll = Object.values(data).find(
+      p => p.messageId === messageId &&
+           p.guildId === interaction.guildId
+    );
+
+    if (!poll) {
+      return interaction.editReply(
+        "❌ Poll not found. Make sure you entered the correct poll message ID."
+      );
+    }
+
+    const groups = poll.options.map(() => []);
+
+    for (const [userId, optionIndex] of Object.entries(poll.votes || {})) {
+      if (!groups[optionIndex]) continue;
+
+      try {
+        const user = await interaction.client.users.fetch(userId);
+
+        groups[optionIndex].push(user.username);
+      } catch {
+        groups[optionIndex].push(`Unknown User (${userId})`);
+      }
+    }
+
+    const arrow = "<:arrow:1442712798969729087>";
+    const embeds = [];
+
+    let description = `**${poll.question}**\n\n`;
+
+    for (let i = 0; i < poll.options.length; i++) {
+      const usernames = groups[i];
+      const heading = `${arrow} **${poll.options[i]}** (${usernames.length} votes)\n`;
+
+      const names = usernames.length
+        ? usernames.map(name => `• ${name}`).join("\n")
+        : "• No votes";
+
+      const section = `${heading}${names}\n\n`;
+
+      if (description.length + section.length > 3800) {
+        embeds.push(
+          new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle("Poll Voter Details")
+            .setDescription(description)
+        );
+
+        description = "";
+      }
+
+      // Split unusually large groups to respect Discord's embed limit.
+      if (section.length > 3800) {
+        const lines = section.split("\n");
+
+        for (const line of lines) {
+          if (description.length + line.length + 1 > 3800) {
+            embeds.push(
+              new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setTitle("Poll Voter Details (Continued)")
+                .setDescription(description)
+            );
+
+            description = "";
+          }
+
+          description += line + "\n";
+        }
+      } else {
+        description += section;
+      }
+    }
+
+    if (description.trim()) {
+      embeds.push(
+        new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle("Poll Voter Details")
+          .setDescription(description)
+          .setFooter({
+            text: poll.status === "ended"
+              ? "Voting has ended."
+              : "Voting is still active."
+          })
+      );
+    }
+
+    // Discord allows up to 10 embeds per message.
+    for (let i = 0; i < embeds.length; i += 10) {
+      const batch = embeds.slice(i, i + 10);
+
+      if (i === 0) {
+        await interaction.editReply({
+          embeds: batch,
+          allowedMentions: { parse: [] }
+        });
+      } else {
+        await interaction.followUp({
+          embeds: batch,
+          ephemeral: true,
+          allowedMentions: { parse: [] }
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error("[VIEW POLL ERROR]", error);
+
+    await interaction.editReply({
+      content: "❌ Failed to retrieve poll voter details."
+    }).catch(() => {});
+  }
+}
 module.exports = {
   create,
   vote,
-  checkExpired
+  checkExpired,
+  viewPoll
 };
