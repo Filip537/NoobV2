@@ -3574,6 +3574,19 @@ if (
   return createpoll.vote(interaction);
 }
 
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "viewpoll"
+) {
+  if (interaction.user.id !== "1108921222030426172") {
+    return interaction.reply({
+      content: "❌ You do not have permission to use this command.",
+      ephemeral: true
+    });
+  }
+
+  return createpoll.viewPoll(interaction);
+}
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "sendtask"

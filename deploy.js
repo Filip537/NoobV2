@@ -481,7 +481,15 @@ new SlashCommandBuilder()
       .setRequired(true)
       .setAutocomplete(true)
   ),
-
+new SlashCommandBuilder()
+  .setName("viewpoll")
+  .setDescription("Privately view who voted for each poll option")
+  .addStringOption(option =>
+    option
+      .setName("messageid")
+      .setDescription("Message ID of the poll")
+      .setRequired(true)
+  ),
 new SlashCommandBuilder()
   .setName("stop")
   .setDescription("Stop music and clear the queue"),
