@@ -11272,7 +11272,7 @@ console.log(
         .setColor("Red")
         .setTitle("BLACKLISTED PLAYER DETECTED")
         .setDescription(
-          `Found **${matches.length} blacklisted player(s)** in the /who screenshot.\n\n` +
+          `The reader could generate mistakes sometime, please check carefully, thanks.\n\n` +
           blacklistResults
         )
         .setThumbnail(message.author.displayAvatarURL())
