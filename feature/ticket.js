@@ -63,18 +63,19 @@ DO not send your messages one by one, you must do it in one go otherwise your re
 Any use of **GenAI** is **strictly prohibited**. All responses must be your own **text**, as you are the one who apply not an **AI**.
 
 \`\`\`
-- GrowID:
-- Discord User:
-- Account Age:
-- Timezone (Specify it in GMT++)
-- How do you find out about NoobV2?
-- How long you’ve been playing this world and what was your first impression 
-- Why would you like to become an admin?
-- How would you respond if you witnessed an admin raiding the world?
-- What actions would you take to help keep the world active and entertained?
-- How could we trust you to be an admin? 
-- If a player breaks the rule, should you ban them immediately?
-- Do you currently have advanced account protection enabled?
+1. GrowID:
+2. Discord User:
+3. Account Age:
+4. Timezone (Specify it in GMT++)
+5. How do you find out about NoobV2?
+6. How many hours are you available to play each day?
+7. How long you’ve been playing this world and what was your first impression 
+8. Why would you like to become an admin?
+9. How would you respond if you witnessed an admin raiding the world?
+10. What actions would you take to help keep the world active and entertained?
+11. How could we trust you to be an admin? 
+12. If a player breaks the rule, should you ban them immediately?
+13. Do you currently have advanced account protection enabled?
 \`\`\``;
 
 const supportForm = user =>

@@ -9,7 +9,7 @@ const {
 
 const FILE = path.join(__dirname, "polls.json");
 const MAX_DURATION = 30 * 86400000;
-
+const MIN_MEMBER_AGE = 3 * 24 * 60 * 60 * 1000; 
 function load() {
   try {
     return JSON.parse(fs.readFileSync(FILE, "utf8"));
@@ -221,6 +221,34 @@ async function vote(interaction) {
       });
     }
 
+    const member = await interaction.guild.members.fetch(interaction.user.id);
+
+    if (
+      !member.joinedTimestamp ||
+      Date.now() - member.joinedTimestamp < MIN_MEMBER_AGE
+    ) {
+      const eligibleAt = member.joinedTimestamp
+        ? Math.ceil((member.joinedTimestamp + MIN_MEMBER_AGE) / 1000)
+        : null;
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle("❌ Voting Restricted")
+            .setDescription(
+              "You must have been a member of this server for at least **7 days** before you can vote." +
+              (eligibleAt
+                ? `\n\n**You can vote:** <t:${eligibleAt}:F>\n**Time remaining:** <t:${eligibleAt}:R>`
+                : "")
+            )
+            .setFooter({
+              text: "NoobV2 • Poll Security"
+            })
+        ],
+        ephemeral: true
+      });
+    }
     const selected = Number(interaction.values[0]);
 
     if (!Number.isInteger(selected) || !poll.options[selected]) {
