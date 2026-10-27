@@ -6874,17 +6874,22 @@ if (interaction.commandName === "spk") {
 
     // AVATAR PRIORITY:
     // custom avatar -> selected user's avatar -> bot avatar
-    const webhookAvatar =
-      customAvatar?.url ||
-member ? getBotAvatar(member.user) : null ||
-      targetUser?.displayAvatarURL({
+   const webhookAvatar =
+  customAvatar?.url ||
+  (member?.user
+    ? member.user.displayAvatarURL({
         extension: "png",
         size: 1024
-      }) ||
-      interaction.client.user.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      });
+      })
+    : null) ||
+  targetUser?.displayAvatarURL({
+    extension: "png",
+    size: 1024
+  }) ||
+  interaction.client.user.displayAvatarURL({
+    extension: "png",
+    size: 1024
+  });
 
     const webhook = await targetChannel.createWebhook({
       name: webhookName.slice(0, 80),
