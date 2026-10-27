@@ -3365,7 +3365,35 @@ async function getGTPrice(itemName) {
   }
 }
 
+async function logSpkUsage(interaction) {
+  try {
+    const LOG_CHANNEL_ID = "1503741904636874756";
 
+    const logChannel = await interaction.client.channels
+      .fetch(LOG_CHANNEL_ID)
+      .catch(() => null);
+
+    if (!logChannel?.isTextBased()) return;
+
+    const nickname =
+      interaction.member?.displayName ||
+      interaction.user.globalName ||
+      interaction.user.username;
+
+    const message =
+      interaction.options.getString("message") ||
+      interaction.options.getString("command") ||
+      "[No message provided]";
+
+    await logChannel.send({
+      content: `**${nickname}** used \`/spk\` command: "${message}"`,
+      allowedMentions: { parse: [] }
+    });
+
+  } catch (error) {
+    console.error("[SPK LOG ERROR]", error);
+  }
+}
 client.on("interactionCreate", async (interaction) => {
   
 if (
@@ -6905,6 +6933,7 @@ if (interaction.commandName === "spk") {
     });
 
     await webhook.delete().catch(() => {});
+    await logSpkUsage(interaction);
 
     return interaction.editReply(
       "✅ Message sent successfully."
