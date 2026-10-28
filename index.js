@@ -304,6 +304,7 @@ const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
+const voiceTranscription = require("./feature/voiceTranscription.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -3395,7 +3396,15 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-  
+  if (
+  interaction.isChatInputCommand() &&
+  ["joinvoice", "leavevoice", "voiceconsent"].includes(
+    interaction.commandName
+  )
+) {
+  await voiceTranscription.handleInteraction(interaction);
+  return;
+}
 if (
   interaction.isAutocomplete() &&
   interaction.commandName === "sendlyrics"

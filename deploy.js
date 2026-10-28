@@ -537,6 +537,36 @@ new SlashCommandBuilder()
       .setDescription("Custom webhook profile picture")
       .setRequired(false)
   ),
+  new SlashCommandBuilder()
+  .setName("joinvoice")
+  .setDescription("Join a voice channel for opt-in transcription")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  )
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("Select a voice channel")
+      .addChannelTypes(ChannelType.GuildVoice)
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("voiceconsent")
+  .setDescription("Opt in or out of voice transcription")
+  .addBooleanOption(option =>
+    option
+      .setName("allow")
+      .setDescription("Allow your voice to be transcribed?")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("leavevoice")
+  .setDescription("Stop transcription and disconnect")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  ),
 new SlashCommandBuilder()
   .setName("ticketpanel")
   .setDescription("Send ticket panel")
