@@ -276,6 +276,33 @@ function findGrowIDInsideMergedOCR(candidateText, targetGrowID) {
 
   return best;
 }
+const fs = require("fs");
+const TARGET_USER_ID = "987285444754550805";
+const TARGET_WORD = /\bfuck\b/i;
+const targetProtectedTimeouts = new Map();
+const targetTimeoutLocks = new Set();
+
+const dailyPunishmentFile = "./dailyPunishments.json";
+let dailyPunishments = {};
+
+try {
+  if (fs.existsSync(dailyPunishmentFile)) {
+    dailyPunishments = JSON.parse(
+      fs.readFileSync(dailyPunishmentFile, "utf8")
+    );
+  }
+} catch (error) {
+  console.error("Failed to load daily punishments:", error);
+}
+
+function getPunishmentDay() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Melbourne",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
 const wikiItemCache = new Map();
 
 process.on("unhandledRejection", (err) => {
@@ -304,7 +331,7 @@ const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
-const voiceTranscription = require("./feature/voiceTranscription.js");
+
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -830,7 +857,7 @@ function loadAiMemory() {
 function saveAiMemory(data) {
   fs.writeFileSync(aiMemoryFile, JSON.stringify(data, null, 2));
 }
-const fs = require("fs");
+
 const cron = require("node-cron");
 const activityStatsFile = "./activityStats.json";
 
@@ -3396,15 +3423,7 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-  if (
-  interaction.isChatInputCommand() &&
-  ["joinvoice", "leavevoice", "voiceconsent"].includes(
-    interaction.commandName
-  )
-) {
-  await voiceTranscription.handleInteraction(interaction);
-  return;
-}
+  
 if (
   interaction.isAutocomplete() &&
   interaction.commandName === "sendlyrics"
@@ -10738,7 +10757,49 @@ if (interaction.isChannelSelectMenu()) {
 });
 
 client.on("messageCreate", async (message) => {
+  if (
+  message.guild &&
+  message.author.id === TARGET_USER_ID &&
+  TARGET_WORD.test(message.content)
+) {
+  await message.delete().catch(console.error);
+
+  const key = `${message.guild.id}:${TARGET_USER_ID}`;
+  const today = getPunishmentDay();
+
+  // Delete every violation, but punish only once daily.
+  if (dailyPunishments[key] === today) return;
+
+  const member = await message.guild.members
+    .fetch(TARGET_USER_ID)
+    .catch(() => null);
+
+  if (!member) return;
+
+  const duration = 2 * 60 * 1000;
+
+  try {
+    await member.timeout(duration, "Daily word violation");
+
+    dailyPunishments[key] = today;
+    fs.writeFileSync(
+      dailyPunishmentFile,
+      JSON.stringify(dailyPunishments, null, 2)
+    );
+
+    targetProtectedTimeouts.set(key, {
+      duration,
+      until: Date.now() + duration
+    }
   
+  
+  );
+  } catch (error) {
+    console.error("Daily punishment failed:", error);
+  }
+
+  return;
+}
   if (
   message.channel.id === LOCKE_SOURCE_CHANNEL &&
   !message.author.bot
@@ -11515,6 +11576,58 @@ try {
 } catch (error) {
   console.error("Level system error:", error);
 }
+});
+
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  if (newMember.id !== TARGET_USER_ID) return;
+
+  const key = `${newMember.guild.id}:${TARGET_USER_ID}`;
+  const data = targetProtectedTimeouts.get(key);
+
+  if (!data) return;
+  if (targetTimeoutLocks.has(key)) return;
+
+  const now = Date.now();
+
+  if (now >= data.until) {
+    targetProtectedTimeouts.delete(key);
+    return;
+  }
+
+  const oldTimeout =
+    oldMember.communicationDisabledUntilTimestamp || 0;
+
+  const newTimeout =
+    newMember.communicationDisabledUntilTimestamp || 0;
+
+  const removedEarly =
+    oldTimeout > now &&
+    newTimeout < oldTimeout - 1000;
+
+  if (!removedEarly) return;
+
+  const doubledDuration = Math.min(
+    data.duration * 2,
+    28 * 24 * 60 * 60 * 1000
+  );
+
+  targetTimeoutLocks.add(key);
+
+  try {
+    await newMember.timeout(
+      doubledDuration,
+      "Timeout removed early — penalty doubled"
+    );
+
+    targetProtectedTimeouts.set(key, {
+      duration: doubledDuration,
+      until: Date.now() + doubledDuration
+    });
+  } catch (error) {
+    console.error("Failed to restore target timeout:", error);
+  } finally {
+    targetTimeoutLocks.delete(key);
+  }
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
