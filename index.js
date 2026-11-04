@@ -367,7 +367,11 @@ const auctionThumbnail = "https://media.discordapp.net/attachments/1446501509708
 
 const wikiFile = "./wikiData.json";
 const pendingWikiEdits = new Map();
+const SERVER_INFO_THUMBNAIL =
+  "https://media.discordapp.net/attachments/1539414735659860048/1567500368911400980/4r3r43.png";
 
+const SERVER_INFO_BANNER =
+  "https://media.discordapp.net/attachments/1413401200728084550/1452451475014811851/F84FD9FD-0DD1-49D3-B755-1FDB60F0E455.jpg";
 function loadWikiData() {
   if (!fs.existsSync(wikiFile)) fs.writeFileSync(wikiFile, "[]");
 
@@ -7727,15 +7731,18 @@ if (interaction.commandName === "help") {
 
   const targetChannel = interaction.options.getChannel("channel");
 
-  const mainEmbed = new EmbedBuilder()
-    .setTitle("Server Info")
-    .setColor("Blue")
-    .setDescription(
-      "Please use the dropdown menu below to view important server information, including the server rules, admin guide, and VIP guide."
-    )
-    .setFooter({
-      text: "NoobV2 Information Panel"
-    });
+const mainEmbed = new EmbedBuilder()
+  .setTitle("NoobV2 | Server Information")
+  .setColor("Blue")
+  .setDescription(
+    "Welcome to the official NoobV2 Information Panel.\n\n" +
+    "Use the dropdown menu below to access server rules, role information, adminship requirements, and VIP sponsorship details."
+  )
+  .setThumbnail(SERVER_INFO_THUMBNAIL)
+  .setImage(SERVER_INFO_BANNER)
+  .setFooter({
+    text: "NoobV2 Information Panel"
+  });
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId("server_info_menu")
@@ -7751,11 +7758,11 @@ if (interaction.commandName === "help") {
   description: "View all important server roles",
   value: "server_roles"
 },
-      {
-        label: "Admin Guide",
-        description: "View how to become an admin",
-        value: "admin_guide"
-      },
+{
+  label: "Admin Guide",
+  description: "View the adminship requirements",
+  value: "admin_guide"
+},
       {
         label: "VIP Guide",
         description: "View VIP sponsorship information",
@@ -9415,8 +9422,10 @@ if (interaction.customId.startsWith("blist_mode_")) {
   const value = interaction.values[0];
 
   if (value === "server_rules") {
-    const embed = new EmbedBuilder()
-      .setTitle("Server Rules")
+const embed = new EmbedBuilder()
+  .setThumbnail(SERVER_INFO_THUMBNAIL)
+  .setImage(SERVER_INFO_BANNER)
+        .setTitle("Server Rules")
       .setColor("Blue")
       .setDescription(
         `<:arrow:1442712798969729087> **No toxicity or bullying.**\n` +
@@ -9437,29 +9446,43 @@ if (interaction.customId.startsWith("blist_mode_")) {
     });
   }
 
-  if (value === "admin_guide") {
-    const embed = new EmbedBuilder()
-      .setTitle("Admin Guide")
-      .setColor("Blue")
-      .setDescription(
-        `To become an admin in **NoobV2**, please review the requirements below:\n\n` +
-        `<:arrow:1442712798969729087> You must be **recognized and trusted** by at least **3 admins** and **1 owner or co-owner**.\n` +
-        `<:arrow:1442712798969729087> You must be an **active player** in the world for at least **10 days**.\n` +
-        `<:arrow:1442712798969729087> You should actively **support the server**, such as helping with giveaways, sponsoring events, assisting admins, or contributing to activities like dice games or parkour drops.\n` +
-        `<:arrow:1442712798969729087> After that, the owners will discuss whether you are suitable for the position.\n\n` +
-        `Please note that meeting these requirements does **not guarantee** that you will become an admin, as there may be competition from other players.\n\n` +
-        `However, all genuine effort will always be noticed and appreciated. ❤️`
-      );
+if (value === "admin_guide") {
+  const embed = new EmbedBuilder()
+    .setTitle("NoobV2 | Admin Guide")
+    .setColor("Blue")
+    .setDescription(
+      "**1. Eligibility Requirements**\n" +
+      "Any active member of the NoobV2 Growtopia world or Discord community may apply for adminship. Currently blacklisted users are not eligible.\n\n" +
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
-  }
+      "**2. Application Process**\n" +
+      "To apply, open an application ticket in <#1413404892416053289> and answer all required questions.\n\n" +
+
+      "**3. Application Review**\n" +
+      "Applications will be reviewed and voted on by the administration team. Successful applicants will be notified. Unsuccessful applicants may not receive a notification.\n\n" +
+
+      "**4. Recognition and Trust**\n" +
+      "Applicants are not required to be previously recognized or trusted by the administration team. However, getting to know the community and its staff is recommended.\n\n" +
+
+      "**5. Deposits and Net Worth**\n" +
+      "No deposit, minimum net worth, or financial contribution is required. In-game wealth does not influence application decisions.\n\n" +
+
+      "**6. Final Notice**\n" +
+      "Meeting the requirements does not guarantee acceptance. We appreciate your interest and wish you success with your application."
+    )
+    .setThumbnail("https://media.discordapp.net/attachments/1539414735659860048/1567500368911400980/4r3r43.png")
+    .setImage("https://media.discordapp.net/attachments/1413401200728084550/1452451475014811851/F84FD9FD-0DD1-49D3-B755-1FDB60F0E455.jpg")
+    .setFooter({ text: "NoobV2 Administration Team" });
+
+  return interaction.reply({
+    embeds: [embed],
+    ephemeral: true
+  });
+}
 
   if (value === "server_roles") {
-  const embed = new EmbedBuilder()
-.setTitle("<:Announcement:1324498827918708746> Server Roles Information")
+const embed = new EmbedBuilder()
+  .setThumbnail(SERVER_INFO_THUMBNAIL)
+  .setImage(SERVER_INFO_BANNER).setTitle("<:Announcement:1324498827918708746> Server Roles Information")
 .setColor("Blue")
 .setDescription(
   `<:arrow:1442712798969729087> <@&1455416432752988305> - Special Bot Role\n` +
@@ -9496,8 +9519,9 @@ if (interaction.customId.startsWith("blist_mode_")) {
 }
 
   if (value === "vip_guide") {
-    const embed = new EmbedBuilder()
-      .setTitle("VIP Guide")
+const embed = new EmbedBuilder()
+  .setThumbnail(SERVER_INFO_THUMBNAIL)
+  .setImage(SERVER_INFO_BANNER)      .setTitle("VIP Guide")
       .setColor("Blue")
 .setDescription(
   `## <:bulletin:1447778065512923217> VIP Sponsorship Information\n\n` +
