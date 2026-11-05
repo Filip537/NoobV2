@@ -278,7 +278,7 @@ function findGrowIDInsideMergedOCR(candidateText, targetGrowID) {
 }
 const fs = require("fs");
 const TARGET_USER_ID = "987285444754550805";
-const TARGET_WORD = /\bfuck\b/i;
+const TARGET_WORD = /\bfu\b/i;
 const targetProtectedTimeouts = new Map();
 const targetTimeoutLocks = new Set();
 
