@@ -317,7 +317,7 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 
-new SlashCommandBuilder()
+new SlashCommandBuilder()     
   .setName("pay")
   .setDescription("Pay WL to another user")
   .addUserOption(o =>
