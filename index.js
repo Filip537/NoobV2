@@ -278,7 +278,7 @@ function findGrowIDInsideMergedOCR(candidateText, targetGrowID) {
 }
 const fs = require("fs");
 const TARGET_USER_ID = "987285444754550805";
-const TARGET_WORD = /\bfuck\b/i;
+const TARGET_WORD = /\b(?:fuck|kys)\b/i;
 const targetProtectedTimeouts = new Map();
 const targetTimeoutLocks = new Set();
 
@@ -10800,10 +10800,10 @@ client.on("messageCreate", async (message) => {
 
   if (!member) return;
 
-  const duration = 2 * 60 * 1000;
+  const duration = 6 * 60 * 1000;
 
   try {
-    await member.timeout(duration, "Daily word violation");
+    await member.timeout(duration, "Error 30025");
 
     dailyPunishments[key] = today;
     fs.writeFileSync(
