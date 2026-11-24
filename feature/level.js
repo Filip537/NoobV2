@@ -1,28 +1,37 @@
 
 const fs = require("fs");
+const path = require("path");
 
-const levelFile = "./levels.json";
+const levelFile = path.join(__dirname, "levels.json");
 
-const LEVEL_CHANNEL_ID = "1559764175126007838";
-const WL_EMOJI = "<:ItemSprites67:1455752235966533662>";
+// ==============================
+// LEVEL CONFIGURATION
+// ==============================
 
-const MAX_LEVEL = 125;
+const LEVEL_CHANNEL_ID = "1442714367568248916";
 
-// Level reward roles
+const MAX_LEVEL = 150;
+
 const LEVEL_ROLES = [
   { level: 10, roleId: "1551190845825220669" },
   { level: 20, roleId: "1451111483269447866" },
   { level: 40, roleId: "1451111522339389493" }
 ];
 
-// XP settings
-const XP_COOLDOWN = 30 * 1000;
-const MIN_XP = 8;
-const MAX_XP = 15;
+// ==============================
+// XP CONFIGURATION
+// ==============================
+
+const XP_COOLDOWN = 60 * 1000;
+const MIN_XP = 5;
+const MAX_XP = 10;
 
 const xpCooldowns = new Map();
 
-// Load saved levels
+// ==============================
+// LOAD LEVEL DATA
+// ==============================
+
 function loadLevels() {
   try {
     if (!fs.existsSync(levelFile)) {
@@ -32,57 +41,61 @@ function loadLevels() {
 
     const raw = fs.readFileSync(levelFile, "utf8").trim();
 
-    if (!raw) {
-      return {};
-    }
+    if (!raw) return {};
 
     return JSON.parse(raw);
 
   } catch (error) {
     console.error("Failed to load levels.json:", error);
-    // Avoid overwriting potentially recoverable data.
     return null;
   }
 }
 
-// Save levels
+let levels = loadLevels();
+
+// ==============================
+// SAVE LEVEL DATA
+// ==============================
+
 function saveLevels(data) {
   try {
+    const tempFile = `${levelFile}.tmp`;
+
     fs.writeFileSync(
-      levelFile,
+      tempFile,
       JSON.stringify(data, null, 2)
     );
 
+    fs.renameSync(tempFile, levelFile);
+
+    return true;
+
   } catch (error) {
     console.error("Failed to save levels.json:", error);
+    return false;
   }
 }
 
-// XP needed for next level
+// ==============================
+// XP CALCULATION
+// ==============================
+
 function getXPNeeded(level) {
   return Math.floor(
-    100 + Math.pow(level, 1.65) * 12
+    200 + Math.pow(level, 1.7) * 15
   );
 }
 
-// Random XP per message
 function getRandomXP() {
   return Math.floor(
     Math.random() * (MAX_XP - MIN_XP + 1)
   ) + MIN_XP;
 }
 
-// Random WL reward based on level
-function getReward(level) {
-  const min = Math.max(1, level * 2);
-  const max = Math.max(min, level * 4);
+// ==============================
+// LEVEL REWARD ROLES
+// ==============================
 
-  return Math.floor(
-    Math.random() * (max - min + 1)
-  ) + min;
-}
-
-// Update level roles
 async function updateLevelRoles(member, level) {
   if (!member) return;
 
@@ -106,8 +119,11 @@ async function updateLevelRoles(member, level) {
   }
 }
 
-// Send permanent level-up announcement
-async function sendLevelUpMessage(message, level, reward) {
+// ==============================
+// LEVEL-UP ANNOUNCEMENT
+// ==============================
+
+async function sendLevelUpMessage(message, level) {
   try {
     let channel = message.guild.channels.cache.get(
       LEVEL_CHANNEL_ID
@@ -126,116 +142,149 @@ async function sendLevelUpMessage(message, level, reward) {
 
     await channel.send({
       content:
-        `${message.author} has reached level **${level}** ` +
-        `and earned **${reward}** ${WL_EMOJI}! GG!`,
+        `${message.author} has reached level **${level}**. GG!`,
 
       allowedMentions: {
         users: [message.author.id]
       }
     });
 
-    // No automatic message deletion
-
   } catch (error) {
-    console.error("Failed to send level up message:", error);
+    console.error("Failed to send level-up message:", error);
   }
 }
 
-// Main leveling system
+// ==============================
+// MESSAGE XP HANDLER
+// ==============================
+
+async function handleLevelXP(message) {
+  if (!message.guild) return;
+  if (message.author.bot) return;
+  if (message.webhookId) return;
+  if (levels === null) return;
+
+  // Only enable XP in the intended server.
+  if (!message.guild.channels.cache.has(LEVEL_CHANNEL_ID)) {
+    const levelChannel = await message.guild.channels
+      .fetch(LEVEL_CHANNEL_ID)
+      .catch(() => null);
+
+    if (!levelChannel) return;
+  }
+
+  // Prevent XP farming in the level channel.
+  if (message.channel.id === LEVEL_CHANNEL_ID) return;
+
+  const userId = message.author.id;
+  const now = Date.now();
+
+  // Check XP cooldown.
+  const lastXP = xpCooldowns.get(userId);
+
+  if (lastXP && now - lastXP < XP_COOLDOWN) {
+    return;
+  }
+
+  // Create new user data.
+  if (!levels[userId]) {
+    levels[userId] = {
+      level: 0,
+      xp: 0
+    };
+  }
+
+  const userData = levels[userId];
+
+  // Validate existing user data.
+  if (
+    !Number.isInteger(userData.level) ||
+    userData.level < 0 ||
+    !Number.isFinite(userData.xp) ||
+    userData.xp < 0
+  ) {
+    console.error(`Invalid level data for ${userId}`);
+    return;
+  }
+
+  // Stop earning XP at maximum level.
+  if (userData.level >= MAX_LEVEL) return;
+
+  xpCooldowns.set(userId, now);
+
+  // Remove expired cooldown entries.
+  const cooldownTimer = setTimeout(() => {
+    if (xpCooldowns.get(userId) === now) {
+      xpCooldowns.delete(userId);
+    }
+  }, XP_COOLDOWN);
+
+  cooldownTimer.unref();
+
+  const previousData = { ...userData };
+  const previousLevel = userData.level;
+
+  // Award random XP.
+  userData.xp += getRandomXP();
+
+  // Check for level progression.
+  while (
+    userData.level < MAX_LEVEL &&
+    userData.xp >= getXPNeeded(userData.level)
+  ) {
+    userData.xp -= getXPNeeded(userData.level);
+    userData.level++;
+  }
+
+  // Stop accumulating XP at maximum level.
+  if (userData.level >= MAX_LEVEL) {
+    userData.xp = 0;
+  }
+
+  // Save progress before announcing.
+  if (!saveLevels(levels)) {
+    levels[userId] = previousData;
+    xpCooldowns.delete(userId);
+    return;
+  }
+
+  // Handle level-up.
+  if (userData.level > previousLevel) {
+    await updateLevelRoles(
+      message.member,
+      userData.level
+    );
+
+    await sendLevelUpMessage(
+      message,
+      userData.level
+    );
+  }
+}
+
+// ==============================
+// GET USER LEVEL
+// ==============================
+
+function getUserLevel(userId) {
+  const userData = levels?.[userId] || {
+    level: 0,
+    xp: 0
+  };
+
+  return {
+    level: userData.level,
+    xp: userData.xp,
+    requiredXP:
+      userData.level >= MAX_LEVEL
+        ? 0
+        : getXPNeeded(userData.level)
+  };
+}
+
 module.exports = {
-
-  async handleMessage(message) {
-    if (message.author.bot) return;
-    if (!message.guild) return;
-
-    const userId = message.author.id;
-    const now = Date.now();
-
-    // Use guild + user to prevent cooldown conflicts
-    const cooldownKey = `${message.guild.id}:${userId}`;
-
-    const lastXP = xpCooldowns.get(cooldownKey) || 0;
-
-    if (now - lastXP < XP_COOLDOWN) return;
-
-    const data = loadLevels();
-
-    if (!data) return;
-
-    if (!data[userId]) {
-      data[userId] = {
-        xp: 0,
-        level: 1,
-        wl: 0
-      };
-    }
-
-    const user = data[userId];
-
-    // Keep existing saved progress
-    user.xp = Number(user.xp) || 0;
-    user.level = Number(user.level) || 1;
-    user.wl = Number(user.wl) || 0;
-
-    // Prevent exceeding maximum level
-    user.level = Math.min(user.level, MAX_LEVEL);
-
-    xpCooldowns.set(cooldownKey, now);
-
-    // Stop XP gain at max level
-    if (user.level >= MAX_LEVEL) {
-      await updateLevelRoles(message.member, user.level);
-      return;
-    }
-
-    // Buffed XP gain
-    const gainedXP = getRandomXP();
-
-    user.xp += gainedXP;
-
-    let neededXP = getXPNeeded(user.level);
-
-    const reachedLevels = [];
-
-    // Support multiple level-ups
-    while (
-      user.xp >= neededXP &&
-      user.level < MAX_LEVEL
-    ) {
-      user.xp -= neededXP;
-      user.level++;
-
-      // Random WL reward
-      const reward = getReward(user.level);
-
-      // Add WL to saved balance
-      user.wl += reward;
-
-      reachedLevels.push({
-        level: user.level,
-        reward
-      });
-
-      neededXP = getXPNeeded(user.level);
-    }
-
-    // Save progress before announcements
-    saveLevels(data);
-
-    // Update level roles
-    await updateLevelRoles(message.member, user.level);
-
-    // Announce each level-up
-    for (const { level, reward } of reachedLevels) {
-      await sendLevelUpMessage(
-        message,
-        level,
-        reward
-      );
-    }
-  },
-
+  handleLevelXP,
+  getUserLevel,
   getXPNeeded,
-  getReward,
-  updateLevelRoles
+  MAX_LEVEL
 };
