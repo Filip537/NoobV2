@@ -3427,7 +3427,132 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-  
+
+  // ==========================================
+// TEMPORARY ARCANE LEVEL EXPORT
+// ==========================================
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "exportlevels"
+) {
+  if (interaction.user.id !== OWNER_ID) {
+    return interaction.reply({
+      content: "❌ Only the bot owner can use this command.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({
+    ephemeral: true
+  });
+
+  try {
+    const CHANNEL_ID = "1442714367568248916";
+    const ARCANE_ID = "437808476106784770";
+
+    const channel = await interaction.guild.channels
+      .fetch(CHANNEL_ID);
+
+    if (!channel || !channel.messages) {
+      return interaction.editReply({
+        content: "❌ Level channel not found."
+      });
+    }
+
+    const exportedLevels = {};
+
+    let lastMessageId = null;
+    let scannedMessages = 0;
+    let matchedMessages = 0;
+
+    while (true) {
+      const options = {
+        limit: 100
+      };
+
+      if (lastMessageId) {
+        options.before = lastMessageId;
+      }
+
+      const messages = await channel.messages.fetch(options);
+
+      if (messages.size === 0) break;
+
+      for (const message of messages.values()) {
+        scannedMessages++;
+
+        // Only accept messages from Arcane.
+        if (message.author.id !== ARCANE_ID) continue;
+
+        const content = message.content.replace(/\*/g, "");
+
+        const match = content.match(
+          /<@!?(\d+)>\s+has reached level\s+(\d+)/i
+        );
+
+        if (!match) continue;
+
+        const userId = match[1];
+        const userLevel = Number(match[2]);
+
+        if (!Number.isSafeInteger(userLevel)) continue;
+        if (userLevel < 0) continue;
+
+        matchedMessages++;
+
+        if (
+          !exportedLevels[userId] ||
+          userLevel > exportedLevels[userId].level
+        ) {
+          exportedLevels[userId] = {
+            level: userLevel,
+            xp: 0
+          };
+        }
+      }
+
+      lastMessageId = messages.last().id;
+
+      if (messages.size < 100) break;
+    }
+
+    const sortedLevels = Object.fromEntries(
+      Object.entries(exportedLevels).sort(
+        (a, b) => b[1].level - a[1].level
+      )
+    );
+
+    const buffer = Buffer.from(
+      JSON.stringify(sortedLevels, null, 2),
+      "utf8"
+    );
+
+    await interaction.editReply({
+      content:
+        "**✅ Arcane Level Export Completed**\n\n" +
+        `Messages scanned: **${scannedMessages.toLocaleString()}**\n` +
+        `Level announcements found: **${matchedMessages.toLocaleString()}**\n` +
+        `Unique users exported: **${Object.keys(sortedLevels).length}**\n\n` +
+        "Download the JSON file below.",
+      files: [
+        {
+          attachment: buffer,
+          name: "arcane-levels.json"
+        }
+      ]
+    });
+
+  } catch (error) {
+    console.error("Level export failed:", error);
+
+    await interaction.editReply({
+      content: "❌ Failed to export levels. Check the console."
+    });
+  }
+
+  return;
+}
 if (
   interaction.isAutocomplete() &&
   interaction.commandName === "sendlyrics"
