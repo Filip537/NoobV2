@@ -160,6 +160,11 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
   .setName("sendhelp")
   .setDescription("Send the Help Center panel"),
+  {
+  name: "exportlevels",
+  description: "Temporarily export Arcane level data",
+  default_member_permissions: "8"
+},
 new SlashCommandBuilder()
   .setName("addblist")
   .setDescription("Add user to blacklist")
