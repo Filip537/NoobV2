@@ -11596,7 +11596,7 @@ if (
 }
 // level system
 try {
-  await level.handleMessage(message);
+await level.handleLevelXP(message);
 } catch (error) {
   console.error("Level system error:", error);
 }
