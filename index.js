@@ -4251,7 +4251,7 @@ if (
     });
   }
 
-  const channel = interaction.options.getChannel("channelid");
+const channel = interaction.channel;
 
   if (!channel || !channel.isTextBased() || !channel.messages) {
     return interaction.reply({
