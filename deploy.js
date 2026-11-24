@@ -127,15 +127,8 @@ new SlashCommandBuilder()
 
 new SlashCommandBuilder()
   .setName("export")
-  .setDescription("Remove every item from your current set")
-    .addChannelOption(option =>
-    option
-      .setName("channel")
-      .setDescription(
-        "Channel to send the Cooking Task panel to"
-      )
-      .setRequired(true)
-  ),
+  .setDescription("Download the current channel history as a TXT file")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 new SlashCommandBuilder()
   .setName("senddashboard")
   .setDescription("Send the Build Your Role dashboard")
