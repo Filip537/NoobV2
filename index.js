@@ -4261,7 +4261,8 @@ const channel = interaction.channel;
   }
 
   await interaction.deferReply({
-  });
+  ephemeral: true
+});
 
   try {
     let allMessages = [];
