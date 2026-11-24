@@ -3427,9 +3427,8 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-
-  // ==========================================
-// TEMPORARY ARCANE LEVEL EXPORT
+// ==========================================
+// TEMPORARY LEVEL CHANNEL EXPORT
 // ==========================================
 
 if (
@@ -3449,7 +3448,6 @@ if (
 
   try {
     const CHANNEL_ID = "1442714367568248916";
-    const ARCANE_ID = "437808476106784770";
 
     const channel = await interaction.guild.channels
       .fetch(CHANNEL_ID);
@@ -3460,15 +3458,13 @@ if (
       });
     }
 
-    const exportedLevels = {};
-
+    const allMessages = [];
     let lastMessageId = null;
-    let scannedMessages = 0;
-    let matchedMessages = 0;
 
     while (true) {
       const options = {
-        limit: 100
+        limit: 100,
+        cache: false
       };
 
       if (lastMessageId) {
@@ -3480,36 +3476,7 @@ if (
       if (messages.size === 0) break;
 
       for (const message of messages.values()) {
-        scannedMessages++;
-
-        // Only accept messages from Arcane.
-        if (message.author.id !== ARCANE_ID) continue;
-
-        const content = message.content.replace(/\*/g, "");
-
-        const match = content.match(
-          /<@!?(\d+)>\s+has reached level\s+(\d+)/i
-        );
-
-        if (!match) continue;
-
-        const userId = match[1];
-        const userLevel = Number(match[2]);
-
-        if (!Number.isSafeInteger(userLevel)) continue;
-        if (userLevel < 0) continue;
-
-        matchedMessages++;
-
-        if (
-          !exportedLevels[userId] ||
-          userLevel > exportedLevels[userId].level
-        ) {
-          exportedLevels[userId] = {
-            level: userLevel,
-            xp: 0
-          };
-        }
+        allMessages.push(message);
       }
 
       lastMessageId = messages.last().id;
@@ -3517,38 +3484,42 @@ if (
       if (messages.size < 100) break;
     }
 
-    const sortedLevels = Object.fromEntries(
-      Object.entries(exportedLevels).sort(
-        (a, b) => b[1].level - a[1].level
-      )
+    // Sort from oldest to newest.
+    allMessages.sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp
     );
 
-    const buffer = Buffer.from(
-      JSON.stringify(sortedLevels, null, 2),
-      "utf8"
-    );
+    const text = allMessages.map(message => {
+      const timestamp = message.createdAt.toISOString();
+
+      return (
+        `[${timestamp}] ` +
+        `${message.author.username} (${message.author.id}): ` +
+        `${message.content}`
+      );
+    }).join("\n");
+
+    const buffer = Buffer.from(text, "utf8");
 
     await interaction.editReply({
       content:
-        "**✅ Arcane Level Export Completed**\n\n" +
-        `Messages scanned: **${scannedMessages.toLocaleString()}**\n` +
-        `Level announcements found: **${matchedMessages.toLocaleString()}**\n` +
-        `Unique users exported: **${Object.keys(sortedLevels).length}**\n\n` +
-        "Download the JSON file below.",
+        "**✅ Channel Export Completed**\n\n" +
+        `Channel: <#${CHANNEL_ID}>\n` +
+        `Total messages: **${allMessages.length.toLocaleString()}**`,
       files: [
         {
           attachment: buffer,
-          name: "arcane-levels.json"
+          name: "level-channel-export.txt"
         }
       ]
     });
 
   } catch (error) {
-    console.error("Level export failed:", error);
+    console.error("Channel export failed:", error);
 
     await interaction.editReply({
-      content: "❌ Failed to export levels. Check the console."
-    });
+      content: "❌ Failed to export channel. Check the console."
+    }).catch(console.error);
   }
 
   return;
