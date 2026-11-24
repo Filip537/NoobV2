@@ -126,7 +126,7 @@ new SlashCommandBuilder()
   ),
 
 new SlashCommandBuilder()
-  .setName("clearset")
+  .setName("export")
   .setDescription("Remove every item from your current set"),
 new SlashCommandBuilder()
   .setName("senddashboard")
