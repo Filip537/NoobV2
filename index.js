@@ -2372,6 +2372,15 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+  level.importArcaneLevels(client)
+  .then(success => {
+    if (success) {
+      console.log("[LEVEL] Arcane migration ready.");
+    } else {
+      console.error("[LEVEL] Arcane migration failed.");
+    }
+  })
+  .catch(console.error);
   await ticket.refreshAllTicketPanels(client);
 await ticket.cleanupCustomTickets(client);
 
@@ -3427,110 +3436,12 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-// ==========================================
-// TEMPORARY LEVEL CHANNEL EXPORT
-// ==========================================
-
 if (
   interaction.isChatInputCommand() &&
-  interaction.commandName === "exportlevels"
+  interaction.commandName === "testlevel"
 ) {
-  if (interaction.user.id !== OWNER_ID) {
-    return interaction.reply({
-      content: "❌ Only the bot owner can use this command.",
-      ephemeral: true
-    });
-  }
-
-  await interaction.deferReply({
-    ephemeral: true
-  });
-
-  try {
-    const CHANNEL_ID = "1442714367568248916";
-
-    const channel = await interaction.guild.channels
-      .fetch(CHANNEL_ID);
-
-    if (!channel || !channel.messages) {
-      return interaction.editReply({
-        content: "❌ Level channel not found."
-      });
-    }
-
-    const allMessages = [];
-    let lastMessageId = null;
-
-    while (true) {
-      const options = {
-        limit: 100,
-        cache: false
-      };
-
-      if (lastMessageId) {
-        options.before = lastMessageId;
-      }
-
-      const messages = await channel.messages.fetch(options);
-
-      if (messages.size === 0) break;
-
-      for (const message of messages.values()) {
-        allMessages.push(message);
-      }
-
-      lastMessageId = messages.last().id;
-
-      if (messages.size < 100) break;
-    }
-
-    // Sort from oldest to newest.
-    allMessages.sort(
-      (a, b) => a.createdTimestamp - b.createdTimestamp
-    );
-
-    const text = allMessages.map(message => {
-      const timestamp = message.createdAt.toISOString();
-
-      return (
-        `[${timestamp}] ` +
-        `${message.author.username} (${message.author.id}): ` +
-        `${message.content}`
-      );
-    }).join("\n");
-
-    const buffer = Buffer.from(text, "utf8");
-
-    await interaction.editReply({
-      content:
-        "**✅ Channel Export Completed**\n\n" +
-        `Channel: <#${CHANNEL_ID}>\n` +
-        `Total messages: **${allMessages.length.toLocaleString()}**`,
-      files: [
-        {
-          attachment: buffer,
-          name: "level-channel-export.txt"
-        }
-      ]
-    });
-
-  } catch (error) {
-    console.error("Channel export failed:", error);
-
-    await interaction.editReply({
-      content: "❌ Failed to export channel. Check the console."
-    }).catch(console.error);
-  }
-
-  return;
+  return level.handleTestLevel(interaction);
 }
-if (
-  interaction.isAutocomplete() &&
-  interaction.commandName === "sendlyrics"
-) {
-  return lyricsFeature.autocomplete(interaction);
-}
-
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "sendlyrics"
