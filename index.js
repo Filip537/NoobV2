@@ -4238,185 +4238,79 @@ if (
   }).catch(console.error);
 }
 }
-  if (
+if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "export"
 ) {
-  // ADMIN ONLY
-  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({
-      content: "❌ You need Administrator permission to use this command.",
-      ephemeral: true
-    });
-  }
-
-const channel = interaction.channel;
-
-  if (!channel || !channel.isTextBased() || !channel.messages) {
-    return interaction.reply({
-      content: "❌ Please select a valid text channel.",
-      ephemeral: true
-    });
-  }
-
-  await interaction.deferReply({
-  ephemeral: true
-});
-
   try {
-    let allMessages = [];
-    let lastMessageId = null;
+    await interaction.deferReply({ ephemeral: true });
 
-    // Fetch ALL messages, 100 at a time
+    if (!interaction.memberPermissions?.has(
+      PermissionFlagsBits.Administrator
+    )) {
+      return interaction.editReply({
+        content: "❌ Administrator only."
+      });
+    }
+
+    const channel = interaction.channel;
+
+    if (!channel?.messages) {
+      return interaction.editReply({
+        content: "❌ Invalid text channel."
+      });
+    }
+
+    const lines = [];
+    let before;
+    let total = 0;
+
     while (true) {
-      const options = {
-const options = {
-  limit: 100,
-  cache: false
-};
-      
+      const messages = await channel.messages.fetch({
+        limit: 100,
+        cache: false,
+        ...(before ? { before } : {})
+      });
 
-      if (lastMessageId) {
-        options.before = lastMessageId;
+      if (!messages.size) break;
+
+      for (const msg of messages.values()) {
+        lines.push(
+          `[${msg.createdAt.toISOString()}] ` +
+          `${msg.author.username} (${msg.author.id}): ` +
+          `${msg.content}`
+        );
+
+        total++;
       }
 
-      const messages = await channel.messages.fetch(options);
+      before = messages.last().id;
 
-      if (messages.size === 0) {
-        break;
-      }
-
-      allMessages.push(...messages.values());
-
-      lastMessageId = messages.last().id;
-
-      // Last page
-      if (messages.size < 100) {
-        break;
-      }
+      if (messages.size < 100) break;
     }
 
-    // Oldest -> newest
-    allMessages.sort(
-      (a, b) => a.createdTimestamp - b.createdTimestamp
-    );
+    const output = lines.reverse().join("\n");
 
-    let output = "";
-
-    output += `Discord Channel Export\n`;
-    output += `==============================\n`;
-    output += `Server: ${interaction.guild.name}\n`;
-    output += `Channel: #${channel.name}\n`;
-    output += `Channel ID: ${channel.id}\n`;
-    output += `Messages: ${allMessages.length}\n`;
-    output += `Exported: ${new Date().toLocaleString()}\n`;
-    output += `==============================\n\n`;
-
-    for (const message of allMessages) {
-      const date = new Date(message.createdTimestamp);
-
-      const username =
-        message.member?.displayName ||
-        message.author?.globalName ||
-        message.author?.username ||
-        "Unknown User";
-
-      output += `[${date.toLocaleString()}] ${username}`;
-
-      if (message.author) {
-        output += ` (${message.author.id})`;
-      }
-
-      output += `:\n`;
-
-      if (message.content) {
-        output += `${message.content}\n`;
-      }
-
-      // Attachments
-      if (message.attachments.size > 0) {
-        for (const attachment of message.attachments.values()) {
-          output += `[Attachment: ${attachment.name}]\n`;
-          output += `${attachment.url}\n`;
-        }
-      }
-
-      // Embeds
-      if (message.embeds.length > 0) {
-        for (const embed of message.embeds) {
-          output += `[Embed]\n`;
-
-          if (embed.title) {
-            output += `Title: ${embed.title}\n`;
-          }
-
-          if (embed.description) {
-            output += `Description: ${embed.description}\n`;
-          }
-
-          if (embed.url) {
-            output += `URL: ${embed.url}\n`;
-          }
-
-          if (embed.fields?.length) {
-            for (const field of embed.fields) {
-              output += `${field.name}: ${field.value}\n`;
-            }
-          }
-        }
-      }
-
-      // Stickers
-      if (message.stickers.size > 0) {
-        for (const sticker of message.stickers.values()) {
-          output += `[Sticker: ${sticker.name}]\n`;
-        }
-      }
-
-      output += `\n----------------------------------------\n\n`;
-    }
-
-    const safeChannelName = channel.name
-      .replace(/[^a-z0-9-_]/gi, "_")
-      .slice(0, 50);
-
-    const fileName =
-      `export-${safeChannelName}-${Date.now()}.txt`;
-
-    const filePath = path.join(__dirname, fileName);
-
-    fs.writeFileSync(filePath, output, "utf8");
-
-    await interaction.editReply({
-      content:
-        `✅ **Channel Export Complete**\n\n` +
-        `Channel: <#${channel.id}>\n` +
-        `Messages exported: **${allMessages.length}**`,
-      files: [
-        {
-          attachment: filePath,
-          name: fileName
-        }
-      ]
+    return await interaction.editReply({
+      content: `✅ Export completed. ${total} messages exported.`,
+      files: [{
+        attachment: Buffer.from(output, "utf8"),
+        name: `export-${channel.id}.txt`
+      }]
     });
-
-    // Delete temporary export from VPS after sending
-    try {
-      fs.unlinkSync(filePath);
-    } catch (deleteError) {
-      console.error("Could not delete export file:", deleteError);
-    }
 
   } catch (error) {
-    console.error("Channel export error:", error);
+    console.error("[EXPORT ERROR]", error);
 
-    await interaction.editReply({
-      content:
-        "❌ Failed to export the channel. Make sure the bot has **View Channel** and **Read Message History** permissions."
-    });
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({
+        content: `❌ Export failed: ${error.message}`
+      }).catch(console.error);
+    }
   }
-}
 
+  return;
+}
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "addreaction"
