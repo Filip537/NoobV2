@@ -509,7 +509,7 @@ async function executeProfile(interaction) {
 
   await interaction.deferReply();
 
-
+try {
     const user =
       interaction.options.getUser("user") ||
       interaction.user;
