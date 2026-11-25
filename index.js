@@ -4227,17 +4227,16 @@ if (
         `📛 Total blacklist entries now: **${finalBlacklist.length}**`
     });
 
-  } catch (error) {
-    console.error(
-      "Blacklist import error:",
-      error
-    );
+} catch (error) {
+  console.error("Channel export error:", error);
 
-    return interaction.editReply({
-      content:
-        "❌ Failed to import the blacklist file. Check the console for the error."
-    });
-  }
+  await interaction.editReply({
+    content:
+      `❌ Export failed.\n` +
+      `Error code: ${error.code || "Unknown"}\n` +
+      `Reason: ${error.message}`
+  }).catch(console.error);
+}
 }
   if (
   interaction.isChatInputCommand() &&
@@ -4271,8 +4270,11 @@ const channel = interaction.channel;
     // Fetch ALL messages, 100 at a time
     while (true) {
       const options = {
-        limit: 100
-      };
+const options = {
+  limit: 100,
+  cache: false
+};
+      
 
       if (lastMessageId) {
         options.before = lastMessageId;
