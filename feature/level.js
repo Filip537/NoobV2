@@ -81,6 +81,18 @@ function saveLevels(data) {
 // ==============================
 
 function getXPNeeded(level) {
+  const earlyLevels = {
+    0: 15,
+    1: 25,
+    2: 40,
+    3: 60,
+    4: 100
+  };
+
+  if (level < 5) {
+    return earlyLevels[level];
+  }
+
   return Math.floor(
     200 + Math.pow(level, 1.7) * 15
   );
