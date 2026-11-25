@@ -509,24 +509,16 @@ async function executeProfile(interaction) {
 
   await interaction.deferReply();
 
-  try {
-    const ready = await importArcaneLevels(
-      interaction.client
-    );
-
-    if (!ready) {
-      return interaction.editReply({
-        content: "The level system is not ready yet."
-      });
-    }
 
     const user =
       interaction.options.getUser("user") ||
       interaction.user;
 
-    const member = await interaction.guild.members
-      .fetch(user.id)
-      .catch(() => null);
+    const member =
+  interaction.guild.members.cache.get(user.id) ||
+  await interaction.guild.members
+    .fetch(user.id)
+    .catch(() => null);
 
     if (!member || user.bot) {
       return interaction.editReply({
