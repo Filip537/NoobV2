@@ -1,3 +1,4 @@
+
 const fs = require("fs");
 const path = require("path");
 
@@ -12,10 +13,9 @@ const {
   GlobalFonts
 } = require("@napi-rs/canvas");
 
-const {
-  importArcaneLevels,
-  getUserLevel
-} = require("./level.js");
+// ==========================================
+// CONFIGURATION
+// ==========================================
 
 const levelsFile = path.join(
   __dirname, "..", "levels.json"
@@ -25,6 +25,12 @@ const fontPath = path.join(
   __dirname, "..", "fonts", "Nourd.ttf"
 );
 
+const IMAGE_TIMEOUT = 1200;
+const IMAGE_CACHE_DURATION = 10 * 60 * 1000;
+const MAX_CACHED_IMAGES = 200;
+
+const imageCache = new Map();
+
 let FONT = "Arial";
 
 try {
@@ -32,6 +38,94 @@ try {
     FONT = "Nourd";
   }
 } catch {}
+
+// ==========================================
+// READ LEVEL DATA
+// ==========================================
+
+function loadLevels() {
+  if (!fs.existsSync(levelsFile)) {
+    return {};
+  }
+
+  return JSON.parse(
+    fs.readFileSync(levelsFile, "utf8")
+  );
+}
+
+function getUserLevel(userId) {
+  const levels = loadLevels();
+
+  return levels[userId] || {
+    level: 0,
+    xp: 0,
+    wl: 0
+  };
+}
+
+// ==========================================
+// FAST IMAGE LOADING
+// ==========================================
+
+async function loadFastImage(url) {
+  if (!url) return null;
+
+  const cached = imageCache.get(url);
+
+  if (
+    cached &&
+    Date.now() - cached.timestamp < IMAGE_CACHE_DURATION
+  ) {
+    return cached.image;
+  }
+
+  let timer;
+
+  try {
+    const image = await Promise.race([
+      (async () => {
+        const response = await fetch(url, {
+          signal: AbortSignal.timeout(IMAGE_TIMEOUT)
+        });
+
+        if (!response.ok) return null;
+
+        const buffer = Buffer.from(
+          await response.arrayBuffer()
+        );
+
+        return await loadImage(buffer);
+      })(),
+
+      new Promise(resolve => {
+        timer = setTimeout(
+          () => resolve(null),
+          IMAGE_TIMEOUT
+        );
+      })
+    ]);
+
+    if (!image) return null;
+
+    if (imageCache.size >= MAX_CACHED_IMAGES) {
+      const oldest = imageCache.keys().next().value;
+      imageCache.delete(oldest);
+    }
+
+    imageCache.set(url, {
+      image,
+      timestamp: Date.now()
+    });
+
+    return image;
+
+  } catch {
+    return null;
+
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // ==========================================
 // CANVAS HELPERS
@@ -68,9 +162,12 @@ function drawCover(ctx, image, x, y, w, h) {
 }
 
 function fitText(ctx, text, maxWidth, size, weight = "") {
+  text = String(text);
+
   let currentSize = size;
 
-  ctx.font = `${weight} ${currentSize}px "${FONT}"`.trim();
+  ctx.font =
+    `${weight} ${currentSize}px "${FONT}"`.trim();
 
   while (
     ctx.measureText(text).width > maxWidth &&
@@ -82,44 +179,20 @@ function fitText(ctx, text, maxWidth, size, weight = "") {
       `${weight} ${currentSize}px "${FONT}"`.trim();
   }
 
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
   let shortened = text;
 
-while (
-  ctx.measureText(shortened + "…").width > maxWidth &&
-  shortened.length > 0
-) {
-  shortened = shortened.slice(0, -1);
-}
-
-if (shortened !== text) {
-  text = shortened + "…";
-}
-  return text;
-}
-
-// ==========================================
-// FAST IMAGE LOADING
-// ==========================================
-
-async function loadFastImage(url) {
-  if (!url) return null;
-
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(2500)
-    });
-
-    if (!response.ok) return null;
-
-    const buffer = Buffer.from(
-      await response.arrayBuffer()
-    );
-
-    return await loadImage(buffer);
-
-  } catch {
-    return null;
+  while (
+    shortened.length > 0 &&
+    ctx.measureText(shortened + "…").width > maxWidth
+  ) {
+    shortened = shortened.slice(0, -1);
   }
+
+  return shortened + "…";
 }
 
 // ==========================================
@@ -135,15 +208,16 @@ function getProfileRole(member) {
   }
 
   const role = member.roles.cache
-    .filter(r =>
-      r.id !== member.guild.id &&
-      !r.managed
+    .filter(role =>
+      role.id !== member.guild.id &&
+      !role.managed
     )
     .sort((a, b) => b.position - a.position)
     .first();
 
   return {
     name: role?.name || "Member",
+
     color: role?.color
       ? role.hexColor
       : "#d4d4d8"
@@ -156,6 +230,7 @@ function getProfileRole(member) {
 
 function drawCrown(ctx, x, y, size, color) {
   ctx.save();
+
   ctx.translate(x, y);
   ctx.scale(size / 40, size / 40);
 
@@ -203,9 +278,10 @@ function drawStar(ctx, x, y, size, color) {
     const angle =
       -Math.PI / 2 + i * Math.PI / 5;
 
-    const radius = i % 2 === 0
-      ? size / 2
-      : size / 4;
+    const radius =
+      i % 2 === 0
+        ? size / 2
+        : size / 4;
 
     const px = Math.cos(angle) * radius;
     const py = Math.sin(angle) * radius;
@@ -225,7 +301,7 @@ function drawStar(ctx, x, y, size, color) {
 }
 
 // ==========================================
-// DRAW INFORMATION PILL
+// INFORMATION PILL
 // ==========================================
 
 function drawPill(ctx, text, x, y, w, h, color) {
@@ -265,18 +341,23 @@ function drawPill(ctx, text, x, y, w, h, color) {
 // ==========================================
 
 async function createProfileCard(member, data) {
+  const started = Date.now();
+
   const W = 1000;
   const H = 780;
 
-  const canvas = createCanvas(W, H);
+  const canvas = createCanvas(800, 624);
   const ctx = canvas.getContext("2d");
 
-  // Use cached Discord user information.
+  // Preserve original design at a smaller resolution.
+  ctx.scale(0.8, 0.8);
 
   const user = member.user;
   const role = getProfileRole(member);
 
-  // Smaller avatar for faster downloading.
+  // ========================================
+  // AVATAR AND BANNER
+  // ========================================
 
   const avatarURL = member.displayAvatarURL({
     extension: "png",
@@ -285,31 +366,33 @@ async function createProfileCard(member, data) {
   });
 
   const bannerURL =
-    (typeof member.bannerURL === "function"
-      ? member.bannerURL({
-          extension: "png",
-          size: 1024,
-          forceStatic: true
-        })
-      : null) ||
-    user.bannerURL({
-      extension: "png",
-      size: 1024,
+    member.bannerURL?.({
+      extension: "jpg",
+      size: 512,
       forceStatic: true
-    });
-
-  // Download both images simultaneously.
+    }) ||
+    user.bannerURL?.({
+      extension: "jpg",
+      size: 512,
+      forceStatic: true
+    }) ||
+    null;
 
   const [avatar, banner] = await Promise.all([
     loadFastImage(avatarURL),
     loadFastImage(bannerURL)
   ]);
 
-  ctx.clearRect(0, 0, W, H);
+  console.log(
+    `[PROFILE] Images loaded in ${Date.now() - started}ms`
+  );
 
   // ========================================
-  // MAIN CARD BACKGROUND
+  // MAIN BACKGROUND
   // ========================================
+
+  ctx.fillStyle = "#101012";
+  ctx.fillRect(0, 0, W, H);
 
   ctx.save();
 
@@ -364,8 +447,6 @@ async function createProfileCard(member, data) {
 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, 310);
-
-    // Default diagonal banner pattern.
 
     ctx.strokeStyle =
       "rgba(255,255,255,0.035)";
@@ -435,12 +516,7 @@ async function createProfileCard(member, data) {
   const avatarY = 285;
   const avatarRadius = 125;
 
-  ctx.save();
-
-  ctx.shadowColor = "rgba(0,0,0,0.65)";
-  ctx.shadowBlur = 25;
-  ctx.shadowOffsetY = 10;
-
+  // Lightweight avatar border.
   ctx.beginPath();
 
   ctx.arc(
@@ -453,8 +529,6 @@ async function createProfileCard(member, data) {
 
   ctx.fillStyle = "#d4d4d8";
   ctx.fill();
-
-  ctx.restore();
 
   ctx.save();
 
@@ -490,8 +564,7 @@ async function createProfileCard(member, data) {
     );
 
   } else {
-    // Fallback if avatar download fails.
-
+    // Never fail the card because of an avatar.
     ctx.fillStyle = "#ffffff";
     ctx.font = `bold 100px "${FONT}"`;
     ctx.textAlign = "center";
@@ -509,6 +582,8 @@ async function createProfileCard(member, data) {
   // DISPLAY NAME
   // ========================================
 
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#ffffff";
 
   const displayName = fitText(
@@ -582,12 +657,13 @@ async function createProfileCard(member, data) {
   ctx.beginPath();
   ctx.moveTo(65, 585);
   ctx.lineTo(935, 585);
+
   ctx.strokeStyle = "#35353b";
   ctx.lineWidth = 2;
   ctx.stroke();
 
   // ========================================
-  // CURRENT LEVEL ROW
+  // CURRENT LEVEL
   // ========================================
 
   drawStar(
@@ -636,7 +712,20 @@ async function createProfileCard(member, data) {
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  return canvas.encode("png");
+  // ========================================
+  // FAST JPEG ENCODING
+  // ========================================
+
+  const image = canvas.toBuffer(
+    "image/jpeg",
+    75
+  );
+
+  console.log(
+    `[PROFILE] Rendered in ${Date.now() - started}ms (${image.length} bytes)`
+  );
+
+  return image;
 }
 
 // ==========================================
@@ -644,6 +733,10 @@ async function createProfileCard(member, data) {
 // ==========================================
 
 async function executeProfile(interaction) {
+  const started = Date.now();
+
+  let stage = "acknowledging command";
+
   if (!interaction.guild) {
     return interaction.reply({
       content: "This command must be used in a server.",
@@ -651,38 +744,55 @@ async function executeProfile(interaction) {
     });
   }
 
-  // Acknowledge the command immediately.
-
-  await interaction.deferReply();
-
   try {
+    // Immediately acknowledge Discord.
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply();
+    }
+
+    console.log(
+      `[PROFILE] Acknowledged in ${Date.now() - started}ms`
+    );
+
+    // ======================================
+    // GET SELECTED MEMBER
+    // NO DISCORD API FETCH
+    // ======================================
+
+    stage = "reading member";
+
     const user =
       interaction.options.getUser("user") ||
       interaction.user;
-const member =
-  interaction.options.getMember("user") ||
-  interaction.guild.members.cache.get(user.id) ||
-  (user.id === interaction.user.id
-    ? interaction.member
-    : null);
-    if (!member || user.bot) {
+
+    const member =
+      interaction.options.getMember("user") ||
+      interaction.guild.members.cache.get(user.id) ||
+      (
+        user.id === interaction.user.id
+          ? interaction.member
+          : null
+      );
+
+    if (!member || !member.user || user.bot) {
       return interaction.editReply({
         content: "Please select a valid server member."
       });
     }
 
-    // Validate saved level data.
+    // ======================================
+    // READ LOCAL LEVEL DATA
+    // ======================================
 
-    JSON.parse(
-      fs.readFileSync(levelsFile, "utf8")
-    );
-
-    // Read the current level without importing
-    // Arcane data every time /profile is used.
+    stage = "reading levels.json";
 
     const data = getUserLevel(user.id);
 
-    // Generate the canvas.
+    // ======================================
+    // GENERATE IMAGE
+    // ======================================
+
+    stage = "rendering canvas";
 
     const image = await createProfileCard(
       member,
@@ -692,25 +802,66 @@ const member =
     const attachment = new AttachmentBuilder(
       image,
       {
-        name: "profile-card.png"
+        name: "profile-card.jpg"
       }
     );
 
-    // Send the completed canvas image.
+    // ======================================
+    // UPLOAD TO DISCORD
+    // ======================================
 
-    return await interaction.editReply({
+    stage = "uploading image to Discord";
+
+    const uploadStarted = Date.now();
+
+    console.log(
+      `[PROFILE] Uploading ${image.length} bytes...`
+    );
+
+    await interaction.editReply({
+      content: null,
       files: [attachment],
       allowedMentions: {
         parse: []
       }
     });
 
-  } catch (error) {
-    console.error("[PROFILE]", error);
+    console.log(
+      `[PROFILE] Upload completed in ${Date.now() - uploadStarted}ms`
+    );
 
-    return interaction.editReply({
-      content: "Unable to generate this profile card."
-    });
+    console.log(
+      `[PROFILE] Total time: ${Date.now() - started}ms`
+    );
+
+  } catch (error) {
+    console.error(
+      `[PROFILE] Failed while ${stage}:`,
+      error
+    );
+
+    const response = {
+      content:
+        `Unable to generate this profile card.\n` +
+        `Failed while ${stage}.`,
+
+      allowedMentions: {
+        parse: []
+      }
+    };
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(response);
+      } else {
+        await interaction.reply(response);
+      }
+    } catch (replyError) {
+      console.error(
+        "[PROFILE] Unable to send error response:",
+        replyError
+      );
+    }
   }
 }
 
@@ -726,28 +877,16 @@ async function executeLeaderboard(interaction) {
     });
   }
 
-  await interaction.deferReply();
-
   try {
-    const ready = await importArcaneLevels(
-      interaction.client
-    );
-
-    if (!ready) {
-      return interaction.editReply({
-        content: "The level system is not ready yet."
-      });
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply();
     }
 
-    const levels = JSON.parse(
-      fs.readFileSync(levelsFile, "utf8")
-    );
+    // Read saved levels directly.
+    // Never wait for Arcane migration.
+    const levels = loadLevels();
 
     const members = interaction.guild.members.cache;
-
-    // ======================================
-    // FILTER VALID MEMBERS
-    // ======================================
 
     const ranked = Object.entries(levels)
 
@@ -755,8 +894,8 @@ async function executeLeaderboard(interaction) {
         const member = members.get(userId);
 
         return (
-          member &&
-          !member.user.bot &&
+          /^\d{17,20}$/.test(userId) &&
+          !member?.user.bot &&
           data &&
           Number.isInteger(data.level) &&
           data.level >= 0 &&
@@ -765,8 +904,6 @@ async function executeLeaderboard(interaction) {
           (data.level > 0 || data.xp > 0)
         );
       })
-
-      // Sort by level, then XP.
 
       .sort((a, b) =>
         b[1].level - a[1].level ||
@@ -782,10 +919,6 @@ async function executeLeaderboard(interaction) {
       "🥉"
     ];
 
-    // ======================================
-    // LEADERBOARD DESCRIPTION
-    // ======================================
-
     const description = top.map(
       ([userId, data], index) => {
         const rank =
@@ -799,21 +932,14 @@ async function executeLeaderboard(interaction) {
       }
     ).join("\n\n");
 
-    // ======================================
-    // PERSONAL RANKING
-    // ======================================
-
     const userRank = ranked.findIndex(
       ([id]) => id === interaction.user.id
     );
 
-    const userData = getUserLevel(
-      interaction.user.id
-    );
-
-    // ======================================
-    // LEADERBOARD EMBED
-    // ======================================
+    const userData = levels[interaction.user.id] || {
+      level: 0,
+      xp: 0
+    };
 
     const embed = new EmbedBuilder()
 
@@ -846,15 +972,16 @@ async function executeLeaderboard(interaction) {
 
     const guildIcon =
       interaction.guild.iconURL({
-        size: 256
+        size: 128
       });
 
     if (guildIcon) {
       embed.setThumbnail(guildIcon);
     }
 
-    return await interaction.editReply({
+    await interaction.editReply({
       embeds: [embed],
+
       allowedMentions: {
         parse: []
       }
@@ -863,9 +990,19 @@ async function executeLeaderboard(interaction) {
   } catch (error) {
     console.error("[LEADERBOARD]", error);
 
-    return interaction.editReply({
+    const response = {
       content: "Unable to load the level leaderboard."
-    });
+    };
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(response);
+      } else {
+        await interaction.reply(response);
+      }
+    } catch (replyError) {
+      console.error("[LEADERBOARD]", replyError);
+    }
   }
 }
 
