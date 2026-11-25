@@ -82,13 +82,18 @@ function fitText(ctx, text, maxWidth, size, weight = "") {
       `${weight} ${currentSize}px "${FONT}"`.trim();
   }
 
-  while (
-    ctx.measureText(text).width > maxWidth &&
-    text.length > 1
-  ) {
-    text = text.slice(0, -2) + "…";
-  }
+  let shortened = text;
 
+while (
+  ctx.measureText(shortened + "…").width > maxWidth &&
+  shortened.length > 0
+) {
+  shortened = shortened.slice(0, -1);
+}
+
+if (shortened !== text) {
+  text = shortened + "…";
+}
   return text;
 }
 
@@ -654,15 +659,12 @@ async function executeProfile(interaction) {
     const user =
       interaction.options.getUser("user") ||
       interaction.user;
-
-    // Use cached member before making an API request.
-
-    const member =
-      interaction.guild.members.cache.get(user.id) ||
-      await interaction.guild.members
-        .fetch(user.id)
-        .catch(() => null);
-
+const member =
+  interaction.options.getMember("user") ||
+  interaction.guild.members.cache.get(user.id) ||
+  (user.id === interaction.user.id
+    ? interaction.member
+    : null);
     if (!member || user.bot) {
       return interaction.editReply({
         content: "Please select a valid server member."
@@ -741,8 +743,7 @@ async function executeLeaderboard(interaction) {
       fs.readFileSync(levelsFile, "utf8")
     );
 
-    const members =
-      await interaction.guild.members.fetch();
+    const members = interaction.guild.members.cache;
 
     // ======================================
     // FILTER VALID MEMBERS
