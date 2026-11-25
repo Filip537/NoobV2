@@ -3436,6 +3436,13 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+
+    if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "profile"
+  ) {
+    return profileFeature.executeProfile(interaction);
+  }
 if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "testlevel"
@@ -7685,10 +7692,6 @@ const mainEmbed = new EmbedBuilder()
     content: `✅ Server info panel sent to ${targetChannel}.`,
     ephemeral: true
   });
-}
-
-if (interaction.isChatInputCommand() && interaction.commandName === "profile") {
-  return profileFeature.executeProfile(interaction);
 }
 
 if (interaction.commandName === "blist") {
