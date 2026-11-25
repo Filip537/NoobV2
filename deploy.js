@@ -858,6 +858,19 @@ new SlashCommandBuilder()
       .setDescription("Example: 30m, 5h, 1d, 7d")
       .setRequired(true)
   ),
+new SlashCommandBuilder()
+  .setName("testlevel")
+  .setDescription("Verify a member's imported Arcane level")
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  )
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Select a member to test")
+      .setRequired(true)
+  ),
+
 testLevelCommand.data,
 worldcup.data
 ].map(c => c.toJSON());
