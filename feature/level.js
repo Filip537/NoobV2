@@ -11,19 +11,16 @@ const migrationFile = path.join(__dirname, "..", "arcane-migration.json");
 
 const GUILD_ID = "1411983843442823272";
 
-// NoobV2 level announcements
-const LEVEL_CHANNEL_ID = "1442714367568248916";
-
-// Original Arcane level announcements
+const LEVEL_CHANNEL_ID = "1439934982847205490";
 const ARCANE_CHANNEL_ID = "1439934982847205490";
 const ARCANE_BOT_ID = "437808476106784770";
 
-// Original Level 5 role
 const LEVEL_5_ROLE_ID = "1485405233990467735";
 
 const MAX_LEVEL = 150;
 
 const LEVEL_ROLES = [
+  { level: 5, roleId: "1485405233990467735" },
   { level: 10, roleId: "1551190845825220669" },
   { level: 20, roleId: "1451111483269447866" },
   { level: 40, roleId: "1451111522339389493" }
@@ -127,12 +124,12 @@ function getRandomXP() {
 }
 
 // ==========================================
-// READ ARCANE ANNOUNCEMENT
+// READ ARCANE ANNOUNCEMENTS
 // ==========================================
 
 function parseArcaneMessage(message) {
   if (message.author.id !== ARCANE_BOT_ID) {
-    return null;
+    return [];
   }
 
   const parts = [message.content || ""];
@@ -147,27 +144,31 @@ function parseArcaneMessage(message) {
     }
   }
 
-  const content = parts.join(" ")
+  const content = parts.join("\n")
     .replace(/\*/g, "")
     .replace(/`/g, "");
 
-  const match = content.match(
-    /<@!?(\d+)>\s+has reached level\s+(\d+)/i
+  const matches = content.matchAll(
+    /<@!?(\d+)>\s+has reached level\s+(\d+)/gi
   );
 
-  if (!match) return null;
+  const results = [];
 
-  const userId = match[1];
-  const level = Number(match[2]);
+  for (const match of matches) {
+    const userId = match[1];
+    const level = Number(match[2]);
 
-  if (!Number.isSafeInteger(level) || level < 1) {
-    return null;
+    if (!Number.isSafeInteger(level) || level < 1) {
+      continue;
+    }
+
+    results.push({
+      userId,
+      level: Math.min(level, MAX_LEVEL)
+    });
   }
 
-  return {
-    userId,
-    level: Math.min(level, MAX_LEVEL)
-  };
+  return results;
 }
 
 // ==========================================
@@ -183,7 +184,7 @@ async function importArcaneLevels(client) {
 
   migrationPromise = (async () => {
     try {
-      // Do not repeat a completed migration.
+      // Prevent repeated migrations.
       if (
         fs.existsSync(migrationFile) &&
         fs.existsSync(levelFile)
@@ -221,7 +222,7 @@ async function importArcaneLevels(client) {
       let scanned = 0;
       let matched = 0;
 
-      // Scan the entire channel history.
+      // Scan all historical messages.
       while (true) {
         const messages = await channel.messages.fetch({
           limit: 100,
@@ -234,18 +235,19 @@ async function importArcaneLevels(client) {
         for (const message of messages.values()) {
           scanned++;
 
-          const result = parseArcaneMessage(message);
+          const results = parseArcaneMessage(message);
 
-          if (!result) continue;
+          for (const result of results) {
+            matched++;
 
-          matched++;
+            const previous =
+              imported.get(result.userId) || 0;
 
-          const previous = imported.get(result.userId) || 0;
-
-          imported.set(
-            result.userId,
-            Math.max(previous, result.level)
-          );
+            imported.set(
+              result.userId,
+              Math.max(previous, result.level)
+            );
+          }
         }
 
         before = messages.last().id;
@@ -259,10 +261,9 @@ async function importArcaneLevels(client) {
         if (messages.size < 100) break;
       }
 
-      // Prevent an empty or incorrect import.
       if (matched === 0) {
         throw new Error(
-          "No Arcane announcements matched. Check the bot ID and message format."
+          "No Arcane announcements matched. Check bot ID and message format."
         );
       }
 
@@ -300,14 +301,13 @@ async function importArcaneLevels(client) {
         }
       }
 
-      // Reload latest data before merging.
       const levels = loadLevels();
 
       if (levels === null) {
         throw new Error("Unable to load existing levels.json");
       }
 
-      // Create backup before modifying data.
+      // Create backup.
       const backupFile =
         `${levelFile}.backup-${Date.now()}`;
 
@@ -319,7 +319,7 @@ async function importArcaneLevels(client) {
       const reportUsers = {};
 
       // ======================================
-      // MERGE WITHOUT LOSING EXISTING DATA
+      // MERGE EXISTING LEVELS
       // ======================================
 
       for (const [userId, importedLevel] of imported) {
@@ -347,7 +347,7 @@ async function importArcaneLevels(client) {
         if (importedLevel > previousLevel) {
           userData.level = importedLevel;
 
-          // Arcane announcements do not contain partial XP.
+          // Arcane does not expose partial XP in announcements.
           userData.xp = 0;
 
           updated++;
@@ -355,7 +355,7 @@ async function importArcaneLevels(client) {
           preserved++;
         }
 
-        // Keep existing WL balances and other properties.
+        // Preserve WL and other existing properties.
         userData.arcaneLevel =
           arcaneLevels.get(userId) || 0;
 
@@ -380,7 +380,10 @@ async function importArcaneLevels(client) {
         throw new Error("Failed to save imported levels");
       }
 
-      // Save migration completion report.
+      // ======================================
+      // SAVE MIGRATION REPORT
+      // ======================================
+
       const report = {
         completed: true,
         guildId: GUILD_ID,
@@ -415,7 +418,6 @@ async function importArcaneLevels(client) {
 
     } catch (error) {
       console.error("[ARCANE] Migration failed:", error);
-
       return false;
     }
   })();
@@ -428,7 +430,7 @@ async function importArcaneLevels(client) {
 }
 
 // ==========================================
-// LEVEL REWARD ROLES
+// AUTOMATIC LEVEL REWARD ROLES
 // ==========================================
 
 async function updateLevelRoles(member, level) {
@@ -445,7 +447,14 @@ async function updateLevelRoles(member, level) {
       if (!role) continue;
 
       if (!member.roles.cache.has(levelRole.roleId)) {
-        await member.roles.add(role);
+        await member.roles.add(
+          role,
+          `Level ${levelRole.level} reward`
+        );
+
+        console.log(
+          `[LEVEL] Granted level ${levelRole.level} role to ${member.user.username}`
+        );
       }
 
     } catch (error) {
@@ -456,7 +465,7 @@ async function updateLevelRoles(member, level) {
 
 // ==========================================
 // LEVEL-UP ANNOUNCEMENT
-// NO MEMBER PINGS
+// WITH ACTUAL MEMBER PING
 // ==========================================
 
 async function sendLevelUpMessage(message, level) {
@@ -476,7 +485,7 @@ async function sendLevelUpMessage(message, level) {
 
       allowedMentions: {
         parse: [],
-        users: [],
+        users: [message.author.id],
         roles: [],
         repliedUser: false
       }
@@ -497,10 +506,10 @@ async function handleLevelXP(message) {
   if (message.author.bot) return;
   if (message.webhookId) return;
 
+  // Do not award XP in the level announcement channel.
   if (message.channel.id === LEVEL_CHANNEL_ID) return;
-  if (message.channel.id === ARCANE_CHANNEL_ID) return;
 
-  // Ensure Arcane levels are imported before awarding XP.
+  // Complete migration before awarding XP.
   const ready = await importArcaneLevels(message.client);
 
   if (!ready) return;
@@ -538,8 +547,6 @@ async function handleLevelXP(message) {
     return;
   }
 
-  if (userData.level >= MAX_LEVEL) return;
-
   xpCooldowns.set(userId, now);
 
   const cooldownTimer = setTimeout(() => {
@@ -550,9 +557,19 @@ async function handleLevelXP(message) {
 
   cooldownTimer.unref();
 
+  // Maximum level members can still recover missing roles.
+  if (userData.level >= MAX_LEVEL) {
+    await updateLevelRoles(
+      message.member,
+      userData.level
+    );
+
+    return;
+  }
+
   const previousLevel = userData.level;
 
-  // Award 5-10 XP.
+  // Award 5-10 XP per eligible message.
   userData.xp += getRandomXP();
 
   while (
@@ -572,12 +589,14 @@ async function handleLevelXP(message) {
     return;
   }
 
-  if (userData.level > previousLevel) {
-    await updateLevelRoles(
-      message.member,
-      userData.level
-    );
+  // Restore missing reward roles, including imported members.
+  await updateLevelRoles(
+    message.member,
+    userData.level
+  );
 
+  // Only announce actual new level-ups.
+  if (userData.level > previousLevel) {
     await sendLevelUpMessage(
       message,
       userData.level
@@ -651,6 +670,10 @@ async function handleTestLevel(interaction) {
       });
     }
 
+    const member = await interaction.guild.members
+      .fetch(user.id)
+      .catch(() => null);
+
     const requiredXP = getXPNeeded(data.level);
 
     const remainingXP = Math.max(
@@ -669,14 +692,30 @@ async function handleTestLevel(interaction) {
       data.level >= importedLevel;
 
     const status = verified
-      ? "Arcane migration verified"
+      ? "Imported level verified"
       : importedLevel > 0
         ? "Imported level mismatch"
         : "No imported level recorded";
 
+    // Check all eligible reward roles.
+    const eligibleRoles = LEVEL_ROLES.filter(
+      reward => data.level >= reward.level
+    );
+
+    const roleStatus = eligibleRoles.length
+      ? eligibleRoles.map(reward => {
+          const hasRole = member?.roles.cache.has(
+            reward.roleId
+          );
+
+          return `${hasRole ? "✅" : "❌"} Level ${reward.level}: <@&${reward.roleId}>`;
+        }).join("\n")
+      : "No reward roles unlocked yet.";
+
     await interaction.editReply({
       embeds: [{
         title: "Level System Test",
+
         color: verified ? 0x57F287 : 0xFEE75C,
 
         thumbnail: {
@@ -731,6 +770,10 @@ async function handleTestLevel(interaction) {
             name: "Level Source",
             value: data.levelSource || "NoobV2",
             inline: true
+          },
+          {
+            name: "Reward Roles",
+            value: roleStatus
           },
           {
             name: "Status",
