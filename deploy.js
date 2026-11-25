@@ -428,7 +428,13 @@ new SlashCommandBuilder()
   .setDescription("Get a random fortune prediction"),
 new SlashCommandBuilder()
   .setName("profile")
-  .setDescription("View your profile"),
+  .setDescription("View a member's profile")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Select a member")
+      .setRequired(false)
+  ),
   new SlashCommandBuilder()
   .setName("wordban")
   .setDescription("Ban a word")
