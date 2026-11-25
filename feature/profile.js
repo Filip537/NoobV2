@@ -1,4 +1,3 @@
-
 const fs = require("fs");
 const path = require("path");
 
@@ -78,6 +77,7 @@ function fitText(ctx, text, maxWidth, size, weight = "") {
     currentSize > 20
   ) {
     currentSize -= 2;
+
     ctx.font =
       `${weight} ${currentSize}px "${FONT}"`.trim();
   }
@@ -93,7 +93,32 @@ function fitText(ctx, text, maxWidth, size, weight = "") {
 }
 
 // ==========================================
-// ROLE
+// FAST IMAGE LOADING
+// ==========================================
+
+async function loadFastImage(url) {
+  if (!url) return null;
+
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(2500)
+    });
+
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(
+      await response.arrayBuffer()
+    );
+
+    return await loadImage(buffer);
+
+  } catch {
+    return null;
+  }
+}
+
+// ==========================================
+// PROFILE ROLE
 // ==========================================
 
 function getProfileRole(member) {
@@ -121,7 +146,7 @@ function getProfileRole(member) {
 }
 
 // ==========================================
-// DRAW ICONS
+// CROWN ICON
 // ==========================================
 
 function drawCrown(ctx, x, y, size, color) {
@@ -143,7 +168,9 @@ function drawCrown(ctx, x, y, size, color) {
   ctx.fill();
 
   for (const [cx, cy] of [
-    [2, 7], [20, 3], [38, 7]
+    [2, 7],
+    [20, 3],
+    [38, 7]
   ]) {
     ctx.beginPath();
     ctx.arc(cx, cy, 3, 0, Math.PI * 2);
@@ -153,14 +180,23 @@ function drawCrown(ctx, x, y, size, color) {
   ctx.restore();
 }
 
+// ==========================================
+// STAR ICON
+// ==========================================
+
 function drawStar(ctx, x, y, size, color) {
   ctx.save();
-  ctx.translate(x + size / 2, y + size / 2);
+
+  ctx.translate(
+    x + size / 2,
+    y + size / 2
+  );
 
   ctx.beginPath();
 
   for (let i = 0; i < 10; i++) {
-    const angle = -Math.PI / 2 + i * Math.PI / 5;
+    const angle =
+      -Math.PI / 2 + i * Math.PI / 5;
 
     const radius = i % 2 === 0
       ? size / 2
@@ -169,8 +205,11 @@ function drawStar(ctx, x, y, size, color) {
     const px = Math.cos(angle) * radius;
     const py = Math.sin(angle) * radius;
 
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
   }
 
   ctx.closePath();
@@ -179,6 +218,10 @@ function drawStar(ctx, x, y, size, color) {
 
   ctx.restore();
 }
+
+// ==========================================
+// DRAW INFORMATION PILL
+// ==========================================
 
 function drawPill(ctx, text, x, y, w, h, color) {
   roundedRect(ctx, x, y, w, h, h / 2);
@@ -195,17 +238,25 @@ function drawPill(ctx, text, x, y, w, h, color) {
   ctx.textBaseline = "middle";
 
   const fitted = fitText(
-    ctx, String(text), w - 32, 32, "bold"
+    ctx,
+    String(text),
+    w - 32,
+    32,
+    "bold"
   );
 
-  ctx.fillText(fitted, x + w / 2, y + h / 2);
+  ctx.fillText(
+    fitted,
+    x + w / 2,
+    y + h / 2
+  );
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 }
 
 // ==========================================
-// CREATE PROFILE CARD
+// CREATE PROFILE CANVAS
 // ==========================================
 
 async function createProfileCard(member, data) {
@@ -215,14 +266,16 @@ async function createProfileCard(member, data) {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  const user = await member.user.fetch(true)
-    .catch(() => member.user);
+  // Use cached Discord user information.
 
+  const user = member.user;
   const role = getProfileRole(member);
+
+  // Smaller avatar for faster downloading.
 
   const avatarURL = member.displayAvatarURL({
     extension: "png",
-    size: 512,
+    size: 256,
     forceStatic: true
   });
 
@@ -240,21 +293,30 @@ async function createProfileCard(member, data) {
       forceStatic: true
     });
 
-  const [avatar, banner] = await Promise.all([
-    loadImage(avatarURL).catch(() => null),
+  // Download both images simultaneously.
 
-    bannerURL
-      ? loadImage(bannerURL).catch(() => null)
-      : Promise.resolve(null)
+  const [avatar, banner] = await Promise.all([
+    loadFastImage(avatarURL),
+    loadFastImage(bannerURL)
   ]);
 
   ctx.clearRect(0, 0, W, H);
 
-  // Main rounded card
+  // ========================================
+  // MAIN CARD BACKGROUND
+  // ========================================
 
   ctx.save();
 
-  roundedRect(ctx, 4, 4, W - 8, H - 8, 44);
+  roundedRect(
+    ctx,
+    4,
+    4,
+    W - 8,
+    H - 8,
+    44
+  );
+
   ctx.clip();
 
   const background = ctx.createLinearGradient(
@@ -267,7 +329,9 @@ async function createProfileCard(member, data) {
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, W, H);
 
-  // Banner
+  // ========================================
+  // PROFILE BANNER
+  // ========================================
 
   ctx.save();
 
@@ -276,7 +340,15 @@ async function createProfileCard(member, data) {
   ctx.clip();
 
   if (banner) {
-    drawCover(ctx, banner, 0, 0, W, 310);
+    drawCover(
+      ctx,
+      banner,
+      0,
+      0,
+      W,
+      310
+    );
+
   } else {
     const gradient = ctx.createLinearGradient(
       0, 0, W, 310
@@ -288,9 +360,11 @@ async function createProfileCard(member, data) {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, 310);
 
-    // Subtle diagonal pattern
+    // Default diagonal banner pattern.
 
-    ctx.strokeStyle = "rgba(255,255,255,0.035)";
+    ctx.strokeStyle =
+      "rgba(255,255,255,0.035)";
+
     ctx.lineWidth = 50;
 
     for (let x = -400; x < W; x += 150) {
@@ -303,7 +377,9 @@ async function createProfileCard(member, data) {
 
   ctx.restore();
 
-  // Curved banner divider
+  // ========================================
+  // CURVED BANNER DIVIDER
+  // ========================================
 
   ctx.beginPath();
   ctx.moveTo(0, 265);
@@ -361,10 +437,13 @@ async function createProfileCard(member, data) {
   ctx.shadowOffsetY = 10;
 
   ctx.beginPath();
+
   ctx.arc(
-    avatarX, avatarY,
+    avatarX,
+    avatarY,
     avatarRadius + 7,
-    0, Math.PI * 2
+    0,
+    Math.PI * 2
   );
 
   ctx.fillStyle = "#d4d4d8";
@@ -375,15 +454,19 @@ async function createProfileCard(member, data) {
   ctx.save();
 
   ctx.beginPath();
+
   ctx.arc(
-    avatarX, avatarY,
+    avatarX,
+    avatarY,
     avatarRadius,
-    0, Math.PI * 2
+    0,
+    Math.PI * 2
   );
 
   ctx.clip();
 
   ctx.fillStyle = "#333338";
+
   ctx.fillRect(
     avatarX - avatarRadius,
     avatarY - avatarRadius,
@@ -400,10 +483,14 @@ async function createProfileCard(member, data) {
       avatarRadius * 2,
       avatarRadius * 2
     );
+
   } else {
+    // Fallback if avatar download fails.
+
     ctx.fillStyle = "#ffffff";
     ctx.font = `bold 100px "${FONT}"`;
     ctx.textAlign = "center";
+
     ctx.fillText(
       user.username.charAt(0).toUpperCase(),
       avatarX,
@@ -414,7 +501,7 @@ async function createProfileCard(member, data) {
   ctx.restore();
 
   // ========================================
-  // DISPLAY NAME AND USERNAME
+  // DISPLAY NAME
   // ========================================
 
   ctx.fillStyle = "#ffffff";
@@ -427,7 +514,15 @@ async function createProfileCard(member, data) {
     "bold"
   );
 
-  ctx.fillText(displayName, 355, 350);
+  ctx.fillText(
+    displayName,
+    355,
+    350
+  );
+
+  // ========================================
+  // DISCORD USERNAME
+  // ========================================
 
   ctx.fillStyle = "#a1a1aa";
 
@@ -438,26 +533,46 @@ async function createProfileCard(member, data) {
     36
   );
 
-  ctx.fillText(username, 358, 405);
+  ctx.fillText(
+    username,
+    358,
+    405
+  );
 
   // ========================================
   // ROLE ROW
   // ========================================
 
-  drawCrown(ctx, 65, 485, 52, "#d4d4d8");
+  drawCrown(
+    ctx,
+    65,
+    485,
+    52,
+    "#d4d4d8"
+  );
 
   ctx.font = `bold 40px "${FONT}"`;
   ctx.fillStyle = "#ffffff";
-  ctx.fillText("Role", 145, 525);
+
+  ctx.fillText(
+    "Role",
+    145,
+    525
+  );
 
   drawPill(
     ctx,
     role.name,
-    490, 470, 440, 75,
+    490,
+    470,
+    440,
+    75,
     role.color
   );
 
-  // Divider
+  // ========================================
+  // ROW DIVIDER
+  // ========================================
 
   ctx.beginPath();
   ctx.moveTo(65, 585);
@@ -467,27 +582,51 @@ async function createProfileCard(member, data) {
   ctx.stroke();
 
   // ========================================
-  // LEVEL ROW
+  // CURRENT LEVEL ROW
   // ========================================
 
-  drawStar(ctx, 65, 630, 52, "#d4d4d8");
+  drawStar(
+    ctx,
+    65,
+    630,
+    52,
+    "#d4d4d8"
+  );
 
   ctx.font = `bold 40px "${FONT}"`;
   ctx.fillStyle = "#ffffff";
-  ctx.fillText("Current Level", 145, 670);
+
+  ctx.fillText(
+    "Current Level",
+    145,
+    670
+  );
 
   drawPill(
     ctx,
     String(data.level ?? 0),
-    690, 615, 240, 75,
+    690,
+    615,
+    240,
+    75,
     "#ffffff"
   );
 
   ctx.restore();
 
-  // Outer border
+  // ========================================
+  // OUTER BORDER
+  // ========================================
 
-  roundedRect(ctx, 4, 4, W - 8, H - 8, 44);
+  roundedRect(
+    ctx,
+    4,
+    4,
+    W - 8,
+    H - 8,
+    44
+  );
+
   ctx.strokeStyle = "#52525b";
   ctx.lineWidth = 3;
   ctx.stroke();
@@ -507,18 +646,22 @@ async function executeProfile(interaction) {
     });
   }
 
+  // Acknowledge the command immediately.
+
   await interaction.deferReply();
 
-try {
+  try {
     const user =
       interaction.options.getUser("user") ||
       interaction.user;
 
+    // Use cached member before making an API request.
+
     const member =
-  interaction.guild.members.cache.get(user.id) ||
-  await interaction.guild.members
-    .fetch(user.id)
-    .catch(() => null);
+      interaction.guild.members.cache.get(user.id) ||
+      await interaction.guild.members
+        .fetch(user.id)
+        .catch(() => null);
 
     if (!member || user.bot) {
       return interaction.editReply({
@@ -526,23 +669,38 @@ try {
       });
     }
 
-    // Validate saved data before reading the level.
+    // Validate saved level data.
 
-    JSON.parse(fs.readFileSync(levelsFile, "utf8"));
+    JSON.parse(
+      fs.readFileSync(levelsFile, "utf8")
+    );
+
+    // Read the current level without importing
+    // Arcane data every time /profile is used.
 
     const data = getUserLevel(user.id);
 
+    // Generate the canvas.
+
     const image = await createProfileCard(
-      member, data
+      member,
+      data
     );
 
-    const attachment = new AttachmentBuilder(image, {
-      name: "profile-card.png"
-    });
+    const attachment = new AttachmentBuilder(
+      image,
+      {
+        name: "profile-card.png"
+      }
+    );
 
-    return interaction.editReply({
+    // Send the completed canvas image.
+
+    return await interaction.editReply({
       files: [attachment],
-      allowedMentions: { parse: [] }
+      allowedMentions: {
+        parse: []
+      }
     });
 
   } catch (error) {
@@ -583,12 +741,14 @@ async function executeLeaderboard(interaction) {
       fs.readFileSync(levelsFile, "utf8")
     );
 
-    const members = await interaction.guild.members
-      .fetch();
+    const members =
+      await interaction.guild.members.fetch();
+
+    // ======================================
+    // FILTER VALID MEMBERS
+    // ======================================
 
     const ranked = Object.entries(levels)
-
-      // Exclude bots and departed members.
 
       .filter(([userId, data]) => {
         const member = members.get(userId);
@@ -615,11 +775,20 @@ async function executeLeaderboard(interaction) {
 
     const top = ranked.slice(0, 10);
 
-    const medals = ["🥇", "🥈", "🥉"];
+    const medals = [
+      "🥇",
+      "🥈",
+      "🥉"
+    ];
+
+    // ======================================
+    // LEADERBOARD DESCRIPTION
+    // ======================================
 
     const description = top.map(
       ([userId, data], index) => {
-        const rank = medals[index] ||
+        const rank =
+          medals[index] ||
           `**#${index + 1}**`;
 
         return (
@@ -629,6 +798,10 @@ async function executeLeaderboard(interaction) {
       }
     ).join("\n\n");
 
+    // ======================================
+    // PERSONAL RANKING
+    // ======================================
+
     const userRank = ranked.findIndex(
       ([id]) => id === interaction.user.id
     );
@@ -637,31 +810,53 @@ async function executeLeaderboard(interaction) {
       interaction.user.id
     );
 
+    // ======================================
+    // LEADERBOARD EMBED
+    // ======================================
+
     const embed = new EmbedBuilder()
+
       .setTitle("🏆 Level Leaderboard")
+
       .setColor(0x171719)
+
       .setDescription(
-        description || "No ranked members yet."
+        description ||
+        "No ranked members yet."
       )
-      .setThumbnail(
-        interaction.guild.iconURL({ size: 256 })
-      )
+
       .addFields({
         name: "Your Ranking",
+
         value:
           `Rank: **${userRank >= 0
             ? `#${userRank + 1}`
             : "Unranked"}**\n` +
+
           `Level: **${userData.level}**`
       })
+
       .setFooter({
-        text: `${ranked.length} ranked members • NoobV2`
+        text:
+          `${ranked.length} ranked members • NoobV2`
       })
+
       .setTimestamp();
 
-    return interaction.editReply({
+    const guildIcon =
+      interaction.guild.iconURL({
+        size: 256
+      });
+
+    if (guildIcon) {
+      embed.setThumbnail(guildIcon);
+    }
+
+    return await interaction.editReply({
       embeds: [embed],
-      allowedMentions: { parse: [] }
+      allowedMentions: {
+        parse: []
+      }
     });
 
   } catch (error) {
@@ -678,7 +873,9 @@ async function executeLeaderboard(interaction) {
 // ==========================================
 
 async function handleButton(interaction) {
-  if (!interaction.isButton()) return false;
+  if (!interaction.isButton()) {
+    return false;
+  }
 
   if (!interaction.customId.startsWith("profile_")) {
     return false;
@@ -692,8 +889,14 @@ async function handleButton(interaction) {
   return true;
 }
 
+// ==========================================
+// DISABLE OLD CUSTOMIZATION MENUS
+// ==========================================
+
 async function handleSelect(interaction) {
-  if (!interaction.isStringSelectMenu()) return false;
+  if (!interaction.isStringSelectMenu()) {
+    return false;
+  }
 
   if (!interaction.customId.startsWith("profile_")) {
     return false;
