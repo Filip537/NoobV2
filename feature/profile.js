@@ -16,6 +16,8 @@ const CARD_NAME = "profile.jpg";
 const WIDTH = 1100;
 const HEIGHT = 560;
 const ROLES_PER_PAGE = 10;
+const LEGENDARY_LEVEL = 150;
+const LEGENDARY_PREVIEW_USER_ID = "1108921222030426172";
 const BUTTON_PREFIX = "nv2profile:";
 const NO_MENTIONS = { parse: [] };
 
@@ -67,7 +69,6 @@ async function loadAvatar(member, user) {
   try {
     const options = { extension: "png", forceStatic: true, size: 256 };
     const url = member.displayAvatarURL(options) || user.displayAvatarURL(options);
-
     const response = await fetch(url, {
       signal: AbortSignal.timeout(1800)
     });
@@ -112,6 +113,56 @@ function text(ctx, value, x, y, width, size, color = "#F4F4F5", bold = false) {
   ctx.fillText(label, x, y);
 }
 
+function crystalGradient(ctx, x1, y1, x2, y2) {
+  const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+  gradient.addColorStop(0, "#A765F9");
+  gradient.addColorStop(0.5, "#E1CCFF");
+  gradient.addColorStop(1, "#4DDCF4");
+  return gradient;
+}
+
+function drawLegendaryDetails(ctx) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(135, 129, 72, 0, Math.PI * 2);
+  ctx.strokeStyle = crystalGradient(ctx, 68, 62, 202, 196);
+  ctx.lineWidth = 5;
+  ctx.shadowColor = "#9B72FF";
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.restore();
+
+  const crystals = [
+    { x: 1043, y: 83, width: 15, height: 37, color: "#AC74F5" },
+    { x: 1058, y: 113, width: 8, height: 22, color: "#64DDF4" },
+    { x: 1048, y: 479, width: 15, height: 41, color: "#7653CD" },
+    { x: 1062, y: 506, width: 8, height: 23, color: "#8AE7FF" }
+  ];
+
+  for (const { x, y, width, height, color } of crystals) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - height);
+    ctx.lineTo(x + width, y);
+    ctx.lineTo(x, y + height);
+    ctx.lineTo(x - width, y);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y - height);
+    ctx.lineTo(x, y + height);
+    ctx.lineTo(x - width, y);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.fill();
+  }
+
+  box(ctx, 825, 33, 180, 30, 7, "#E4BA68");
+  box(ctx, 827, 35, 176, 26, 6, "#302019");
+  text(ctx, "LEGENDARY", 853, 48, 135, 18, "#FFDB88", true);
+}
+
 function drawAvatar(ctx, avatar, username) {
   const x = 68;
   const y = 62;
@@ -129,7 +180,6 @@ function drawAvatar(ctx, avatar, username) {
     const scale = Math.max(size / avatar.width, size / avatar.height);
     const width = avatar.width * scale;
     const height = avatar.height * scale;
-
     ctx.drawImage(
       avatar,
       x + (size - width) / 2,
@@ -154,16 +204,28 @@ async function renderPage(member, user, guild, requestedPage) {
 
   const [avatar, levels] = await Promise.all([
     loadAvatar(member, user),
-    page === 0 ? loadLevels() : Promise.resolve(null)
+    loadLevels()
   ]);
+
+  const data = levels[user.id] || {};
+  const savedLevel = Number(data.level) || 0;
+  const legendary =
+    savedLevel >= LEGENDARY_LEVEL ||
+    user.id === LEGENDARY_PREVIEW_USER_ID;
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
+  const accent = legendary ? "#FFDB88" : "#A5B4FC";
+  const tileColor = legendary ? "#2A2239" : "#303239";
 
-  ctx.fillStyle = "#111214";
+  ctx.fillStyle = legendary ? "#080910" : "#111214";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  box(ctx, 20, 20, 1060, 520, 25, "#42444B");
-  box(ctx, 22, 22, 1056, 516, 23, "#202125");
+  box(ctx, 20, 20, 1060, 520, 25, legendary ? "#E4BA68" : "#42444B");
+  box(ctx, 23, 23, 1054, 514, 23, legendary ? "#151220" : "#202125");
+
+  if (legendary) {
+    drawLegendaryDetails(ctx);
+  }
 
   drawAvatar(ctx, avatar, user.username);
 
@@ -177,13 +239,12 @@ async function renderPage(member, user, guild, requestedPage) {
       ? "About"
       : "Server Roles";
 
-  text(ctx, section, 242, 185, 760, 24, "#A5B4FC", true);
-  box(ctx, 68, 226, 964, 2, 1, "#373941");
+  text(ctx, section, 242, 185, 760, 24, accent, true);
+  box(ctx, 68, 226, 964, 2, 1, legendary ? "#A8824D" : "#373941");
 
   if (page === 0) {
-    const data = levels[user.id] || {};
     const maxLevel = levelFeature.MAX_LEVEL || 150;
-    const level = Math.max(0, Math.min(maxLevel, Math.floor(Number(data.level) || 0)));
+    const level = Math.max(0, Math.min(maxLevel, Math.floor(savedLevel)));
     const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
     const needed = level >= maxLevel ? 0 : levelFeature.getXPNeeded(level);
     const progress = level >= maxLevel ? 1 : needed > 0 ? Math.min(1, xp / needed) : 0;
@@ -199,8 +260,12 @@ async function renderPage(member, user, guild, requestedPage) {
       68, 382, 964, 33, "#F4F4F5", true
     );
 
-    box(ctx, 68, 420, 964, 15, 8, "#3F4148");
-    box(ctx, 68, 420, 964 * progress, 15, 8, "#6778F5");
+    const xpFill = legendary
+      ? crystalGradient(ctx, 68, 420, 1032, 420)
+      : "#6778F5";
+
+    box(ctx, 68, 420, 964, 15, 8, legendary ? "#39304B" : "#3F4148");
+    box(ctx, 68, 420, 964 * progress, 15, 8, xpFill);
 
     const xpLabel = level >= maxLevel
       ? "Max level"
@@ -221,7 +286,7 @@ async function renderPage(member, user, guild, requestedPage) {
       const x = 68 + (index % 2) * 489;
       const y = 286 + Math.floor(index / 2) * 44;
 
-      box(ctx, x, y, 475, 38, 8, "#303239");
+      box(ctx, x, y, 475, 38, 8, tileColor);
       box(ctx, x + 13, y + 13, 12, 12, 6, role.color ? role.hexColor : "#A2A5AE");
       text(ctx, role.name, x + 36, y + 20, 425, 22);
     });
@@ -239,9 +304,9 @@ async function renderPage(member, user, guild, requestedPage) {
         text(ctx, "None added yet", x, 319, 475, 24, "#B6BAC4");
       }
 
-      entries.forEach((entry, index) => {
+      entries.slice(0, 4).forEach((entry, index) => {
         const y = 300 + index * 41;
-        box(ctx, x, y, 475, 35, 8, "#303239");
+        box(ctx, x, y, 475, 35, 8, tileColor);
         text(ctx, entry, x + 12, y + 18, 451, 23);
       });
     }
