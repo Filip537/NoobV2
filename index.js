@@ -2,6 +2,7 @@ require("dotenv").config();
 const cheerio = require("cheerio");
 const { createWorker } = require("tesseract.js");
 const sharp = require("sharp");
+const { downloadAttachment } = require("./feature/mediaUpload.js");
 const puppeteer = require("puppeteer");
 let ocrWorker = null;
 
@@ -6725,16 +6726,23 @@ if (interaction.commandName === "spk") {
   const message = interaction.options.getString("message");
   const command = interaction.options.getString("command");
   const file = interaction.options.getAttachment("file");
+    const stickerId = interaction.options.getString("sticker")?.trim();
   const targetChannel =
     interaction.options.getChannel("channel") || interaction.channel;
 
   const customNickname = interaction.options.getString("nickname");
   const customAvatar = interaction.options.getAttachment("avatar");
 
-  if (!message && !command && !file) {
-    return interaction.editReply(
-      "❌ Please provide a message, command, or file."
-    );
+    if (stickerId && !/^\d{17,20}$/.test(stickerId)) {
+    return interaction.editReply("Paste a valid Discord sticker ID.");
+  }
+
+  if (typeof targetChannel?.send !== "function") {
+    return interaction.editReply("Choose a text channel or an existing thread.");
+  }
+
+  if (!message && !command && !file && !stickerId) {
+    return interaction.editReply("Provide a message, command, file, or sticker.");
   }
 
   // Commands need a selected user
@@ -6828,70 +6836,74 @@ if (interaction.commandName === "spk") {
       messages[Math.floor(Math.random() * messages.length)];
   }
 
-  try {
-    let member = null;
+    let webhook;
+  let stage = "preparing the message";
 
-    // Only fetch member if user was actually selected
-    if (targetUser) {
-      member = await interaction.guild.members
-        .fetch(targetUser.id)
-        .catch(() => null);
+  try {
+    const files = [];
+
+    if (file) {
+      stage = "downloading the attachment from Discord";
+      files.push(await downloadAttachment(file));
     }
 
-    // NAME PRIORITY:
-    // custom nickname -> selected user's nickname -> selected username -> default
-    const webhookName =
-      customNickname ||
-      member?.displayName ||
-      targetUser?.username ||
-      "SPK";
+    const payload = {
+      content: finalMessage || undefined,
+      files,
+      allowedMentions: { parse: [] }
+    };
 
-    // AVATAR PRIORITY:
-    // custom avatar -> selected user's avatar -> bot avatar
-   const webhookAvatar =
-  customAvatar?.url ||
-  (member?.user
-    ? member.user.displayAvatarURL({
-        extension: "png",
-        size: 1024
-      })
-    : null) ||
-  targetUser?.displayAvatarURL({
-    extension: "png",
-    size: 1024
-  }) ||
-  interaction.client.user.displayAvatarURL({
-    extension: "png",
-    size: 1024
-  });
+    if (stickerId) {
+      stage = "sending the sticker as NoobV2";
+      await targetChannel.send({ ...payload, stickers: [stickerId] });
+    } else {
+      const isThread = targetChannel.isThread();
+      const webhookChannel = isThread ? targetChannel.parent : targetChannel;
 
-    const webhook = await targetChannel.createWebhook({
-      name: webhookName.slice(0, 80),
-      avatar: webhookAvatar
-    });
-
-    await webhook.send({
-      content: finalMessage || null,
-      files: file ? [file.url] : [],
-      allowedMentions: {
-        parse: []
+      if (typeof webhookChannel?.createWebhook !== "function") {
+        return interaction.editReply("Choose a text channel or an existing thread.");
       }
-    });
 
-    await webhook.delete().catch(() => {});
-    await logSpkUsage(interaction);
+      const member = targetUser
+        ? await interaction.guild.members.fetch(targetUser.id).catch(() => null)
+        : null;
 
-    return interaction.editReply(
-      "✅ Message sent successfully."
-    );
+      const avatarOptions = { extension: "png", size: 1024 };
+      const username =
+        customNickname || member?.displayName || targetUser?.username || "SPK";
+      const avatarURL =
+        customAvatar?.url ||
+        member?.displayAvatarURL(avatarOptions) ||
+        targetUser?.displayAvatarURL(avatarOptions) ||
+        interaction.client.user.displayAvatarURL(avatarOptions);
 
-  } catch (err) {
-    console.error("SPK ERROR:", err);
+      stage = "creating the temporary webhook";
+      webhook = await webhookChannel.createWebhook({ name: "SPK" });
 
-    return interaction.editReply(
-      `❌ Failed to send the message.\nError: \`${err.message}\``
-    );
+      stage = "uploading the webhook message";
+      await webhook.send({
+        ...payload,
+        username: username.slice(0, 80),
+        avatarURL,
+        threadId: isThread ? targetChannel.id : undefined
+      });
+    }
+  } catch (error) {
+    const code = error.code ?? error.cause?.code ?? error.name;
+    console.error("SPK media send failed", { stage, code, status: error.status });
+    return interaction.editReply(`Failed while ${stage}. Error: ${code}.`);
+  } finally {
+    if (webhook) {
+      await webhook.delete().catch(error => {
+        console.error("SPK webhook cleanup failed", error.code ?? error.name);
+      });
+    }
   }
+
+  await logSpkUsage(interaction);
+  return interaction.editReply(
+    stickerId ? "Sticker sent as NoobV2." : "Message sent successfully."
+  );
 }
 
   if (interaction.commandName === "sendroleselector") {
