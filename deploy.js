@@ -49,6 +49,9 @@ new SlashCommandBuilder()
       .setMinValue(1900)
       .setMaxValue(new Date().getFullYear())
   ),
+    new SlashCommandBuilder()
+    .setName("sendpanel")
+    .setDescription("Post or refresh the NoobV2 Profile Setup panel"),
   new SlashCommandBuilder()
   .setName("setplanner")
   .setDescription("Create or update your Growtopia set")
