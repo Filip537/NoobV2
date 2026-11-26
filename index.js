@@ -1136,6 +1136,9 @@ function buildStatsEmbed(
 }
 const activeInteractions = new Set();
 const client = new Client({
+    rest: {
+    makeRequest: fetch
+  },
 intents: [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
