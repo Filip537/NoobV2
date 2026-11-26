@@ -1,107 +1,84 @@
-const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  AttachmentBuilder
-} = require("discord.js");
+const sharp = require("sharp");
 
-const path = require("path");
+const CHAT_BUBBLE_CHANNEL_ID = "1440115926325264465";
 
-const phoneImagePath = path.join(__dirname, "../images/telephone.png");
+async function renderBubble(content) {
+  const escaped = content.replace(/[&<>]/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;"
+  })[character]);
 
-function phoneAttachment() {
-  return new AttachmentBuilder(phoneImagePath, {
-    name: "telephone.png"
-  });
+  const { data, info } = await sharp({
+    text: {
+      text: `<span foreground="#102821">${escaped}</span>`,
+      font: "Sans 28",
+      width: 520,
+      dpi: 72,
+      rgba: true
+    }
+  }).png().toBuffer({ resolveWithObject: true });
+
+  const width = Math.max(info.width + 64, 112);
+  const bottom = info.height + 48;
+  const height = bottom + 24;
+
+  const outline = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <path fill="#D9FBC5" stroke="#224D3E" stroke-width="4" stroke-linejoin="round"
+        d="M 16 4 H ${width - 16} L ${width - 4} 16 V ${bottom - 12}
+           L ${width - 16} ${bottom} H 53 L 29 ${bottom + 18}
+           V ${bottom} H 16 L 4 ${bottom - 12} V 16 Z"/>
+      <path d="M 18 13 H ${width - 18}" stroke="#F7FFED" stroke-width="3"/>
+    </svg>
+  `);
+
+  return sharp(outline)
+    .composite([{ input: data, left: 32, top: 24 }])
+    .png()
+    .toBuffer();
 }
 
-function phoneEmbed(title, description) {
-  return new EmbedBuilder()
-    .setColor("Blue")
-    .setTitle(title)
-    .setDescription(description)
-    .setThumbnail("attachment://telephone.png");
-}
+async function handleMessage(message) {
+  if (
+    message.channelId !== CHAT_BUBBLE_CHANNEL_ID ||
+    !message.guild ||
+    message.author.bot ||
+    message.webhookId ||
+    message.system ||
+    message.attachments.size ||
+    message.stickers.size
+  ) return;
 
-function phoneMenu() {
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("call_dropdown")
-      .setPlaceholder("Dial a number")
-      .addOptions(
-        {
-          label: "12345",
-          description: "Try the starter number",
-          value: "12345"
-        },
-        {
-          label: "77777",
-          description: "Call nobody",
-          value: "77777"
-        }
-      )
-  );
-}
+  const content = message.cleanContent
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/gu, "")
+    .trim();
 
-async function handleCommand(interaction) {
-  if (!interaction.isChatInputCommand()) return false;
-  if (interaction.commandName !== "call") return false;
+  if (
+    !content ||
+    content.length > 400 ||
+    content.split("\n").length > 8 ||
+    /https?:\/\/|<a?:[\w]+:\d+>|^[!/]/i.test(content)
+  ) return;
 
-  const embed = phoneEmbed(
-    "Telephone",
-    "It's a phone! Dial it with your wrench (and try 12345 to start - trust us!). Growtopia doesn't have any cell service, so you're stuck with this old thing."
-  );
+  try {
+    const image = await renderBubble(content);
+    const embed = {
+      author: {
+        name: message.member?.displayName ?? message.author.displayName ?? message.author.username,
+        icon_url: message.member?.displayAvatarURL() ?? message.author.displayAvatarURL()
+      },
+      image: { url: "attachment://chat-bubble.png" }
+    };
 
-  await interaction.reply({
-    content: `Hello ${interaction.user},`,
-    embeds: [embed],
-    components: [phoneMenu()],
-    files: [phoneAttachment()]
-  });
-
-  return true;
-}
-
-async function handleSelect(interaction) {
-  if (!interaction.isStringSelectMenu()) return false;
-  if (interaction.customId !== "call_dropdown") return false;
-
-  const picked = interaction.values[0];
-
-  if (picked === "12345") {
-    const embed = phoneEmbed(
-      "Oops!",
-      "Looks like the update isn't ready yet. Also... you forgot to pay the telephone bill, so the phone is just sitting there looking useful."
-    );
-
-    await interaction.update({
+    await message.reply({
       embeds: [embed],
-      components: [phoneMenu()],
-      files: [phoneAttachment()]
+      files: [{ attachment: image, name: "chat-bubble.png", description: content }],
+      allowedMentions: { parse: [], repliedUser: false }
     });
-
-    return true;
+  } catch (error) {
+    console.error("Chat bubble failed:", error);
   }
-
-  if (picked === "77777") {
-    const embed = phoneEmbed(
-      "Nobody",
-      "There's nobody there. I know, it really seemed like 77777 would be a valid phone number, didn't it? Sorry, it's not. You just wasted 3 seconds of your life. And now you're wasting like 5 more reading this text. Anyway, have fun playing Growtopia! We put in goofy stuff like this just to amuse you!"
-    );
-
-    await interaction.update({
-      embeds: [embed],
-      components: [phoneMenu()],
-      files: [phoneAttachment()]
-    });
-
-    return true;
-  }
-
-  return false;
 }
 
-module.exports = {
-  handleCommand,
-  handleSelect
-};
+module.exports = { handleMessage };
