@@ -2,8 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const {
-  AttachmentBuilder,
-  EmbedBuilder
+const { attachment } = require("./mediaUpload.js");
 } = require("discord.js");
 
 const {
@@ -716,15 +715,10 @@ async function executeProfile(interaction) {
 
     stage = "Discord image upload";
 
-    const attachment = new AttachmentBuilder(
-      image,
-      {
-        name: "profile.jpg"
-      }
-    );
+        const upload = attachment(image, "profile.jpg");
 
     await interaction.editReply({
-      files: [attachment],
+      files: [upload],
       allowedMentions: {
         parse: []
       }
