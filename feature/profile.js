@@ -180,6 +180,7 @@ function drawAvatar(ctx, avatar, username) {
     const scale = Math.max(size / avatar.width, size / avatar.height);
     const width = avatar.width * scale;
     const height = avatar.height * scale;
+
     ctx.drawImage(
       avatar,
       x + (size - width) / 2,
@@ -385,7 +386,7 @@ async function executeProfile(interaction) {
       allowedMentions: NO_MENTIONS
     });
   } catch (error) {
-    console.error(`[PROFILE] Failed while ${stage}:`, error.code ?? error.message);
+    console.error(`[PROFILE] Failed while ${stage}:`, error);
     if (cardMessage) return;
 
     const content = `Could not show the profile while ${stage}.`;
@@ -449,7 +450,7 @@ async function handleButton(interaction) {
       allowedMentions: NO_MENTIONS
     });
   } catch (error) {
-    console.error("[PROFILE] Page update failed:", error.code ?? error.message);
+    console.error("[PROFILE] Page update failed:", error);
 
     const payload = { content: "Could not switch profile pages.", ephemeral: true };
 
