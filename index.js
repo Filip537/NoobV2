@@ -11461,12 +11461,6 @@ try {
 } catch (error) {
   console.error("Level system error:", error);
 }
-// level system
-try {
-await level.handleLevelXP(message);
-} catch (error) {
-  console.error("Level system error:", error);
-}
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
