@@ -1,40 +1,41 @@
-const fs = require("fs");
-const path = require("path");
-const { EmbedBuilder } = require("discord.js");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder
+} = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { attachment } = require("./mediaUpload.js");
 const levelFeature = require("./level.js");
 
-const TEMPLATE_PATH = path.join(
-  __dirname,
-  "..",
-  "cardbg",
-  "CEFD83DE-6E45-406A-B54C-454DEE6BC782.png"
-);
 const LEVELS_FILE = path.join(__dirname, "..", "levels.json");
-const WIDTH = 1648;
-const HEIGHT = 928;
+const CARD_NAME = "profile.jpg";
+const WIDTH = 1100;
+const HEIGHT = 560;
+const ROLES_PER_PAGE = 10;
+const BUTTON_PREFIX = "nv2profile:";
+const NO_MENTIONS = { parse: [] };
 
-let templatePromise;
+const joinDateFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC"
+});
 
-function getTemplate() {
-  if (!templatePromise) {
-    templatePromise = loadImage(TEMPLATE_PATH).catch(error => {
-      templatePromise = undefined;
-      throw error;
-    });
+async function loadLevels() {
+  try {
+    const data = JSON.parse(await fs.readFile(LEVELS_FILE, "utf8"));
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Invalid levels.json");
+    }
+    return data;
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
   }
-  return templatePromise;
-}
-
-function loadLevels() {
-  if (!fs.existsSync(LEVELS_FILE)) return {};
-
-  const data = JSON.parse(fs.readFileSync(LEVELS_FILE, "utf8"));
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error("Invalid levels.json");
-  }
-  return data;
 }
 
 function getRankings(guild, levels) {
@@ -53,202 +54,199 @@ function getRankings(guild, levels) {
     );
 }
 
-async function withTimeout(promise, ms) {
-  let timer;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise(resolve => {
-        timer = setTimeout(() => resolve(null), ms);
-      })
-    ]);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+function getRoles(member, guild) {
+  return [...member.roles.cache.values()]
+    .filter(role => role.id !== guild.id)
+    .sort((a, b) => b.comparePositionTo(a));
 }
 
-async function getAvatar(user, member) {
+async function loadAvatar(member, user) {
   try {
-    const options = { extension: "png", size: 256, forceStatic: true };
-    const url = member?.displayAvatarURL?.(options) || user.displayAvatarURL(options);
+    const options = { extension: "png", forceStatic: true, size: 256 };
+    const url = member.displayAvatarURL(options) || user.displayAvatarURL(options);
+
     const response = await fetch(url, {
-      signal: AbortSignal.timeout(2500)
+      signal: AbortSignal.timeout(1800)
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      await response.body?.cancel();
+      return null;
+    }
+
     return await loadImage(Buffer.from(await response.arrayBuffer()));
-  } catch (error) {
-    console.error("[PROFILE] Avatar download failed:", error.message);
+  } catch {
     return null;
   }
 }
 
-function getServerRole(member, guild, user) {
-  if (user.id === guild.ownerId) return "Owner";
-  if (!member?.roles?.cache) return "Unknown";
-
-  const role = member.roles.cache
-    .filter(role => role.id !== guild.id && !role.managed)
-    .sort((a, b) => b.position - a.position)
-    .first();
-
-  return role?.name || "Member";
-}
-
-function roundedRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
+function box(ctx, x, y, width, height, radius, color) {
+  if (width <= 0 || height <= 0) return;
 
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  ctx.roundRect(x, y, width, height, Math.min(radius, width / 2, height / 2));
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
-function drawText(
-  ctx, text, x, y, maxWidth, fontSize = 40,
-  color = "#FFFFFF", align = "left"
-) {
-  text = String(text ?? "");
-  ctx.save();
-  ctx.textAlign = align;
+function text(ctx, value, x, y, width, size, color = "#F4F4F5", bold = false) {
+  const font = `${bold ? "bold " : ""}${size}px sans-serif`;
+  ctx.font = font;
   ctx.textBaseline = "middle";
+  ctx.fillStyle = color;
 
-  let size = fontSize;
-  ctx.font = `bold ${size}px sans-serif`;
-
-  while (ctx.measureText(text).width > maxWidth && size > 14) {
-    size--;
-    ctx.font = `bold ${size}px sans-serif`;
+  let label = String(value);
+  if (ctx.measureText(label).width > width) {
+    const characters = Array.from(label);
+    while (characters.length && ctx.measureText(`${characters.join("")}…`).width > width) {
+      characters.pop();
+    }
+    label = `${characters.join("")}…`;
   }
 
-  ctx.fillStyle = color;
-  ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-  ctx.shadowBlur = 2;
-  ctx.shadowOffsetY = 2;
-  ctx.fillText(text, x, y, maxWidth);
-  ctx.restore();
+  ctx.fillText(label, x, y);
 }
 
-function drawAvatar(ctx, avatar, user) {
-  const x = 244;
-  const y = 340;
-  const radius = 132;
-  const size = radius * 2;
+function drawAvatar(ctx, avatar, username) {
+  const x = 68;
+  const y = 62;
+  const size = 134;
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
   ctx.clip();
 
-  ctx.fillStyle = "#23466C";
-  ctx.fillRect(x - radius, y - radius, size, size);
+  ctx.fillStyle = "#3F4148";
+  ctx.fillRect(x, y, size, size);
 
   if (avatar) {
     const scale = Math.max(size / avatar.width, size / avatar.height);
     const width = avatar.width * scale;
     const height = avatar.height * scale;
-    ctx.drawImage(avatar, x - width / 2, y - height / 2, width, height);
+    ctx.drawImage(avatar, x + (size - width) / 2, y + (size - height) / 2, width, height);
   } else {
+    const initial = Array.from(username)[0]?.toUpperCase() || "?";
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold 110px sans-serif";
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(user.username.charAt(0).toUpperCase(), x, y);
+    text(ctx, initial, x + size / 2, y + size / 2, size, 52, "#F4F4F5", true);
   }
 
   ctx.restore();
 }
 
-function drawXPBar(ctx, xp, requiredXP, level) {
-  const x = 66;
-  const y = 744;
-  const width = 1520;
-  const height = 40;
-  const isMaxLevel = level >= (levelFeature.MAX_LEVEL || 150);
+async function renderPage(member, user, guild, requestedPage) {
+  const roles = getRoles(member, guild);
+  const rolePages = Math.max(1, Math.ceil(roles.length / ROLES_PER_PAGE));
+  const totalPages = rolePages + 2;
+  const page = Math.max(0, Math.min(requestedPage, totalPages - 1));
 
-  const progress = isMaxLevel
-    ? 1
-    : requiredXP > 0
-      ? Math.max(0, Math.min(1, xp / requiredXP))
-      : 0;
-
-  ctx.save();
-  roundedRect(ctx, x, y, width, height, 20);
-  ctx.clip();
-
-  const track = ctx.createLinearGradient(0, y, 0, y + height);
-  track.addColorStop(0, "#102D4D");
-  track.addColorStop(1, "#173B65");
-  ctx.fillStyle = track;
-  ctx.fillRect(x, y, width, height);
-
-  const fillWidth = Math.round(width * progress);
-  if (fillWidth > 0) {
-    const gradient = ctx.createLinearGradient(0, y, 0, y + height);
-    gradient.addColorStop(0, "#FFF78A");
-    gradient.addColorStop(0.3, "#FFE94A");
-    gradient.addColorStop(0.7, "#FFD92C");
-    gradient.addColorStop(1, "#F3AD0C");
-    ctx.fillStyle = gradient;
-    roundedRect(ctx, x, y, fillWidth, height, 15);
-    ctx.fill();
-  }
-
-  ctx.restore();
-  ctx.fillStyle = "#153B65";
-  ctx.fillRect(1130, 679, 468, 52);
-
-  const xpText = isMaxLevel
-    ? "MAX LEVEL"
-    : `${xp.toLocaleString("en-US")} / ${requiredXP.toLocaleString("en-US")} XP`;
-
-  drawText(ctx, xpText, 1580, 704, 440, 30, "#FFFFFF", "right");
-}
-
-async function createProfileCard(member, user, guild) {
-  const levels = loadLevels();
-  const data = levels[user.id] || { level: 0, xp: 0 };
-  const maxLevel = levelFeature.MAX_LEVEL || 150;
-
-  const level = Math.max(0, Math.min(maxLevel, Math.floor(Number(data.level) || 0)));
-  const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
-  const requiredXP = levelFeature.getXPNeeded(level);
-  const rankIndex = getRankings(guild, levels).findIndex(([id]) => id === user.id);
-  const rank = rankIndex >= 0 ? `#${rankIndex + 1}` : "Unranked";
-  const role = getServerRole(member, guild, user);
-
-  const [template, avatar] = await Promise.all([
-    getTemplate(),
-    getAvatar(user, member)
+  const [avatar, levels] = await Promise.all([
+    loadAvatar(member, user),
+    page === 0 ? loadLevels() : Promise.resolve(null)
   ]);
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(template, 0, 0, WIDTH, HEIGHT);
-  drawAvatar(ctx, avatar, user);
 
-  const displayName = member?.displayName || user.globalName || user.username;
-  drawText(ctx, displayName, 455, 301, 515, 40, "#FFFFFF");
-  drawText(ctx, `@${user.username}`, 455, 384, 355, 29, "#D9F1FF");
-  drawText(ctx, level, 296, 612, 420, 54, "#FFFFFF", "center");
-  drawText(ctx, rank, 824, 612, 420, 50, "#FFE34B", "center");
-  drawText(ctx, role, 1354, 612, 440, 39, "#FFFFFF", "center");
-  drawXPBar(ctx, xp, requiredXP, level);
+  ctx.fillStyle = "#111214";
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  box(ctx, 20, 20, 1060, 520, 25, "#42444B");
+  box(ctx, 22, 22, 1056, 516, 23, "#202125");
 
-  return canvas.encode("jpeg", 90);
+  drawAvatar(ctx, avatar, user.username);
+
+  const displayName = member.displayName || user.globalName || user.username;
+  text(ctx, displayName, 240, 84, 760, 53, "#F4F4F5", true);
+  text(ctx, `@${user.username}`, 242, 139, 760, 29, "#B6BAC4");
+
+  const section = page === 0 ? "Overview" : page === totalPages - 1 ? "About" : "Server Roles";
+  text(ctx, section, 242, 185, 760, 24, "#A5B4FC", true);
+  box(ctx, 68, 226, 964, 2, 1, "#373941");
+
+  if (page === 0) {
+    const data = levels[user.id] || {};
+    const maxLevel = levelFeature.MAX_LEVEL || 150;
+    const level = Math.max(0, Math.min(maxLevel, Math.floor(Number(data.level) || 0)));
+    const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
+    const needed = level >= maxLevel ? 0 : levelFeature.getXPNeeded(level);
+    const progress = level >= maxLevel ? 1 : needed > 0 ? Math.min(1, xp / needed) : 0;
+    const rank = getRankings(guild, levels).findIndex(([id]) => id === user.id);
+    const topRole = user.id === guild.ownerId ? "Owner" : roles[0]?.name || "Member";
+    const joined = member.joinedAt ? joinDateFormat.format(member.joinedAt) : "Unknown";
+
+    text(ctx, topRole, 68, 277, 964, 33, "#F4F4F5", true);
+    text(ctx, `Joined ${joined}`, 68, 321, 964, 27, "#B6BAC4");
+    text(
+      ctx,
+      `Level ${level}     Rank ${rank < 0 ? "Unranked" : `#${rank + 1}`}`,
+      68, 382, 964, 33, "#F4F4F5", true
+    );
+
+    box(ctx, 68, 420, 964, 15, 8, "#3F4148");
+    box(ctx, 68, 420, 964 * progress, 15, 8, "#6778F5");
+
+    const xpLabel = level >= maxLevel
+      ? "Max level"
+      : `${xp.toLocaleString("en-US")} / ${needed.toLocaleString("en-US")} XP`;
+    text(ctx, xpLabel, 68, 468, 964, 27, "#B6BAC4");
+  } else if (page < totalPages - 1) {
+    const start = (page - 1) * ROLES_PER_PAGE;
+    const shown = roles.slice(start, start + ROLES_PER_PAGE);
+    text(ctx, `${roles.length} roles · ${page} / ${rolePages}`, 68, 260, 964, 23, "#B6BAC4");
+
+    if (!shown.length) {
+      text(ctx, "No server roles to display.", 68, 316, 964, 27, "#F4F4F5");
+    }
+
+    shown.forEach((role, index) => {
+      const column = index % 2;
+      const row = Math.floor(index / 2);
+      const x = 68 + column * 489;
+      const y = 286 + row * 44;
+      box(ctx, x, y, 475, 38, 8, "#303239");
+      box(ctx, x + 13, y + 13, 12, 12, 6, role.color ? role.hexColor : "#A2A5AE");
+      text(ctx, role.name, x + 36, y + 20, 425, 22);
+    });
+  } else {
+    text(ctx, "Hobbies", 68, 279, 964, 28, "#F4F4F5", true);
+    text(ctx, "No hobbies added yet.", 68, 319, 964, 24, "#B6BAC4");
+    text(ctx, "Favourite games", 68, 374, 964, 28, "#F4F4F5", true);
+    text(ctx, "No favourite games added yet.", 68, 414, 964, 24, "#B6BAC4");
+    text(ctx, "Achievements · Coming soon", 68, 482, 964, 27, "#B6BAC4", true);
+  }
+
+  return { image: await canvas.encode("jpeg", 86), page, totalPages };
+}
+
+async function createProfileCard(member, user, guild) {
+  const result = await renderPage(member, user, guild, 0);
+  return result.image;
+}
+
+function pageButtons(ownerId, memberId, page, totalPages) {
+  const prefix = `${BUTTON_PREFIX}${ownerId}:${memberId}:`;
+
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`${prefix}${page - 1}`)
+      .setLabel("‹ Previous")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page === 0),
+    new ButtonBuilder()
+      .setCustomId(`${prefix}indicator`)
+      .setLabel(`${page + 1} / ${totalPages}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId(`${prefix}${page + 1}`)
+      .setLabel("Next ›")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page === totalPages - 1)
+  );
 }
 
 async function executeProfile(interaction) {
-  let stage = "acknowledgement";
+  let stage = "acknowledging the command";
   let cardMessage;
 
   try {
@@ -256,58 +254,106 @@ async function executeProfile(interaction) {
       await interaction.deferReply();
     }
 
-    if (!interaction.guild) {
-      return await interaction.editReply("This command can only be used in a server.");
+    if (!interaction.guild || typeof interaction.channel?.send !== "function") {
+      return await interaction.editReply("Use `/profile` in a server text channel.");
     }
 
-    const channel = interaction.channel;
-    if (typeof channel?.send !== "function") {
-      return await interaction.editReply("This channel cannot receive profile cards.");
-    }
-
-    stage = "member lookup";
+    stage = "loading the server member";
     const user = interaction.options.getUser("user") || interaction.user;
     const member =
       interaction.options.getMember("user") ||
       interaction.guild.members.cache.get(user.id) ||
-      (user.id === interaction.user.id ? interaction.member : null) ||
-      await withTimeout(interaction.guild.members.fetch(user.id), 1500);
+      await interaction.guild.members.fetch(user.id).catch(() => null);
 
-    stage = "card rendering";
-    const renderStarted = Date.now();
-    const image = await createProfileCard(member, user, interaction.guild);
-    console.log(`[PROFILE] Rendered in ${Date.now() - renderStarted}ms (${image.byteLength} bytes)`);
+    if (!member) {
+      return await interaction.editReply("I couldn’t find that member in this server.");
+    }
 
-    stage = "Discord image upload";
-    const uploadStarted = Date.now();
-    cardMessage = await channel.send({
-      files: [attachment(image, "profile.jpg")],
-      allowedMentions: { parse: [] }
+    stage = "rendering the card";
+    const result = await renderPage(member, user, interaction.guild, 0);
+
+    stage = "uploading the card";
+    cardMessage = await interaction.channel.send({
+      files: [attachment(result.image, CARD_NAME)],
+      components: [pageButtons(interaction.user.id, user.id, result.page, result.totalPages)],
+      allowedMentions: NO_MENTIONS
     });
-    console.log(`[PROFILE] Uploaded in ${Date.now() - uploadStarted}ms`);
 
     stage = "updating the command reply";
     await interaction.editReply({
       content: `[View profile card](${cardMessage.url})`,
-      allowedMentions: { parse: [] }
+      allowedMentions: NO_MENTIONS
     });
   } catch (error) {
-    const code = error.code ?? error.cause?.code;
-    console.error(`[PROFILE] Failed during ${stage}:`, code ?? error.message);
-
+    console.error(`[PROFILE] Failed while ${stage}:`, error.code ?? error.message);
     if (cardMessage) return;
 
-    const content = `Profile failed during ${stage}${code ? ` (code ${code})` : ""}.`;
-    try {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content });
-      } else {
-        await interaction.reply({ content });
-      }
-    } catch (replyError) {
-      console.error("[PROFILE] Reply failed:", replyError.code ?? replyError.message);
+    const content = `Could not show the profile while ${stage}.`;
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content }).catch(() => {});
+    } else {
+      await interaction.reply({ content, ephemeral: true }).catch(() => {});
     }
   }
+}
+
+async function handleButton(interaction) {
+  if (!interaction.isButton() || !interaction.customId.startsWith(BUTTON_PREFIX)) {
+    return false;
+  }
+
+  const [ownerId, memberId, destination] = interaction.customId
+    .slice(BUTTON_PREFIX.length)
+    .split(":");
+
+  if (interaction.user.id !== ownerId) {
+    await interaction.reply({
+      content: "Only the person who opened this profile can change its pages.",
+      ephemeral: true
+    });
+    return true;
+  }
+
+  if (!interaction.guild || !/^\d+$/.test(destination)) {
+    await interaction.reply({ content: "This page is unavailable.", ephemeral: true });
+    return true;
+  }
+
+  try {
+    await interaction.deferUpdate();
+
+    const member =
+      interaction.guild.members.cache.get(memberId) ||
+      await interaction.guild.members.fetch(memberId).catch(() => null);
+
+    if (!member) {
+      await interaction.followUp({
+        content: "I couldn’t find that member in this server.",
+        ephemeral: true
+      });
+      return true;
+    }
+
+    const result = await renderPage(member, member.user, interaction.guild, Number(destination));
+
+    await interaction.message.edit({
+      attachments: [],
+      files: [attachment(result.image, CARD_NAME)],
+      components: [pageButtons(ownerId, memberId, result.page, result.totalPages)],
+      allowedMentions: NO_MENTIONS
+    });
+  } catch (error) {
+    console.error("[PROFILE] Page update failed:", error.code ?? error.message);
+
+    const payload = { content: "Could not switch profile pages.", ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(payload).catch(() => {});
+    } else {
+      await interaction.reply(payload).catch(() => {});
+    }
+  }
+
+  return true;
 }
 
 async function executeLeaderboard(interaction) {
@@ -320,8 +366,11 @@ async function executeLeaderboard(interaction) {
       return await interaction.editReply("Use this command in a server.");
     }
 
-    const levels = loadLevels();
+    const levels = await loadLevels();
     const rankings = getRankings(interaction.guild, levels);
+    const myRank = rankings.findIndex(([id]) => id === interaction.user.id);
+    const myData = levels[interaction.user.id] || { level: 0, xp: 0 };
+
     const description = rankings
       .slice(0, 10)
       .map(([id, data], index) =>
@@ -329,9 +378,6 @@ async function executeLeaderboard(interaction) {
         `Level **${data.level}** | XP **${Number(data.xp || 0).toLocaleString("en-US")}**`
       )
       .join("\n\n");
-
-    const myRank = rankings.findIndex(([id]) => id === interaction.user.id);
-    const myData = levels[interaction.user.id] || { level: 0, xp: 0 };
 
     const embed = new EmbedBuilder()
       .setTitle("Level Leaderboard")
@@ -348,22 +394,18 @@ async function executeLeaderboard(interaction) {
 
     await interaction.editReply({
       embeds: [embed],
-      allowedMentions: { parse: [] }
+      allowedMentions: NO_MENTIONS
     });
   } catch (error) {
     console.error("[LEADERBOARD]", error.code ?? error.message);
-    const payload = { content: "Unable to load leaderboard." };
 
+    const content = "Unable to load leaderboard.";
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply(payload).catch(console.error);
+      await interaction.editReply({ content }).catch(() => {});
     } else {
-      await interaction.reply(payload).catch(console.error);
+      await interaction.reply({ content, ephemeral: true }).catch(() => {});
     }
   }
-}
-
-async function handleButton() {
-  return false;
 }
 
 async function handleSelect() {
