@@ -9,6 +9,7 @@ const {
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { attachment } = require("./mediaUpload.js");
 const levelFeature = require("./level.js");
+const { getProfileDetails } = require("./furrytest.js");
 
 const LEVELS_FILE = path.join(__dirname, "..", "levels.json");
 const CARD_NAME = "profile.jpg";
@@ -28,9 +29,11 @@ const joinDateFormat = new Intl.DateTimeFormat("en-GB", {
 async function loadLevels() {
   try {
     const data = JSON.parse(await fs.readFile(LEVELS_FILE, "utf8"));
+
     if (!data || typeof data !== "object" || Array.isArray(data)) {
       throw new Error("Invalid levels.json");
     }
+
     return data;
   } catch (error) {
     if (error.code === "ENOENT") return {};
@@ -90,17 +93,19 @@ function box(ctx, x, y, width, height, radius, color) {
 }
 
 function text(ctx, value, x, y, width, size, color = "#F4F4F5", bold = false) {
-  const font = `${bold ? "bold " : ""}${size}px sans-serif`;
-  ctx.font = font;
+  ctx.font = `${bold ? "bold " : ""}${size}px sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillStyle = color;
 
   let label = String(value);
+
   if (ctx.measureText(label).width > width) {
     const characters = Array.from(label);
+
     while (characters.length && ctx.measureText(`${characters.join("")}…`).width > width) {
       characters.pop();
     }
+
     label = `${characters.join("")}…`;
   }
 
@@ -124,7 +129,14 @@ function drawAvatar(ctx, avatar, username) {
     const scale = Math.max(size / avatar.width, size / avatar.height);
     const width = avatar.width * scale;
     const height = avatar.height * scale;
-    ctx.drawImage(avatar, x + (size - width) / 2, y + (size - height) / 2, width, height);
+
+    ctx.drawImage(
+      avatar,
+      x + (size - width) / 2,
+      y + (size - height) / 2,
+      width,
+      height
+    );
   } else {
     const initial = Array.from(username)[0]?.toUpperCase() || "?";
     ctx.textAlign = "center";
@@ -159,7 +171,12 @@ async function renderPage(member, user, guild, requestedPage) {
   text(ctx, displayName, 240, 84, 760, 53, "#F4F4F5", true);
   text(ctx, `@${user.username}`, 242, 139, 760, 29, "#B6BAC4");
 
-  const section = page === 0 ? "Overview" : page === totalPages - 1 ? "About" : "Server Roles";
+  const section = page === 0
+    ? "Overview"
+    : page === totalPages - 1
+      ? "About"
+      : "Server Roles";
+
   text(ctx, section, 242, 185, 760, 24, "#A5B4FC", true);
   box(ctx, 68, 226, 964, 2, 1, "#373941");
 
@@ -188,31 +205,48 @@ async function renderPage(member, user, guild, requestedPage) {
     const xpLabel = level >= maxLevel
       ? "Max level"
       : `${xp.toLocaleString("en-US")} / ${needed.toLocaleString("en-US")} XP`;
+
     text(ctx, xpLabel, 68, 468, 964, 27, "#B6BAC4");
   } else if (page < totalPages - 1) {
     const start = (page - 1) * ROLES_PER_PAGE;
     const shown = roles.slice(start, start + ROLES_PER_PAGE);
+
     text(ctx, `${roles.length} roles · ${page} / ${rolePages}`, 68, 260, 964, 23, "#B6BAC4");
 
     if (!shown.length) {
-      text(ctx, "No server roles to display.", 68, 316, 964, 27, "#F4F4F5");
+      text(ctx, "No server roles to display.", 68, 316, 964, 27);
     }
 
     shown.forEach((role, index) => {
-      const column = index % 2;
-      const row = Math.floor(index / 2);
-      const x = 68 + column * 489;
-      const y = 286 + row * 44;
+      const x = 68 + (index % 2) * 489;
+      const y = 286 + Math.floor(index / 2) * 44;
+
       box(ctx, x, y, 475, 38, 8, "#303239");
       box(ctx, x + 13, y + 13, 12, 12, 6, role.color ? role.hexColor : "#A2A5AE");
       text(ctx, role.name, x + 36, y + 20, 425, 22);
     });
   } else {
-    text(ctx, "Hobbies", 68, 279, 964, 28, "#F4F4F5", true);
-    text(ctx, "No hobbies added yet.", 68, 319, 964, 24, "#B6BAC4");
-    text(ctx, "Favourite games", 68, 374, 964, 28, "#F4F4F5", true);
-    text(ctx, "No favourite games added yet.", 68, 414, 964, 24, "#B6BAC4");
-    text(ctx, "Achievements · Coming soon", 68, 482, 964, 27, "#B6BAC4", true);
+    const { hobbies, games } = getProfileDetails(guild.id, user.id);
+    const columns = [
+      { x: 68, label: "Hobbies", entries: hobbies },
+      { x: 557, label: "Favourite games", entries: games }
+    ];
+
+    for (const { x, label, entries } of columns) {
+      text(ctx, label, x, 275, 475, 28, "#F4F4F5", true);
+
+      if (!entries.length) {
+        text(ctx, "None added yet", x, 319, 475, 24, "#B6BAC4");
+      }
+
+      entries.forEach((entry, index) => {
+        const y = 300 + index * 41;
+        box(ctx, x, y, 475, 35, 8, "#303239");
+        text(ctx, entry, x + 12, y + 18, 451, 23);
+      });
+    }
+
+    text(ctx, "Achievements · Coming soon", 68, 500, 964, 27, "#B6BAC4", true);
   }
 
   return { image: await canvas.encode("jpeg", 86), page, totalPages };
@@ -259,6 +293,7 @@ async function executeProfile(interaction) {
     }
 
     stage = "loading the server member";
+
     const user = interaction.options.getUser("user") || interaction.user;
     const member =
       interaction.options.getMember("user") ||
@@ -289,6 +324,7 @@ async function executeProfile(interaction) {
     if (cardMessage) return;
 
     const content = `Could not show the profile while ${stage}.`;
+
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content }).catch(() => {});
     } else {
@@ -334,7 +370,12 @@ async function handleButton(interaction) {
       return true;
     }
 
-    const result = await renderPage(member, member.user, interaction.guild, Number(destination));
+    const result = await renderPage(
+      member,
+      member.user,
+      interaction.guild,
+      Number(destination)
+    );
 
     await interaction.message.edit({
       attachments: [],
@@ -346,6 +387,7 @@ async function handleButton(interaction) {
     console.error("[PROFILE] Page update failed:", error.code ?? error.message);
 
     const payload = { content: "Could not switch profile pages.", ephemeral: true };
+
     if (interaction.deferred || interaction.replied) {
       await interaction.followUp(payload).catch(() => {});
     } else {
@@ -400,6 +442,7 @@ async function executeLeaderboard(interaction) {
     console.error("[LEADERBOARD]", error.code ?? error.message);
 
     const content = "Unable to load leaderboard.";
+
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content }).catch(() => {});
     } else {
