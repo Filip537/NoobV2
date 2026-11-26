@@ -2376,9 +2376,7 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
-  void furryTest.startProfileSetup(client).catch(error => {
-  console.error("[PROFILE SETUP] Panel startup failed:", error.code ?? error.message);
-});
+  
   await botCustomization.start(client).catch(error => {
     console.error("[BOT CUSTOMIZATION]", error);
 });
@@ -7500,6 +7498,24 @@ if (interaction.commandName === "sendupdates") {
 
   const targetChannel = interaction.options.getChannel("channel");
 
+    if (targetChannel?.id === "1490619230452846633") {
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const panel = await furryTest.startProfileSetup(client);
+
+      return interaction.editReply(
+        panel?.url
+          ? `[Open the Profile Setup panel](${panel.url})`
+          : "Profile Setup panel is ready in <#1490619230452846633>."
+      );
+    } catch (error) {
+      console.error("[PROFILE SETUP]", error.code ?? error.message);
+      return interaction.editReply(
+        `Could not post the panel: ${error.code ?? error.message}`
+      );
+    }
+  }
   const embed = new EmbedBuilder()
     .setTitle("NoobV2 Bot Update Log")
     .setColor("Green")
