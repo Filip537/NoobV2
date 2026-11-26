@@ -15,44 +15,25 @@ const LEVELS_FILE = path.join(__dirname, "..", "levels.json");
 const WIDTH = 1648;
 const HEIGHT = 928;
 
-let cachedTemplate = null;
-let templatePromise = null;
+let templatePromise;
 
-async function getTemplate() {
-  if (cachedTemplate) {
-    return cachedTemplate;
-  }
-
+function getTemplate() {
   if (!templatePromise) {
-    templatePromise = (async () => {
-      if (!fs.existsSync(TEMPLATE_PATH)) {
-        throw new Error(`Profile template not found: ${TEMPLATE_PATH}`);
-      }
-
-      cachedTemplate = await loadImage(TEMPLATE_PATH);
-      console.log("[PROFILE] Template loaded successfully");
-      return cachedTemplate;
-    })();
+    templatePromise = loadImage(TEMPLATE_PATH).catch(error => {
+      templatePromise = undefined;
+      throw error;
+    });
   }
-
-  try {
-    return await templatePromise;
-  } finally {
-    templatePromise = null;
-  }
+  return templatePromise;
 }
 
 function loadLevels() {
-  if (!fs.existsSync(LEVELS_FILE)) {
-    return {};
-  }
+  if (!fs.existsSync(LEVELS_FILE)) return {};
 
   const data = JSON.parse(fs.readFileSync(LEVELS_FILE, "utf8"));
-
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Invalid levels.json");
   }
-
   return data;
 }
 
@@ -74,7 +55,6 @@ function getRankings(guild, levels) {
 
 async function withTimeout(promise, ms) {
   let timer;
-
   try {
     return await Promise.race([
       promise,
@@ -91,26 +71,14 @@ async function withTimeout(promise, ms) {
 
 async function getAvatar(user, member) {
   try {
-    const options = {
-      extension: "png",
-      size: 256,
-      forceStatic: true
-    };
-
-    const url =
-      member?.displayAvatarURL?.(options) ||
-      user.displayAvatarURL(options);
-
+    const options = { extension: "png", size: 256, forceStatic: true };
+    const url = member?.displayAvatarURL?.(options) || user.displayAvatarURL(options);
     const response = await fetch(url, {
       signal: AbortSignal.timeout(2500)
     });
 
-    if (!response.ok) {
-      return null;
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return await loadImage(buffer);
+    if (!response.ok) return null;
+    return await loadImage(Buffer.from(await response.arrayBuffer()));
   } catch (error) {
     console.error("[PROFILE] Avatar download failed:", error.message);
     return null;
@@ -118,13 +86,8 @@ async function getAvatar(user, member) {
 }
 
 function getServerRole(member, guild, user) {
-  if (user.id === guild.ownerId) {
-    return "Owner";
-  }
-
-  if (!member?.roles?.cache) {
-    return "Unknown";
-  }
+  if (user.id === guild.ownerId) return "Owner";
+  if (!member?.roles?.cache) return "Unknown";
 
   const role = member.roles.cache
     .filter(role => role.id !== guild.id && !role.managed)
@@ -142,10 +105,7 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.lineTo(x + width - r, y);
   ctx.quadraticCurveTo(x + width, y, x + width, y + r);
   ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(
-    x + width, y + height,
-    x + width - r, y + height
-  );
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
   ctx.lineTo(x + r, y + height);
   ctx.quadraticCurveTo(x, y + height, x, y + height - r);
   ctx.lineTo(x, y + r);
@@ -154,17 +114,10 @@ function roundedRect(ctx, x, y, width, height, radius) {
 }
 
 function drawText(
-  ctx,
-  text,
-  x,
-  y,
-  maxWidth,
-  fontSize = 40,
-  color = "#FFFFFF",
-  align = "left"
+  ctx, text, x, y, maxWidth, fontSize = 40,
+  color = "#FFFFFF", align = "left"
 ) {
   text = String(text ?? "");
-
   ctx.save();
   ctx.textAlign = align;
   ctx.textBaseline = "middle";
@@ -220,9 +173,9 @@ function drawXPBar(ctx, xp, requiredXP, level) {
   const y = 744;
   const width = 1520;
   const height = 40;
-  const maxLevel = levelFeature.MAX_LEVEL || 150;
+  const isMaxLevel = level >= (levelFeature.MAX_LEVEL || 150);
 
-  const progress = level >= maxLevel
+  const progress = isMaxLevel
     ? 1
     : requiredXP > 0
       ? Math.max(0, Math.min(1, xp / requiredXP))
@@ -235,30 +188,26 @@ function drawXPBar(ctx, xp, requiredXP, level) {
   const track = ctx.createLinearGradient(0, y, 0, y + height);
   track.addColorStop(0, "#102D4D");
   track.addColorStop(1, "#173B65");
-
   ctx.fillStyle = track;
   ctx.fillRect(x, y, width, height);
 
   const fillWidth = Math.round(width * progress);
-
   if (fillWidth > 0) {
     const gradient = ctx.createLinearGradient(0, y, 0, y + height);
     gradient.addColorStop(0, "#FFF78A");
     gradient.addColorStop(0.3, "#FFE94A");
     gradient.addColorStop(0.7, "#FFD92C");
     gradient.addColorStop(1, "#F3AD0C");
-
     ctx.fillStyle = gradient;
     roundedRect(ctx, x, y, fillWidth, height, 15);
     ctx.fill();
   }
 
   ctx.restore();
-
   ctx.fillStyle = "#153B65";
   ctx.fillRect(1130, 679, 468, 52);
 
-  const xpText = level >= maxLevel
+  const xpText = isMaxLevel
     ? "MAX LEVEL"
     : `${xp.toLocaleString("en-US")} / ${requiredXP.toLocaleString("en-US")} XP`;
 
@@ -273,9 +222,7 @@ async function createProfileCard(member, user, guild) {
   const level = Math.max(0, Math.min(maxLevel, Math.floor(Number(data.level) || 0)));
   const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
   const requiredXP = levelFeature.getXPNeeded(level);
-
-  const rankings = getRankings(guild, levels);
-  const rankIndex = rankings.findIndex(([id]) => id === user.id);
+  const rankIndex = getRankings(guild, levels).findIndex(([id]) => id === user.id);
   const rank = rankIndex >= 0 ? `#${rankIndex + 1}` : "Unranked";
   const role = getServerRole(member, guild, user);
 
@@ -286,12 +233,10 @@ async function createProfileCard(member, user, guild) {
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
-
   ctx.drawImage(template, 0, 0, WIDTH, HEIGHT);
   drawAvatar(ctx, avatar, user);
 
   const displayName = member?.displayName || user.globalName || user.username;
-
   drawText(ctx, displayName, 455, 301, 515, 40, "#FFFFFF");
   drawText(ctx, `@${user.username}`, 455, 384, 355, 29, "#D9F1FF");
   drawText(ctx, level, 296, 612, 420, 54, "#FFFFFF", "center");
@@ -303,8 +248,8 @@ async function createProfileCard(member, user, guild) {
 }
 
 async function executeProfile(interaction) {
-  const started = Date.now();
   let stage = "acknowledgement";
+  let cardMessage;
 
   try {
     if (!interaction.deferred && !interaction.replied) {
@@ -312,48 +257,52 @@ async function executeProfile(interaction) {
     }
 
     if (!interaction.guild) {
-      return await interaction.editReply({
-        content: "This command can only be used in a server."
-      });
+      return await interaction.editReply("This command can only be used in a server.");
     }
 
-    stage = "member information";
+    const channel = interaction.channel;
+    if (typeof channel?.send !== "function") {
+      return await interaction.editReply("This channel cannot receive profile cards.");
+    }
 
+    stage = "member lookup";
     const user = interaction.options.getUser("user") || interaction.user;
-    let member =
+    const member =
       interaction.options.getMember("user") ||
       interaction.guild.members.cache.get(user.id) ||
-      (user.id === interaction.user.id ? interaction.member : null);
+      (user.id === interaction.user.id ? interaction.member : null) ||
+      await withTimeout(interaction.guild.members.fetch(user.id), 1500);
 
-    if (!member) {
-      member = await withTimeout(interaction.guild.members.fetch(user.id), 1500);
-    }
-
-    stage = "card generation";
+    stage = "card rendering";
+    const renderStarted = Date.now();
     const image = await createProfileCard(member, user, interaction.guild);
-    console.log(`[PROFILE] Card generated in ${Date.now() - started}ms`);
+    console.log(`[PROFILE] Rendered in ${Date.now() - renderStarted}ms (${image.byteLength} bytes)`);
 
     stage = "Discord image upload";
-    await interaction.editReply({
+    const uploadStarted = Date.now();
+    cardMessage = await channel.send({
       files: [attachment(image, "profile.jpg")],
       allowedMentions: { parse: [] }
     });
+    console.log(`[PROFILE] Uploaded in ${Date.now() - uploadStarted}ms`);
 
-    console.log(`[PROFILE] Completed in ${Date.now() - started}ms`);
+    stage = "updating the command reply";
+    await interaction.editReply({
+      content: `[View profile card](${cardMessage.url})`,
+      allowedMentions: { parse: [] }
+    });
   } catch (error) {
-    console.error(`[PROFILE] Failed during ${stage}:`, error.code ?? error.message);
+    const code = error.code ?? error.cause?.code;
+    console.error(`[PROFILE] Failed during ${stage}:`, code ?? error.message);
 
-    const payload = {
-      content:
-        `Unable to generate profile.\nFailed during: ${stage}` +
-        (error.code ? ` (code ${error.code})` : "")
-    };
+    if (cardMessage) return;
 
+    const content = `Profile failed during ${stage}${code ? ` (code ${code})` : ""}.`;
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(payload);
+        await interaction.editReply({ content });
       } else {
-        await interaction.reply(payload);
+        await interaction.reply({ content });
       }
     } catch (replyError) {
       console.error("[PROFILE] Reply failed:", replyError.code ?? replyError.message);
@@ -368,20 +317,16 @@ async function executeLeaderboard(interaction) {
     }
 
     if (!interaction.guild) {
-      return await interaction.editReply({
-        content: "Use this command in a server."
-      });
+      return await interaction.editReply("Use this command in a server.");
     }
 
     const levels = loadLevels();
     const rankings = getRankings(interaction.guild, levels);
-
     const description = rankings
       .slice(0, 10)
       .map(([id, data], index) =>
         `**#${index + 1}** <@${id}>\n` +
-        `Level **${data.level}** | ` +
-        `XP **${Number(data.xp || 0).toLocaleString("en-US")}**`
+        `Level **${data.level}** | XP **${Number(data.xp || 0).toLocaleString("en-US")}**`
       )
       .join("\n\n");
 
@@ -399,17 +344,14 @@ async function executeLeaderboard(interaction) {
           `Level: **${myData.level}**\n` +
           `XP: **${Number(myData.xp || 0).toLocaleString("en-US")}**`
       })
-      .setFooter({
-        text: `${rankings.length} ranked members | NoobV2`
-      });
+      .setFooter({ text: `${rankings.length} ranked members | NoobV2` });
 
     await interaction.editReply({
       embeds: [embed],
       allowedMentions: { parse: [] }
     });
   } catch (error) {
-    console.error("[LEADERBOARD]", error);
-
+    console.error("[LEADERBOARD]", error.code ?? error.message);
     const payload = { content: "Unable to load leaderboard." };
 
     if (interaction.deferred || interaction.replied) {
