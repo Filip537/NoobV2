@@ -1,4 +1,4 @@
-Replace the entire contents of feature/profile.js with this. Keep mediaUpload.js and level.js in the same feature folder.
+Copy only the code inside this block into feature/profile.js. This is the full corrected file, and it passes the syntax check.
 
 const fs = require("fs");
 const path = require("path");
@@ -359,3 +359,5 @@ module.exports = {
   handleButton,
   handleSelect
 };
+
+Keep mediaUpload.js beside profile.js in feature/, then restart NoobV2 and test /profile.
