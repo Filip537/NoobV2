@@ -3447,6 +3447,58 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+    if (interaction.isChatInputCommand() && interaction.commandName === "coinflip") {
+    const bet = interaction.options.getInteger("bet");
+    const side = interaction.options.getString("side");
+
+    if (!Number.isSafeInteger(bet) || bet <= 0) {
+      return interaction.reply({ content: "Bet must be above 0.", ephemeral: true });
+    }
+
+    if (side !== "heads" && side !== "tails") {
+      return interaction.reply({ content: "Choose Heads or Tails.", ephemeral: true });
+    }
+
+    let balance;
+    let result;
+    let win;
+
+    try {
+      const levels = fs.existsSync("./levels.json")
+        ? JSON.parse(fs.readFileSync("./levels.json", "utf8"))
+        : {};
+      const user = levels[interaction.user.id];
+      balance = Number.isSafeInteger(user?.wl) ? user.wl : 0;
+
+      if (balance < bet) {
+        return interaction.reply({
+          content: `You only have **${balance} WL**.`,
+          ephemeral: true
+        });
+      }
+
+      result = Math.random() < 0.5 ? "heads" : "tails";
+      win = result === side;
+      balance += win ? bet : -bet;
+      if (!Number.isSafeInteger(balance)) throw new Error("WL balance exceeds the safe integer range");
+      user.wl = balance;
+      saveLevelsData(levels);
+    } catch (error) {
+      console.error("[COINFLIP] Could not update WL:", error);
+      return interaction.reply({ content: "Could not update your WL balance.", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(win ? "Green" : "Red")
+      .setTitle("🪙 Coin Flip")
+      .setDescription(
+        `Choice: **${side}**\nResult: **${result}**\n\n` +
+        (win ? `🎉 You won **${bet} WL**!` : `💀 You lost **${bet} WL**.`) +
+        `\nBalance: **${balance} WL**`
+      );
+
+    return interaction.reply({ embeds: [embed] });
+  }
   if (interaction.customId?.startsWith("nv2setup:")) {
   try {
     if (await furryTest.handleProfileSetup(interaction)) return;
