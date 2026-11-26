@@ -5421,11 +5421,6 @@ return interaction.reply({
 ) {
   return worldCupCommand.execute(interaction, client);
 }
-  if (interaction.isChatInputCommand()) {
-  const handled = await call.handleCommand(interaction);
-  if (handled) return;
-}
-
 if (interaction.isChatInputCommand()) {
   const handled = await task.handleCommand(interaction, client);
   if (handled) return;
@@ -5471,10 +5466,7 @@ if (interaction.isModalSubmit()) {
   const handled = await renderWorld.handleModal(interaction);
   if (handled) return;
 }
-if (interaction.isStringSelectMenu()) {
-  const handled = await call.handleSelect(interaction);
-  if (handled) return;
-}
+
   if (interaction.isChatInputCommand() && interaction.commandName === "testlevelup") {
   return testLevelCommand.execute(interaction);
 }
@@ -11459,6 +11451,15 @@ if (
   }).catch(() => {});
 
   return;
+}
+
+  await call.handleMessage(message);
+
+// level system
+try {
+  await level.handleLevelXP(message);
+} catch (error) {
+  console.error("Level system error:", error);
 }
 // level system
 try {
