@@ -331,7 +331,7 @@ const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
 const business = require("./feature/business.js");
-
+const botCustomization = require("./feature/levelcard.js");
 const casino = require("./feature/casino.js");
 const pvp = require("./feature/pvp.js");
 const gamble = require("./feature/gamble.js");
@@ -2372,6 +2372,9 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+  await botCustomization.start(client).catch(error => {
+    console.error("[BOT CUSTOMIZATION]", error);
+});
     await casino.start(client).catch(error => {
     console.error("[Ticket Dashboard]", error);
   });
@@ -3440,6 +3443,10 @@ async function logSpkUsage(interaction) {
 }
 client.on("interactionCreate", async (interaction) => {
 
+  if (interaction.customId?.startsWith("botcustom:")) {
+    const handled = await botCustomization.handle(interaction);
+    if (handled) return;
+}
     if (interaction.customId?.startsWith("td:")) {
     const handled = await casino.handle(interaction);
     if (handled) return;
