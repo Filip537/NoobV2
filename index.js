@@ -6656,7 +6656,13 @@ if (
   return await buildRoleFeature.handleButton(interaction);
 }
 
-if (interaction.isButton() && interaction.customId === "close_ticket") {
+if (
+  interaction.isButton() &&
+  (
+    interaction.customId === "create_ticket" ||
+    interaction.customId === "close_ticket"
+  )
+) {
   return ticket.handleButton(interaction);
 }
 if (interaction.isChatInputCommand() && ["warn1", "warn2", "warn3"].includes(interaction.commandName)) {
