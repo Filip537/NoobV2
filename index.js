@@ -2376,6 +2376,9 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+  void furryTest.startProfileSetup(client).catch(error => {
+  console.error("[PROFILE SETUP] Panel startup failed:", error.code ?? error.message);
+});
   await botCustomization.start(client).catch(error => {
     console.error("[BOT CUSTOMIZATION]", error);
 });
@@ -3446,6 +3449,22 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.customId?.startsWith("nv2setup:")) {
+  try {
+    if (await furryTest.handleProfileSetup(interaction)) return;
+  } catch (error) {
+    console.error("[PROFILE SETUP]", error.code ?? error.message);
+
+    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: "The profile setup action failed. Please try again.",
+        ephemeral: true
+      }).catch(() => {});
+    }
+
+    return;
+  }
+}
 
   if (interaction.customId?.startsWith("botcustom:")) {
     const handled = await botCustomization.handle(interaction);
