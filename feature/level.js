@@ -1,531 +1,571 @@
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  EmbedBuilder
-} = require("discord.js");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
-const { attachment } = require("./mediaUpload.js");
-const levelFeature = require("./level.js");
-const { getProfileDetails } = require("./furrytest.js");
+const fs = require("fs");
+const path = require("path");
 
-const LEVELS_FILE = path.join(__dirname, "..", "levels.json");
-const CARD_NAME = "profile.jpg";
-const WIDTH = 1100;
-const HEIGHT = 560;
-const ROLES_PER_PAGE = 10;
-const LEGENDARY_LEVEL = 150;
-const LEGENDARY_PREVIEW_USER_ID = "1108921222030426172";
-const BUTTON_PREFIX = "nv2profile:";
-const NO_MENTIONS = { parse: [] };
+const levelFile = path.join(__dirname, "..", "levels.json");
+const migrationFile = path.join(__dirname, "..", "arcane-migration.json");
 
-const joinDateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC"
-});
+const GUILD_ID = "1411983843442823272";
+const LEVEL_CHANNEL_ID = "1439934982847205490";
+const ARCANE_CHANNEL_ID = "1439934982847205490";
+const ARCANE_BOT_ID = "437808476106784770";
+const LEVEL_5_ROLE_ID = "1485405233990467735";
+const MAX_LEVEL = 150;
 
-async function loadLevels() {
+const LEVEL_ROLES = [
+  { level: 5, roleId: "1485405233990467735" },
+  { level: 10, roleId: "1551190845825220669" },
+  { level: 20, roleId: "1451111483269447866" },
+  { level: 40, roleId: "1451111522339389493" }
+];
+
+const XP_COOLDOWN = 60 * 1000;
+const MIN_XP = 5;
+const MAX_XP = 10;
+const xpCooldowns = new Map();
+
+let migrationPromise = null;
+let migrationCompleted = false;
+
+function loadLevels() {
   try {
-    const data = JSON.parse(await fs.readFile(LEVELS_FILE, "utf8"));
+    if (!fs.existsSync(levelFile)) {
+      fs.writeFileSync(levelFile, "{}");
+      return {};
+    }
+
+    const raw = fs.readFileSync(levelFile, "utf8").trim();
+
+    if (!raw) {
+      throw new Error("levels.json is empty");
+    }
+
+    const data = JSON.parse(raw);
 
     if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("Invalid levels.json");
+      throw new Error("Invalid level data");
     }
 
     return data;
   } catch (error) {
-    if (error.code === "ENOENT") return {};
-    throw error;
-  }
-}
-
-function getRankings(guild, levels) {
-  return Object.entries(levels)
-    .filter(([id, data]) =>
-      /^\d{17,20}$/.test(id) &&
-      data &&
-      Number.isInteger(data.level) &&
-      data.level >= 0 &&
-      !guild.members.cache.get(id)?.user?.bot &&
-      (data.level > 0 || Number(data.xp || 0) > 0)
-    )
-    .sort((a, b) =>
-      b[1].level - a[1].level ||
-      Number(b[1].xp || 0) - Number(a[1].xp || 0)
-    );
-}
-
-function getRoles(member, guild) {
-  return [...member.roles.cache.values()]
-    .filter(role => role.id !== guild.id)
-    .sort((a, b) => b.comparePositionTo(a));
-}
-
-async function loadAvatar(member, user) {
-  try {
-    const options = { extension: "png", forceStatic: true, size: 256 };
-    const url = member.displayAvatarURL(options) || user.displayAvatarURL(options);
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(1800)
-    });
-
-    if (!response.ok) {
-      await response.body?.cancel();
-      return null;
-    }
-
-    return await loadImage(Buffer.from(await response.arrayBuffer()));
-  } catch {
+    console.error("[LEVEL] Failed to load data:", error);
     return null;
   }
 }
 
-function box(ctx, x, y, width, height, radius, color) {
-  if (width <= 0 || height <= 0) return;
-
-  ctx.beginPath();
-  ctx.roundRect(x, y, width, height, Math.min(radius, width / 2, height / 2));
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-
-function text(ctx, value, x, y, width, size, color = "#F4F4F5", bold = false) {
-  ctx.font = `${bold ? "bold " : ""}${size}px sans-serif`;
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = color;
-
-  let label = String(value);
-
-  if (ctx.measureText(label).width > width) {
-    const characters = Array.from(label);
-
-    while (characters.length && ctx.measureText(`${characters.join("")}…`).width > width) {
-      characters.pop();
-    }
-
-    label = `${characters.join("")}…`;
-  }
-
-  ctx.fillText(label, x, y);
-}
-
-function crystalGradient(ctx, x1, y1, x2, y2) {
-  const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
-  gradient.addColorStop(0, "#A765F9");
-  gradient.addColorStop(0.5, "#E1CCFF");
-  gradient.addColorStop(1, "#4DDCF4");
-  return gradient;
-}
-
-function drawLegendaryDetails(ctx) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(135, 129, 72, 0, Math.PI * 2);
-  ctx.strokeStyle = crystalGradient(ctx, 68, 62, 202, 196);
-  ctx.lineWidth = 5;
-  ctx.shadowColor = "#9B72FF";
-  ctx.shadowBlur = 12;
-  ctx.stroke();
-  ctx.restore();
-
-  const crystals = [
-    { x: 1043, y: 83, width: 15, height: 37, color: "#AC74F5" },
-    { x: 1058, y: 113, width: 8, height: 22, color: "#64DDF4" },
-    { x: 1048, y: 479, width: 15, height: 41, color: "#7653CD" },
-    { x: 1062, y: 506, width: 8, height: 23, color: "#8AE7FF" }
-  ];
-
-  for (const { x, y, width, height, color } of crystals) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - height);
-    ctx.lineTo(x + width, y);
-    ctx.lineTo(x, y + height);
-    ctx.lineTo(x - width, y);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(x, y - height);
-    ctx.lineTo(x, y + height);
-    ctx.lineTo(x - width, y);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-    ctx.fill();
-  }
-
-  box(ctx, 825, 33, 180, 30, 7, "#E4BA68");
-  box(ctx, 827, 35, 176, 26, 6, "#302019");
-  text(ctx, "LEGENDARY", 853, 48, 135, 18, "#FFDB88", true);
-}
-
-function drawAvatar(ctx, avatar, username) {
-  const x = 68;
-  const y = 62;
-  const size = 134;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-  ctx.clip();
-
-  ctx.fillStyle = "#3F4148";
-  ctx.fillRect(x, y, size, size);
-
-  if (avatar) {
-    const scale = Math.max(size / avatar.width, size / avatar.height);
-    const width = avatar.width * scale;
-    const height = avatar.height * scale;
-
-    ctx.drawImage(
-      avatar,
-      x + (size - width) / 2,
-      y + (size - height) / 2,
-      width,
-      height
-    );
-  } else {
-    const initial = Array.from(username)[0]?.toUpperCase() || "?";
-    ctx.textAlign = "center";
-    text(ctx, initial, x + size / 2, y + size / 2, size, 52, "#F4F4F5", true);
-  }
-
-  ctx.restore();
-}
-
-async function renderPage(member, user, guild, requestedPage, viewerId) {
-  const roles = getRoles(member, guild);
-  const rolePages = Math.max(1, Math.ceil(roles.length / ROLES_PER_PAGE));
-  const totalPages = rolePages + 2;
-  const page = Math.max(0, Math.min(requestedPage, totalPages - 1));
-
-  const [avatar, levels] = await Promise.all([
-    loadAvatar(member, user),
-    loadLevels()
-  ]);
-
-  const data = levels[user.id] || {};
-  const savedLevel = Number(data.level) || 0;
-  const legendary =
-    savedLevel >= LEGENDARY_LEVEL ||
-    viewerId === LEGENDARY_PREVIEW_USER_ID;
-
-  const canvas = createCanvas(WIDTH, HEIGHT);
-  const ctx = canvas.getContext("2d");
-  const accent = legendary ? "#FFDB88" : "#A5B4FC";
-  const tileColor = legendary ? "#2A2239" : "#303239";
-
-  ctx.fillStyle = legendary ? "#080910" : "#111214";
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  box(ctx, 20, 20, 1060, 520, 25, legendary ? "#E4BA68" : "#42444B");
-  box(ctx, 23, 23, 1054, 514, 23, legendary ? "#151220" : "#202125");
-
-  if (legendary) {
-    drawLegendaryDetails(ctx);
-  }
-
-  drawAvatar(ctx, avatar, user.username);
-
-  const displayName = member.displayName || user.globalName || user.username;
-  text(ctx, displayName, 240, 84, 760, 53, "#F4F4F5", true);
-  text(ctx, `@${user.username}`, 242, 139, 760, 29, "#B6BAC4");
-
-  const section = page === 0
-    ? "Overview"
-    : page === totalPages - 1
-      ? "About"
-      : "Server Roles";
-
-  text(ctx, section, 242, 185, 760, 24, accent, true);
-  box(ctx, 68, 226, 964, 2, 1, legendary ? "#A8824D" : "#373941");
-
-  if (page === 0) {
-    const maxLevel = levelFeature.MAX_LEVEL || 150;
-    const level = Math.max(0, Math.min(maxLevel, Math.floor(savedLevel)));
-    const xp = Math.max(0, Math.floor(Number(data.xp) || 0));
-    const needed = level >= maxLevel ? 0 : levelFeature.getXPNeeded(level);
-    const progress = level >= maxLevel ? 1 : needed > 0 ? Math.min(1, xp / needed) : 0;
-    const rank = getRankings(guild, levels).findIndex(([id]) => id === user.id);
-    const topRole = user.id === guild.ownerId ? "Owner" : roles[0]?.name || "Member";
-    const joined = member.joinedAt ? joinDateFormat.format(member.joinedAt) : "Unknown";
-
-    text(ctx, topRole, 68, 277, 964, 33, "#F4F4F5", true);
-    text(ctx, `Joined ${joined}`, 68, 321, 964, 27, "#B6BAC4");
-    text(
-      ctx,
-      `Level ${level}     Rank ${rank < 0 ? "Unranked" : `#${rank + 1}`}`,
-      68, 382, 964, 33, "#F4F4F5", true
-    );
-
-    const xpFill = legendary
-      ? crystalGradient(ctx, 68, 420, 1032, 420)
-      : "#6778F5";
-
-    box(ctx, 68, 420, 964, 15, 8, legendary ? "#39304B" : "#3F4148");
-    box(ctx, 68, 420, 964 * progress, 15, 8, xpFill);
-
-    const xpLabel = level >= maxLevel
-      ? "Max level"
-      : `${xp.toLocaleString("en-US")} / ${needed.toLocaleString("en-US")} XP`;
-
-    text(ctx, xpLabel, 68, 468, 964, 27, "#B6BAC4");
-  } else if (page < totalPages - 1) {
-    const start = (page - 1) * ROLES_PER_PAGE;
-    const shown = roles.slice(start, start + ROLES_PER_PAGE);
-
-    text(ctx, `${roles.length} roles · ${page} / ${rolePages}`, 68, 260, 964, 23, "#B6BAC4");
-
-    if (!shown.length) {
-      text(ctx, "No server roles to display.", 68, 316, 964, 27);
-    }
-
-    shown.forEach((role, index) => {
-      const x = 68 + (index % 2) * 489;
-      const y = 286 + Math.floor(index / 2) * 44;
-
-      box(ctx, x, y, 475, 38, 8, tileColor);
-      box(ctx, x + 13, y + 13, 12, 12, 6, role.color ? role.hexColor : "#A2A5AE");
-      text(ctx, role.name, x + 36, y + 20, 425, 22);
-    });
-  } else {
-    const { hobbies, games } = getProfileDetails(guild.id, user.id);
-    const columns = [
-      { x: 68, label: "Hobbies", entries: hobbies },
-      { x: 557, label: "Favourite games", entries: games }
-    ];
-
-    for (const { x, label, entries } of columns) {
-      text(ctx, label, x, 275, 475, 28, "#F4F4F5", true);
-
-      if (!entries.length) {
-        text(ctx, "None added yet", x, 319, 475, 24, "#B6BAC4");
-      }
-
-      entries.slice(0, 4).forEach((entry, index) => {
-        const y = 300 + index * 41;
-        box(ctx, x, y, 475, 35, 8, tileColor);
-        text(ctx, entry, x + 12, y + 18, 451, 23);
-      });
-    }
-
-    text(ctx, "Achievements · Coming soon", 68, 500, 964, 27, "#B6BAC4", true);
-  }
-
-  return { image: await canvas.encode("jpeg", 86), page, totalPages };
-}
-
-async function createProfileCard(member, user, guild) {
-  const result = await renderPage(member, user, guild, 0);
-  return result.image;
-}
-
-function pageButtons(ownerId, memberId, page, totalPages) {
-  const prefix = `${BUTTON_PREFIX}${ownerId}:${memberId}:`;
-
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${prefix}${page - 1}`)
-      .setLabel("‹ Previous")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page === 0),
-    new ButtonBuilder()
-      .setCustomId(`${prefix}indicator`)
-      .setLabel(`${page + 1} / ${totalPages}`)
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-    new ButtonBuilder()
-      .setCustomId(`${prefix}${page + 1}`)
-      .setLabel("Next ›")
-      .setStyle(ButtonStyle.Primary)
-      .setDisabled(page === totalPages - 1)
-  );
-}
-
-async function executeProfile(interaction) {
-  let stage = "acknowledging the command";
-  let cardMessage;
-
+function saveLevels(data) {
   try {
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply();
-    }
-
-    if (!interaction.guild || typeof interaction.channel?.send !== "function") {
-      return await interaction.editReply("Use `/profile` in a server text channel.");
-    }
-
-    stage = "loading the server member";
-
-    const user = interaction.options.getUser("user") || interaction.user;
-    const member =
-      interaction.options.getMember("user") ||
-      interaction.guild.members.cache.get(user.id) ||
-      await interaction.guild.members.fetch(user.id).catch(() => null);
-
-    if (!member) {
-      return await interaction.editReply("I couldn’t find that member in this server.");
-    }
-
-    stage = "rendering the card";
-    const result = await renderPage(member, user, interaction.guild, 0, interaction.user.id);
-
-    stage = "uploading the card";
-    cardMessage = await interaction.channel.send({
-      files: [attachment(result.image, CARD_NAME)],
-      components: [pageButtons(interaction.user.id, user.id, result.page, result.totalPages)],
-      allowedMentions: NO_MENTIONS
-    });
-
-    stage = "updating the command reply";
-    await interaction.editReply({
-      content: `[View profile card](${cardMessage.url})`,
-      allowedMentions: NO_MENTIONS
-    });
+    const tempFile = `${levelFile}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+    fs.renameSync(tempFile, levelFile);
+    return true;
   } catch (error) {
-    console.error(`[PROFILE] Failed while ${stage}:`, error.code ?? error.message);
-    if (cardMessage) return;
-
-    const content = `Could not show the profile while ${stage}.`;
-
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content }).catch(() => {});
-    } else {
-      await interaction.reply({ content, ephemeral: true }).catch(() => {});
-    }
-  }
-}
-
-async function handleButton(interaction) {
-  if (!interaction.isButton() || !interaction.customId.startsWith(BUTTON_PREFIX)) {
+    console.error("[LEVEL] Failed to save data:", error);
     return false;
   }
+}
 
-  const [ownerId, memberId, destination] = interaction.customId
-    .slice(BUTTON_PREFIX.length)
-    .split(":");
+function getXPNeeded(level) {
+  const earlyLevels = {
+    0: 15,
+    1: 25,
+    2: 40,
+    3: 60,
+    4: 100
+  };
 
-  if (interaction.user.id !== ownerId) {
-    await interaction.reply({
-      content: "Only the person who opened this profile can change its pages.",
+  if (level >= MAX_LEVEL) return 0;
+  if (level < 5) return earlyLevels[level];
+
+  return Math.floor(200 + Math.pow(level, 1.7) * 15);
+}
+
+function getRandomXP() {
+  return Math.floor(Math.random() * (MAX_XP - MIN_XP + 1)) + MIN_XP;
+}
+
+function parseArcaneMessage(message) {
+  if (message.author.id !== ARCANE_BOT_ID) return [];
+
+  const parts = [message.content || ""];
+
+  for (const embed of message.embeds || []) {
+    parts.push(embed.title || "");
+    parts.push(embed.description || "");
+
+    for (const field of embed.fields || []) {
+      parts.push(field.name || "");
+      parts.push(field.value || "");
+    }
+  }
+
+  const content = parts.join("\n")
+    .replace(/\*/g, "")
+    .replace(/`/g, "");
+
+  const matches = content.matchAll(/<@!?(\d+)>\s+has reached level\s+(\d+)/gi);
+  const results = [];
+
+  for (const match of matches) {
+    const userId = match[1];
+    const level = Number(match[2]);
+
+    if (!Number.isSafeInteger(level) || level < 1) continue;
+
+    results.push({
+      userId,
+      level: Math.min(level, MAX_LEVEL)
+    });
+  }
+
+  return results;
+}
+
+async function importArcaneLevels(client) {
+  if (migrationCompleted) return true;
+  if (migrationPromise) return migrationPromise;
+
+  migrationPromise = (async () => {
+    try {
+      if (fs.existsSync(migrationFile) && fs.existsSync(levelFile)) {
+        const report = JSON.parse(fs.readFileSync(migrationFile, "utf8"));
+
+        if (
+          report.completed === true &&
+          report.guildId === GUILD_ID &&
+          report.channelId === ARCANE_CHANNEL_ID &&
+          loadLevels() !== null
+        ) {
+          migrationCompleted = true;
+          return true;
+        }
+      }
+
+      console.log("[ARCANE] Starting level migration...");
+
+      const guild = await client.guilds.fetch(GUILD_ID);
+      const channel = await guild.channels.fetch(ARCANE_CHANNEL_ID);
+
+      if (!channel || !channel.messages) {
+        throw new Error("Arcane level channel not found");
+      }
+
+      const imported = new Map();
+      let before;
+      let scanned = 0;
+      let matched = 0;
+
+      while (true) {
+        const messages = await channel.messages.fetch({
+          limit: 100,
+          cache: false,
+          ...(before ? { before } : {})
+        });
+
+        if (!messages.size) break;
+
+        for (const message of messages.values()) {
+          scanned++;
+
+          for (const result of parseArcaneMessage(message)) {
+            matched++;
+            const previous = imported.get(result.userId) || 0;
+            imported.set(result.userId, Math.max(previous, result.level));
+          }
+        }
+
+        before = messages.last().id;
+
+        if (scanned % 1000 === 0) {
+          console.log(`[ARCANE] Scanned ${scanned} messages...`);
+        }
+
+        if (messages.size < 100) break;
+      }
+
+      if (matched === 0) {
+        throw new Error("No Arcane announcements matched. Check bot ID and message format.");
+      }
+
+      const arcaneLevels = new Map(imported);
+      const members = await guild.members.fetch();
+      let roleFallbacks = 0;
+
+      for (const member of members.values()) {
+        if (member.user.bot || !member.roles.cache.has(LEVEL_5_ROLE_ID)) continue;
+
+        if ((imported.get(member.id) || 0) < 5) {
+          imported.set(member.id, 5);
+          roleFallbacks++;
+        }
+      }
+
+      for (const userId of imported.keys()) {
+        const member = members.get(userId);
+
+        if (!member || member.user.bot) {
+          imported.delete(userId);
+        }
+      }
+
+      const levels = loadLevels();
+
+      if (levels === null) {
+        throw new Error("Unable to load existing levels.json");
+      }
+
+      const backupFile = `${levelFile}.backup-${Date.now()}`;
+      fs.copyFileSync(levelFile, backupFile);
+
+      let updated = 0;
+      let preserved = 0;
+      const reportUsers = {};
+
+      for (const [userId, importedLevel] of imported) {
+        if (!levels[userId]) {
+          levels[userId] = { level: 0, xp: 0, wl: 0 };
+        }
+
+        const userData = levels[userId];
+
+        if (
+          !Number.isInteger(userData.level) ||
+          userData.level < 0 ||
+          !Number.isFinite(userData.xp) ||
+          userData.xp < 0
+        ) {
+          throw new Error(`Invalid existing data: ${userId}`);
+        }
+
+        const previousLevel = userData.level;
+
+        if (importedLevel > previousLevel) {
+          userData.level = importedLevel;
+          userData.xp = 0;
+          updated++;
+        } else {
+          preserved++;
+        }
+
+        userData.arcaneLevel = arcaneLevels.get(userId) || 0;
+        userData.importedLevel = importedLevel;
+        userData.levelSource =
+          arcaneLevels.has(userId) && arcaneLevels.get(userId) >= importedLevel
+            ? "Arcane"
+            : "Level 5 Role";
+
+        reportUsers[userId] = {
+          arcaneLevel: userData.arcaneLevel,
+          importedLevel,
+          previousLevel,
+          finalLevel: userData.level,
+          source: userData.levelSource
+        };
+      }
+
+      if (!saveLevels(levels)) {
+        throw new Error("Failed to save imported levels");
+      }
+
+      const report = {
+        completed: true,
+        guildId: GUILD_ID,
+        channelId: ARCANE_CHANNEL_ID,
+        completedAt: new Date().toISOString(),
+        scannedMessages: scanned,
+        matchedAnnouncements: matched,
+        importedUsers: imported.size,
+        roleFallbacks,
+        updatedUsers: updated,
+        preservedUsers: preserved,
+        backupFile,
+        users: reportUsers
+      };
+
+      fs.writeFileSync(migrationFile, JSON.stringify(report, null, 2));
+      migrationCompleted = true;
+
+      console.log("[ARCANE] Migration completed!");
+      console.log(`[ARCANE] Messages scanned: ${scanned}`);
+      console.log(`[ARCANE] Announcements matched: ${matched}`);
+      console.log(`[ARCANE] Members imported: ${imported.size}`);
+      console.log(`[ARCANE] Level 5 fallbacks: ${roleFallbacks}`);
+      console.log(`[ARCANE] Levels updated: ${updated}`);
+      console.log(`[ARCANE] Existing levels preserved: ${preserved}`);
+
+      return true;
+    } catch (error) {
+      console.error("[ARCANE] Migration failed:", error);
+      return false;
+    }
+  })();
+
+  try {
+    return await migrationPromise;
+  } finally {
+    migrationPromise = null;
+  }
+}
+
+async function updateLevelRoles(member, level) {
+  if (!member) return;
+
+  for (const levelRole of LEVEL_ROLES) {
+    if (level < levelRole.level) continue;
+
+    try {
+      const role = member.guild.roles.cache.get(levelRole.roleId);
+
+      if (!role || member.roles.cache.has(levelRole.roleId)) continue;
+
+      await member.roles.add(role, `Level ${levelRole.level} reward`);
+      console.log(
+        `[LEVEL] Granted level ${levelRole.level} role to ${member.user.username}`
+      );
+    } catch (error) {
+      console.error("[LEVEL] Failed to update role:", error);
+    }
+  }
+}
+
+async function sendLevelUpMessage(message, level) {
+  try {
+    const channel = await message.guild.channels
+      .fetch(LEVEL_CHANNEL_ID)
+      .catch(() => null);
+
+    if (!channel || !channel.isTextBased()) {
+      console.error("[LEVEL] Announcement channel not found");
+      return;
+    }
+
+    await channel.send({
+      content: `<@${message.author.id}> has reached level **${level}**. GG!`,
+      allowedMentions: {
+        parse: [],
+        users: [message.author.id],
+        roles: [],
+        repliedUser: false
+      }
+    });
+  } catch (error) {
+    console.error("[LEVEL] Announcement failed:", error);
+  }
+}
+
+async function handleLevelXP(message) {
+  if (!message.guild || message.guild.id !== GUILD_ID) return;
+  if (message.author.bot || message.webhookId) return;
+  if (message.channel.id === LEVEL_CHANNEL_ID) return;
+
+  const ready = await importArcaneLevels(message.client);
+  if (!ready) return;
+
+  const userId = message.author.id;
+  const now = Date.now();
+  const lastXP = xpCooldowns.get(userId);
+
+  if (lastXP && now - lastXP < XP_COOLDOWN) return;
+
+  const levels = loadLevels();
+  if (levels === null) return;
+
+  if (!levels[userId]) {
+    levels[userId] = { level: 0, xp: 0, wl: 0 };
+  }
+
+  const userData = levels[userId];
+
+  if (
+    !Number.isInteger(userData.level) ||
+    userData.level < 0 ||
+    !Number.isFinite(userData.xp) ||
+    userData.xp < 0
+  ) {
+    console.error(`[LEVEL] Invalid data for ${userId}`);
+    return;
+  }
+
+  xpCooldowns.set(userId, now);
+
+  const cooldownTimer = setTimeout(() => {
+    if (xpCooldowns.get(userId) === now) {
+      xpCooldowns.delete(userId);
+    }
+  }, XP_COOLDOWN);
+
+  cooldownTimer.unref();
+
+  if (userData.level >= MAX_LEVEL) {
+    await updateLevelRoles(message.member, userData.level);
+    return;
+  }
+
+  const previousLevel = userData.level;
+  userData.xp += getRandomXP();
+
+  while (userData.level < MAX_LEVEL && userData.xp >= getXPNeeded(userData.level)) {
+    userData.xp -= getXPNeeded(userData.level);
+    userData.level++;
+  }
+
+  if (userData.level >= MAX_LEVEL) {
+    userData.xp = 0;
+  }
+
+  if (!saveLevels(levels)) {
+    xpCooldowns.delete(userId);
+    return;
+  }
+
+  await updateLevelRoles(message.member, userData.level);
+
+  if (userData.level > previousLevel) {
+    await sendLevelUpMessage(message, userData.level);
+  }
+}
+
+function getUserLevel(userId) {
+  const levels = loadLevels();
+  const userData = levels?.[userId] || { level: 0, xp: 0, wl: 0 };
+
+  return {
+    ...userData,
+    requiredXP: getXPNeeded(userData.level)
+  };
+}
+
+async function handleTestLevel(interaction) {
+  if (interaction.commandName !== "testlevel") return;
+
+  if (interaction.guildId !== GUILD_ID || !interaction.memberPermissions?.has(8n)) {
+    return interaction.reply({
+      content: "Administrator only.",
       ephemeral: true
     });
-    return true;
   }
 
-  if (!interaction.guild || !/^\d+$/.test(destination)) {
-    await interaction.reply({ content: "This page is unavailable.", ephemeral: true });
-    return true;
-  }
+  await interaction.deferReply({ ephemeral: true });
 
   try {
-    await interaction.deferUpdate();
+    const user = interaction.options.getUser("user", true);
 
-    const member =
-      interaction.guild.members.cache.get(memberId) ||
-      await interaction.guild.members.fetch(memberId).catch(() => null);
-
-    if (!member) {
-      await interaction.followUp({
-        content: "I couldn’t find that member in this server.",
-        ephemeral: true
+    if (!migrationCompleted) {
+      return interaction.editReply({
+        content:
+          "Arcane migration has not completed yet. " +
+          "Check the bot console or wait for the import to finish."
       });
-      return true;
     }
 
-    const result = await renderPage(
-      member,
-      member.user,
-      interaction.guild,
-      Number(destination),
-      interaction.user.id
-    );
+    const levels = loadLevels();
 
-    await interaction.message.edit({
-      attachments: [],
-      files: [attachment(result.image, CARD_NAME)],
-      components: [pageButtons(ownerId, memberId, result.page, result.totalPages)],
-      allowedMentions: NO_MENTIONS
-    });
-  } catch (error) {
-    console.error("[PROFILE] Page update failed:", error.code ?? error.message);
-
-    const payload = { content: "Could not switch profile pages.", ephemeral: true };
-
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp(payload).catch(() => {});
-    } else {
-      await interaction.reply(payload).catch(() => {});
-    }
-  }
-
-  return true;
-}
-
-async function executeLeaderboard(interaction) {
-  try {
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply();
+    if (levels === null) {
+      throw new Error("Unable to read levels.json");
     }
 
-    if (!interaction.guild) {
-      return await interaction.editReply("Use this command in a server.");
+    const data = levels[user.id];
+
+    if (!data) {
+      return interaction.editReply({
+        content: "No saved level data found for this member."
+      });
     }
 
-    const levels = await loadLevels();
-    const rankings = getRankings(interaction.guild, levels);
-    const myRank = rankings.findIndex(([id]) => id === interaction.user.id);
-    const myData = levels[interaction.user.id] || { level: 0, xp: 0 };
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+    const requiredXP = getXPNeeded(data.level);
+    const remainingXP = Math.max(0, requiredXP - data.xp);
+    const estimatedMessages = Math.ceil(remainingXP / ((MIN_XP + MAX_XP) / 2));
+    const importedLevel = data.importedLevel || 0;
+    const verified = importedLevel > 0 && data.level >= importedLevel;
 
-    const description = rankings
-      .slice(0, 10)
-      .map(([id, data], index) =>
-        `**#${index + 1}** <@${id}>\n` +
-        `Level **${data.level}** | XP **${Number(data.xp || 0).toLocaleString("en-US")}**`
-      )
-      .join("\n\n");
+    const status = verified
+      ? "Imported level verified"
+      : importedLevel > 0
+        ? "Imported level mismatch"
+        : "No imported level recorded";
 
-    const embed = new EmbedBuilder()
-      .setTitle("Level Leaderboard")
-      .setColor(0x3498DB)
-      .setDescription(description || "No ranked members yet.")
-      .addFields({
-        name: "Your Ranking",
-        value:
-          `Rank: **${myRank >= 0 ? `#${myRank + 1}` : "Unranked"}**\n` +
-          `Level: **${myData.level}**\n` +
-          `XP: **${Number(myData.xp || 0).toLocaleString("en-US")}**`
-      })
-      .setFooter({ text: `${rankings.length} ranked members | NoobV2` });
+    const eligibleRoles = LEVEL_ROLES.filter(reward => data.level >= reward.level);
+
+    const roleStatus = eligibleRoles.length
+      ? eligibleRoles.map(reward => {
+          const hasRole = member?.roles.cache.has(reward.roleId);
+          return `${hasRole ? "✅" : "❌"} Level ${reward.level}: <@&${reward.roleId}>`;
+        }).join("\n")
+      : "No reward roles unlocked yet.";
 
     await interaction.editReply({
-      embeds: [embed],
-      allowedMentions: NO_MENTIONS
+      embeds: [{
+        title: "Level System Test",
+        color: verified ? 0x57F287 : 0xFEE75C,
+        thumbnail: { url: user.displayAvatarURL() },
+        fields: [
+          { name: "Member", value: `<@${user.id}>` },
+          {
+            name: "Arcane Level",
+            value: data.arcaneLevel ? String(data.arcaneLevel) : "Not found",
+            inline: true
+          },
+          {
+            name: "Imported Level",
+            value: importedLevel ? String(importedLevel) : "Not found",
+            inline: true
+          },
+          {
+            name: "Current NoobV2 Level",
+            value: String(data.level),
+            inline: true
+          },
+          {
+            name: "Current XP",
+            value: `${data.xp.toLocaleString()} XP`,
+            inline: true
+          },
+          {
+            name: "XP Until Next Level",
+            value: `${remainingXP.toLocaleString()} XP`,
+            inline: true
+          },
+          {
+            name: "Estimated Messages",
+            value: estimatedMessages.toLocaleString(),
+            inline: true
+          },
+          {
+            name: "Next Level",
+            value: data.level >= MAX_LEVEL
+              ? "Maximum level reached"
+              : String(data.level + 1),
+            inline: true
+          },
+          {
+            name: "Level Source",
+            value: data.levelSource || "NoobV2",
+            inline: true
+          },
+          { name: "Reward Roles", value: roleStatus },
+          { name: "Status", value: status }
+        ],
+        footer: { text: "Read-only test | No XP or levels modified" },
+        timestamp: new Date().toISOString()
+      }],
+      allowedMentions: { parse: [] }
     });
   } catch (error) {
-    console.error("[LEADERBOARD]", error.code ?? error.message);
+    console.error("[TESTLEVEL]", error);
 
-    const content = "Unable to load leaderboard.";
-
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content }).catch(() => {});
-    } else {
-      await interaction.reply({ content, ephemeral: true }).catch(() => {});
-    }
+    await interaction.editReply({
+      content: `Level test failed: ${error.message}`
+    }).catch(console.error);
   }
-}
-
-async function handleSelect() {
-  return false;
 }
 
 module.exports = {
-  executeProfile,
-  executeLeaderboard,
-  createProfileCard,
-  handleButton,
-  handleSelect
+  handleLevelXP,
+  handleMessage: handleLevelXP,
+  getUserLevel,
+  getXPNeeded,
+  updateLevelRoles,
+  importArcaneLevels,
+  handleTestLevel,
+  MAX_LEVEL
 };
