@@ -2372,6 +2372,9 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
+    await casino.start(client).catch(error => {
+    console.error("[Ticket Dashboard]", error);
+  });
   level.importArcaneLevels(client)
   .then(success => {
     if (success) {
@@ -3437,6 +3440,10 @@ async function logSpkUsage(interaction) {
 }
 client.on("interactionCreate", async (interaction) => {
 
+    if (interaction.customId?.startsWith("td:")) {
+    const handled = await casino.handle(interaction);
+    if (handled) return;
+  }
     if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "profile"
@@ -5473,10 +5480,7 @@ if (interaction.isButton()) {
   const handled = await business.handleButton(interaction);
   if (handled) return;
 }
-  if (interaction.isChatInputCommand()) {
-  const handled = await casino.handleCommand(interaction);
-  if (handled) return;
-}
+  
 if (interaction.isButton()) {
   const handled = await profileFeature.handleButton(interaction);
   if (handled) return;
@@ -5486,10 +5490,7 @@ if (interaction.isStringSelectMenu()) {
   const handled = await profileFeature.handleSelect(interaction);
   if (handled) return;
 }
-if (interaction.isButton()) {
-  const handled = await casino.handleButton(interaction);
-  if (handled) return;
-}
+
   if (interaction.isChatInputCommand()) {
   const handled = await pvp.handleCommand(interaction);
   if (handled) return;
@@ -5499,10 +5500,7 @@ if (interaction.isButton()) {
   const handled = await pvp.handleButton(interaction);
   if (handled) return;
 }
-  if (interaction.isChatInputCommand()) {
-  const handled = await casino.handleCommand(interaction);
-  if (handled) return;
-}
+
   if (interaction.isChatInputCommand()) {
   const handled = await gamble.handleCommand(interaction);
   if (handled) return;
