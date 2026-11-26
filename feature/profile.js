@@ -16,8 +16,7 @@ const CARD_NAME = "profile.jpg";
 const WIDTH = 1100;
 const HEIGHT = 560;
 const ROLES_PER_PAGE = 10;
-const LEGENDARY_LEVEL = 150;
-const LEGENDARY_PREVIEW_USER_ID = "1108921222030426172";
+const CRIMSON_USER_ID = "1108921222030426172";
 const BUTTON_PREFIX = "nv2profile:";
 const NO_MENTIONS = { parse: [] };
 
@@ -113,54 +112,63 @@ function text(ctx, value, x, y, width, size, color = "#F4F4F5", bold = false) {
   ctx.fillText(label, x, y);
 }
 
-function crystalGradient(ctx, x1, y1, x2, y2) {
-  const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
-  gradient.addColorStop(0, "#A765F9");
-  gradient.addColorStop(0.5, "#E1CCFF");
-  gradient.addColorStop(1, "#4DDCF4");
-  return gradient;
+function crimsonBox(ctx, x, y, w, h, fill = "#251016", edge = "#8E293F") {
+  const cut = Math.min(9, h / 3);
+  ctx.beginPath();
+  ctx.moveTo(x + cut, y);
+  ctx.lineTo(x + w - cut, y);
+  ctx.lineTo(x + w, y + cut);
+  ctx.lineTo(x + w, y + h - cut);
+  ctx.lineTo(x + w - cut, y + h);
+  ctx.lineTo(x + cut, y + h);
+  ctx.lineTo(x, y + h - cut);
+  ctx.lineTo(x, y + cut);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
-function drawLegendaryDetails(ctx) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(135, 129, 72, 0, Math.PI * 2);
-  ctx.strokeStyle = crystalGradient(ctx, 68, 62, 202, 196);
-  ctx.lineWidth = 5;
-  ctx.shadowColor = "#9B72FF";
-  ctx.shadowBlur = 12;
-  ctx.stroke();
-  ctx.restore();
+function drawCrimsonFrame(ctx) {
+  crimsonBox(ctx, 20, 20, 1060, 520, "#140C11", "#F63858");
 
-  const crystals = [
-    { x: 1043, y: 83, width: 15, height: 37, color: "#AC74F5" },
-    { x: 1058, y: 113, width: 8, height: 22, color: "#64DDF4" },
-    { x: 1048, y: 479, width: 15, height: 41, color: "#7653CD" },
-    { x: 1062, y: 506, width: 8, height: 23, color: "#8AE7FF" }
-  ];
-
-  for (const { x, y, width, height, color } of crystals) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - height);
-    ctx.lineTo(x + width, y);
-    ctx.lineTo(x, y + height);
-    ctx.lineTo(x - width, y);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(x, y - height);
-    ctx.lineTo(x, y + height);
-    ctx.lineTo(x - width, y);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-    ctx.fill();
+  ctx.fillStyle = "rgba(246, 56, 88, 0.055)";
+  for (let y = 35; y < 221; y += 5) {
+    ctx.fillRect(31, y, 1038, 1);
   }
 
-  box(ctx, 825, 33, 180, 30, 7, "#E4BA68");
-  box(ctx, 827, 35, 176, 26, 6, "#302019");
-  text(ctx, "LEGENDARY", 853, 48, 135, 18, "#FFDB88", true);
+  for (const [x, y, w, color] of [
+    [32, 19, 118, "#FF3454"], [949, 19, 90, "#FF3454"],
+    [1020, 24, 35, "#53EBDC"], [21, 108, 32, "#FF3454"],
+    [48, 115, 18, "#53EBDC"], [1030, 155, 50, "#FF3454"],
+    [1050, 162, 21, "#53EBDC"], [31, 536, 103, "#FF3454"],
+    [930, 539, 125, "#FF3454"]
+  ]) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, 3);
+  }
+
+  ctx.save();
+  ctx.shadowColor = "#FF234C";
+  ctx.shadowBlur = 13;
+  ctx.strokeStyle = "#FF3D59";
+  ctx.lineWidth = 5;
+  for (const [start, end] of [[0.08, 1.58], [1.72, 3.08], [3.23, 4.58], [4.73, 6.13]]) {
+    ctx.beginPath();
+    ctx.arc(135, 129, 73, start, end);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.strokeStyle = "#53EBDC";
+  ctx.lineWidth = 2;
+  for (const [start, end] of [[0.15, 0.65], [2.75, 3.32], [4.25, 4.68]]) {
+    ctx.beginPath();
+    ctx.arc(136, 129, 79, start, end);
+    ctx.stroke();
+  }
 }
 
 function drawAvatar(ctx, avatar, username) {
@@ -210,22 +218,20 @@ async function renderPage(member, user, guild, requestedPage) {
 
   const data = levels[user.id] || {};
   const savedLevel = Number(data.level) || 0;
-  const legendary =
-    savedLevel >= LEGENDARY_LEVEL ||
-    user.id === LEGENDARY_PREVIEW_USER_ID;
+  const crimson = user.id === CRIMSON_USER_ID;
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
-  const accent = legendary ? "#FFDB88" : "#A5B4FC";
-  const tileColor = legendary ? "#2A2239" : "#303239";
+  const accent = crimson ? "#FF7186" : "#A5B4FC";
 
-  ctx.fillStyle = legendary ? "#080910" : "#111214";
+  ctx.fillStyle = crimson ? "#0D080B" : "#111214";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  box(ctx, 20, 20, 1060, 520, 25, legendary ? "#E4BA68" : "#42444B");
-  box(ctx, 23, 23, 1054, 514, 23, legendary ? "#151220" : "#202125");
 
-  if (legendary) {
-    drawLegendaryDetails(ctx);
+  if (crimson) {
+    drawCrimsonFrame(ctx);
+  } else {
+    box(ctx, 20, 20, 1060, 520, 25, "#42444B");
+    box(ctx, 22, 22, 1056, 516, 23, "#202125");
   }
 
   drawAvatar(ctx, avatar, user.username);
@@ -241,7 +247,7 @@ async function renderPage(member, user, guild, requestedPage) {
       : "Server Roles";
 
   text(ctx, section, 242, 185, 760, 24, accent, true);
-  box(ctx, 68, 226, 964, 2, 1, legendary ? "#A8824D" : "#373941");
+  box(ctx, 68, 226, 964, 2, 1, crimson ? "#AA3249" : "#373941");
 
   if (page === 0) {
     const maxLevel = levelFeature.MAX_LEVEL || 150;
@@ -255,18 +261,29 @@ async function renderPage(member, user, guild, requestedPage) {
 
     text(ctx, topRole, 68, 277, 964, 33, "#F4F4F5", true);
     text(ctx, `Joined ${joined}`, 68, 321, 964, 27, "#B6BAC4");
-    text(
-      ctx,
-      `Level ${level}     Rank ${rank < 0 ? "Unranked" : `#${rank + 1}`}`,
-      68, 382, 964, 33, "#F4F4F5", true
-    );
+    const rankLabel = rank < 0 ? "Unranked" : `#${rank + 1}`;
 
-    const xpFill = legendary
-      ? crystalGradient(ctx, 68, 420, 1032, 420)
-      : "#6778F5";
+    if (crimson) {
+      crimsonBox(ctx, 68, 352, 475, 50);
+      crimsonBox(ctx, 557, 352, 475, 50);
+      text(ctx, `Level ${level}`, 86, 377, 430, 30, "#F4F4F5", true);
+      text(ctx, `Rank ${rankLabel}`, 575, 377, 430, 30, "#F4F4F5", true);
 
-    box(ctx, 68, 420, 964, 15, 8, legendary ? "#39304B" : "#3F4148");
-    box(ctx, 68, 420, 964 * progress, 15, 8, xpFill);
+      const segmentCount = 24;
+      const gap = 4;
+      const step = 964 / segmentCount;
+      for (let index = 0; index < segmentCount; index++) {
+        const x = 68 + index * step;
+        const width = step - gap;
+        const fill = width * Math.max(0, Math.min(1, progress * segmentCount - index));
+        box(ctx, x, 420, width, 15, 2, "#3A1721");
+        box(ctx, x, 420, fill, 15, 2, "#FF3757");
+      }
+    } else {
+      text(ctx, `Level ${level}     Rank ${rankLabel}`, 68, 382, 964, 33, "#F4F4F5", true);
+      box(ctx, 68, 420, 964, 15, 8, "#3F4148");
+      box(ctx, 68, 420, 964 * progress, 15, 8, "#6778F5");
+    }
 
     const xpLabel = level >= maxLevel
       ? "Max level"
@@ -287,8 +304,14 @@ async function renderPage(member, user, guild, requestedPage) {
       const x = 68 + (index % 2) * 489;
       const y = 286 + Math.floor(index / 2) * 44;
 
-      box(ctx, x, y, 475, 38, 8, tileColor);
-      box(ctx, x + 13, y + 13, 12, 12, 6, role.color ? role.hexColor : "#A2A5AE");
+      const roleColor = role.color ? role.hexColor : "#A2A5AE";
+      if (crimson) {
+        crimsonBox(ctx, x, y, 475, 38);
+        box(ctx, x + 13, y + 8, 5, 22, 2, roleColor);
+      } else {
+        box(ctx, x, y, 475, 38, 8, "#303239");
+        box(ctx, x + 13, y + 13, 12, 12, 6, roleColor);
+      }
       text(ctx, role.name, x + 36, y + 20, 425, 22);
     });
   } else {
@@ -299,6 +322,9 @@ async function renderPage(member, user, guild, requestedPage) {
     ];
 
     for (const { x, label, entries } of columns) {
+      if (crimson) {
+        crimsonBox(ctx, x - 8, 249, 483, 218, "#1C0E14");
+      }
       text(ctx, label, x, 275, 475, 28, "#F4F4F5", true);
 
       if (!entries.length) {
@@ -307,11 +333,18 @@ async function renderPage(member, user, guild, requestedPage) {
 
       entries.slice(0, 4).forEach((entry, index) => {
         const y = 300 + index * 41;
-        box(ctx, x, y, 475, 35, 8, tileColor);
+        if (crimson) {
+          crimsonBox(ctx, x, y, 467, 35);
+        } else {
+          box(ctx, x, y, 475, 35, 8, "#303239");
+        }
         text(ctx, entry, x + 12, y + 18, 451, 23);
       });
     }
 
+    if (crimson) {
+      crimsonBox(ctx, 60, 480, 980, 40, "#1C161B", "#50424A");
+    }
     text(ctx, "Achievements · Coming soon", 68, 500, 964, 27, "#B6BAC4", true);
   }
 
