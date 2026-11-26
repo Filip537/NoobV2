@@ -7488,6 +7488,30 @@ if (interaction.isChatInputCommand() && interaction.commandName === "dms") {
     );
   }
 }
+  if (interaction.isChatInputCommand() && interaction.commandName === "sendpanel") {
+  if (!interaction.member?.roles?.cache?.has(adminRole)) {
+    return interaction.reply({
+      content: "You need the server admin role to use this command.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    const panel = await furryTest.startProfileSetup(client);
+
+    return interaction.editReply(
+      panel?.url
+        ? `[Open the Profile Setup panel](${panel.url})`
+        : "The Profile Setup panel is ready in <#1490619230452846633>."
+    );
+  } catch (error) {
+    const detail = error.code ?? error.message;
+    console.error("[SENDPANEL]", detail);
+    return interaction.editReply(`Could not post the Profile Setup panel (${detail}).`);
+  }
+}
 if (interaction.commandName === "sendupdates") {
   if (!interaction.member.roles.cache.has(adminRole)) {
     return interaction.reply({
@@ -7498,24 +7522,7 @@ if (interaction.commandName === "sendupdates") {
 
   const targetChannel = interaction.options.getChannel("channel");
 
-    if (targetChannel?.id === "1490619230452846633") {
-    await interaction.deferReply({ ephemeral: true });
-
-    try {
-      const panel = await furryTest.startProfileSetup(client);
-
-      return interaction.editReply(
-        panel?.url
-          ? `[Open the Profile Setup panel](${panel.url})`
-          : "Profile Setup panel is ready in <#1490619230452846633>."
-      );
-    } catch (error) {
-      console.error("[PROFILE SETUP]", error.code ?? error.message);
-      return interaction.editReply(
-        `Could not post the panel: ${error.code ?? error.message}`
-      );
-    }
-  }
+    
   const embed = new EmbedBuilder()
     .setTitle("NoobV2 Bot Update Log")
     .setColor("Green")
