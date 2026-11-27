@@ -3421,7 +3421,7 @@ async function getGTPrice(itemName) {
   }
 }
 
-async function logSpkUsage(interaction) {
+
   
 // ==========================================
 // NOOBV2 TRANSLATION SYSTEM
@@ -4024,7 +4024,7 @@ async function handleTranslate(interaction) {
         }
     }
 }
-
+async function logSpkUsage(interaction) {
   try {
     const LOG_CHANNEL_ID = "1503741904636874756";
 
