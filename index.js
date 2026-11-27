@@ -319,6 +319,10 @@ const quote = require("./commands/quote.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
 const surgery = require("./feature/surgery.js");
+const {
+  handleCrime,
+  handleCrimeButton
+} = require("./feature/crime.js");
 const createpoll = require("./feature/createpoll.js");
 
 const inventoryFeature = require("./feature/inventory.js");
@@ -3447,6 +3451,23 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+  // ==========================================
+// GROWTOPIA CRIME FIGHTING
+// ==========================================
+
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "crime"
+) {
+  return handleCrime(interaction);
+}
+
+if (
+  interaction.isButton() &&
+  interaction.customId.startsWith("crime:")
+) {
+  return handleCrimeButton(interaction);
+}
     // ==========================================
   // GROWTOPIA SURGERY SIMULATOR
   // ==========================================
