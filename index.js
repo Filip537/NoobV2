@@ -317,7 +317,6 @@ const testLevelCommand = require("./commands/testlevelup.js");const wyr = requir
 const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const renderWorld = require("./commands/renderworld.js");
-const call = require("./feature/call.js");
 const surgery = require("./feature/surgery.js");
 const {
   handleCrime,
