@@ -3421,95 +3421,59 @@ async function getGTPrice(itemName) {
   }
 }
 
-
-  
 // ==========================================
-// NOOBV2 TRANSLATION SYSTEM
+// NOOBV2 FREE TRANSLATION SYSTEM
 // ==========================================
 
-const TRANSLATION_API =
-    "https://translation.googleapis.com/language/translate/v2";
+const translationCooldowns = new Set();
 
-let translationLanguages = [];
-let translationLanguagesUpdated = 0;
-let translationLanguageRequest = null;
+const translationLanguageNames =
+    new Intl.DisplayNames(["en"], {
+        type: "language"
+    });
 
-const translationCooldowns = new Map();
+const translationCodes = (
+    "af sq am ar hy az eu be bn bs bg ca ceb " +
+    "zh-CN zh-TW co hr cs da nl en eo et fi fr " +
+    "fy gl ka de el gu ht ha haw he hi hmn hu " +
+    "is ig id ga it ja jv kn kk km rw ko ku " +
+    "ky lo la lv lt lb mk mg ms ml mt mi mr " +
+    "mn my ne no ny or ps fa pl pt pa ro ru " +
+    "sm gd sr st sn sd si sk sl so es su sw " +
+    "sv tg ta tt te th tr tk uk ur ug uz vi " +
+    "cy xh yi yo zu fil as bho doi dv ee gn " +
+    "ilo kri ln lus mai mni-Mtei om qu sa " +
+    "nso ti ts ak"
+).split(/\s+/);
 
-const TRANSLATION_CACHE_TIME = 24 * 60 * 60 * 1000;
-const TRANSLATION_COOLDOWN = 5000;
+const translationLanguages = translationCodes.map(code => ({
+    code,
+    name: translationLanguageNames.of(code)
+}));
 
-// ==========================================
-// LOAD SUPPORTED LANGUAGES
-// ==========================================
+translationLanguages.push(
+    { code: "lo", name: "Laotian" },
+    { code: "zh-CN", name: "Chinese" },
+    { code: "zh-CN", name: "Chinese Simplified" },
+    { code: "zh-TW", name: "Chinese Traditional" },
+    { code: "tl", name: "Tagalog" },
+    { code: "my", name: "Burmese" },
+    { code: "km", name: "Cambodian" }
+);
 
-async function getTranslationLanguages() {
-    if (
-        translationLanguages.length &&
-        Date.now() - translationLanguagesUpdated <
-            TRANSLATION_CACHE_TIME
-    ) {
-        return translationLanguages;
+function resolveTranslationLanguage(input) {
+    const value = String(input || "")
+        .trim()
+        .toLowerCase();
+
+    if (["auto", "auto detect", "detect"].includes(value)) {
+        return "auto";
     }
 
-    if (translationLanguageRequest) {
-        return translationLanguageRequest;
-    }
-
-    translationLanguageRequest = (async () => {
-        try {
-            const apiKey =
-                process.env.GOOGLE_TRANSLATE_API_KEY;
-
-            if (!apiKey) {
-                throw new Error(
-                    "Missing GOOGLE_TRANSLATE_API_KEY"
-                );
-            }
-
-            const params = new URLSearchParams({
-                key: apiKey,
-                target: "en"
-            });
-
-            const response = await fetch(
-                `${TRANSLATION_API}/languages?${params}`,
-                {
-                    signal: AbortSignal.timeout(10000)
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(
-                    `Language API HTTP ${response.status}`
-                );
-            }
-
-            const result = await response.json();
-
-            const languages = result?.data?.languages;
-
-            if (!Array.isArray(languages)) {
-                throw new Error("Invalid language response");
-            }
-
-            translationLanguages = languages.map(language => ({
-                code: language.language,
-                name: language.name || language.language
-            })).sort((a, b) =>
-                a.name.localeCompare(b.name)
-            );
-
-            translationLanguagesUpdated = Date.now();
-
-            return translationLanguages;
-
-        } finally {
-            translationLanguageRequest = null;
-        }
-    })();
-
-    return translationLanguageRequest;
+    return translationLanguages.find(language =>
+        language.code.toLowerCase() === value ||
+        language.name.toLowerCase() === value
+    )?.code || null;
 }
 
 // ==========================================
@@ -3518,57 +3482,13 @@ async function getTranslationLanguages() {
 
 async function handleTranslateAutocomplete(interaction) {
     try {
-        const focused =
-            interaction.options.getFocused(true);
+        const focused = interaction.options.getFocused(true);
 
         const query = String(focused.value || "")
             .trim()
             .toLowerCase();
 
-        const fallback = [
-            { code: "en", name: "English" },
-            { code: "th", name: "Thai" },
-            { code: "lo", name: "Lao" },
-            { code: "vi", name: "Vietnamese" },
-            { code: "id", name: "Indonesian" },
-            { code: "ms", name: "Malay" },
-            { code: "tl", name: "Filipino" },
-            { code: "my", name: "Myanmar (Burmese)" },
-            { code: "km", name: "Khmer" },
-            { code: "zh-CN", name: "Chinese (Simplified)" },
-            { code: "zh-TW", name: "Chinese (Traditional)" },
-            { code: "ja", name: "Japanese" },
-            { code: "ko", name: "Korean" },
-            { code: "fr", name: "French" },
-            { code: "de", name: "German" },
-            { code: "es", name: "Spanish" },
-            { code: "ru", name: "Russian" },
-            { code: "ar", name: "Arabic" },
-            { code: "hi", name: "Hindi" },
-            { code: "pt", name: "Portuguese" },
-            { code: "it", name: "Italian" },
-            { code: "tr", name: "Turkish" }
-        ];
-
-        let languages = translationLanguages.length
-            ? [...translationLanguages]
-            : fallback;
-
-        // Load languages in the background without
-        // delaying Discord autocomplete.
-
-        if (
-            !translationLanguages.length ||
-            Date.now() - translationLanguagesUpdated >
-                TRANSLATION_CACHE_TIME
-        ) {
-            getTranslationLanguages().catch(error => {
-                console.error(
-                    "[TRANSLATE LANGUAGES]",
-                    error.message
-                );
-            });
-        }
+        let languages = [...translationLanguages];
 
         if (focused.name === "from") {
             languages.unshift({
@@ -3577,122 +3497,38 @@ async function handleTranslateAutocomplete(interaction) {
             });
         }
 
+        const seen = new Set();
+
         const choices = languages
             .filter(language =>
                 language.name.toLowerCase().includes(query) ||
                 language.code.toLowerCase().includes(query)
             )
+            .filter(language => {
+                if (seen.has(language.code)) return false;
+                seen.add(language.code);
+                return true;
+            })
             .slice(0, 25)
             .map(language => ({
                 name: `${language.name} (${language.code})`,
                 value: language.code
             }));
 
-        return await interaction.respond(choices);
+        await interaction.respond(choices);
 
     } catch (error) {
-        console.error("[TRANSLATE AUTOCOMPLETE]", error);
-
+        console.error("[TRANSLATE AUTOCOMPLETE]", error.message);
         await interaction.respond([]).catch(() => {});
     }
 }
 
 // ==========================================
-// RESOLVE LANGUAGE NAME OR CODE
-// ==========================================
-
-function resolveTranslationLanguage(
-    input,
-    languages,
-    allowAuto = false
-) {
-    const value = String(input || "")
-        .trim()
-        .toLowerCase();
-
-    if (
-        allowAuto &&
-        ["auto", "auto detect", "detect"].includes(value)
-    ) {
-        return {
-            code: "auto",
-            name: "Auto Detect"
-        };
-    }
-
-    return languages.find(language =>
-        language.code.toLowerCase() === value ||
-        language.name.toLowerCase() === value
-    ) || null;
-}
-
-// ==========================================
-// TRANSLATE API
-// ==========================================
-
-async function translateText(text, from, to) {
-    const apiKey =
-        process.env.GOOGLE_TRANSLATE_API_KEY;
-
-    if (!apiKey) {
-        throw new Error("Translation API is not configured.");
-    }
-
-    const body = {
-        q: text,
-        target: to,
-        format: "text"
-    };
-
-    if (from !== "auto") {
-        body.source = from;
-    }
-
-    const response = await fetch(
-        `${TRANSLATION_API}?key=${encodeURIComponent(apiKey)}`,
-        {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify(body),
-
-            signal: AbortSignal.timeout(15000)
-        }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            `Translation API HTTP ${response.status}`
-        );
-    }
-
-    const translation =
-        result?.data?.translations?.[0];
-
-    if (!translation?.translatedText) {
-        throw new Error("No translation returned.");
-    }
-
-    return {
-        text: translation.translatedText,
-
-        detected:
-            translation.detectedSourceLanguage || from
-    };
-}
-
-// ==========================================
-// MESSAGE ID / MESSAGE LINK
+// FETCH DISCORD MESSAGE
 // ==========================================
 
 async function getMessageForTranslation(interaction, input) {
-    let messageId = String(input).trim();
-
+    let messageId = input.trim();
     let channel = interaction.channel;
 
     const link = messageId.match(
@@ -3700,19 +3536,15 @@ async function getMessageForTranslation(interaction, input) {
     );
 
     if (link) {
-        const [, guildId, channelId, targetMessageId] = link;
-
-        if (guildId !== interaction.guildId) {
-            throw new Error(
-                "You can only translate messages from this server."
-            );
+        if (link[1] !== interaction.guildId) {
+            throw new Error("Message must be in this server.");
         }
 
         channel = await interaction.guild.channels
-            .fetch(channelId)
+            .fetch(link[2])
             .catch(() => null);
 
-        messageId = targetMessageId;
+        messageId = link[3];
     }
 
     if (!/^\d{17,20}$/.test(messageId)) {
@@ -3732,60 +3564,39 @@ async function getMessageForTranslation(interaction, input) {
         !permissions?.has(PermissionFlagsBits.ViewChannel) ||
         !permissions?.has(PermissionFlagsBits.ReadMessageHistory)
     ) {
-        throw new Error(
-            "You do not have permission to read this message."
-        );
+        throw new Error("You cannot access this message.");
     }
 
-    // Raw IDs use the current channel.
-    // Other channels require a message link.
-    // Private threads are restricted to the current channel.
-
     if (
-        channel.isThread?.() &&
         channel.type === 12 &&
         channel.id !== interaction.channelId
     ) {
-        throw new Error(
-            "Use this command inside the private thread."
-        );
+        throw new Error("Use this command inside the private thread.");
     }
 
     const message = await channel.messages
         .fetch(messageId)
         .catch(() => null);
 
-    if (!message) {
-        throw new Error(
-            "Message not found or the bot cannot access it."
-        );
+    if (!message?.content?.trim()) {
+        throw new Error("Message not found or contains no text.");
     }
 
-    const content = message.content?.trim();
-
-    if (!content) {
-        throw new Error(
-            "This message does not contain translatable text."
-        );
-    }
-
-    return content;
+    return message.content.trim();
 }
 
 // ==========================================
-// EMBED TEXT LIMIT
+// LANGUAGE NAME
 // ==========================================
 
-function translationPreview(text, maxLength = 850) {
-    const characters = Array.from(String(text));
+function getTranslationName(code) {
+    if (code === "auto") return "Auto Detect";
 
-    if (characters.length <= maxLength) {
-        return characters.join("");
+    try {
+        return translationLanguageNames.of(code) || code;
+    } catch {
+        return code;
     }
-
-    return characters
-        .slice(0, maxLength - 3)
-        .join("") + "...";
 }
 
 // ==========================================
@@ -3794,86 +3605,61 @@ function translationPreview(text, maxLength = 850) {
 
 async function handleTranslate(interaction) {
     const userId = interaction.user.id;
-
-    const fromInput =
-        interaction.options.getString("from", true);
-
-    const toInput =
-        interaction.options.getString("to", true);
-
-    const messageInput =
-        interaction.options.getString("message");
-
-    const messageId =
-        interaction.options.getString("messageid");
-
-    if (!interaction.guild) {
-        return interaction.reply({
-            content: "Use this command inside a server.",
-            ephemeral: true
-        });
-    }
-
-    if (!messageInput && !messageId) {
-        return interaction.reply({
-            content:
-                "Please provide either message or messageid.",
-            ephemeral: true
-        });
-    }
-
-    if (messageInput && messageId) {
-        return interaction.reply({
-            content:
-                "Please provide only message OR messageid, not both.",
-            ephemeral: true
-        });
-    }
-
-    const lastUsed =
-        translationCooldowns.get(userId) || 0;
-
-    if (
-        Date.now() - lastUsed <
-        TRANSLATION_COOLDOWN
-    ) {
-        return interaction.reply({
-            content: "Please wait 5 seconds before translating again.",
-            ephemeral: true
-        });
-    }
-
-    if (!process.env.GOOGLE_TRANSLATE_API_KEY) {
-        return interaction.reply({
-            content: "The translation API has not been configured.",
-            ephemeral: true
-        });
-    }
-
-    const cooldownTime = Date.now();
-
-    translationCooldowns.set(
-        userId,
-        cooldownTime
-    );
-
-    const cleanup = setTimeout(() => {
-        if (
-            translationCooldowns.get(userId) === cooldownTime
-        ) {
-            translationCooldowns.delete(userId);
-        }
-    }, TRANSLATION_COOLDOWN);
-
-    cleanup.unref?.();
+    let locked = false;
 
     try {
-        // Keep translated messages private to the requester.
-        // Prevents reposting text from restricted channels.
-
         await interaction.deferReply({
             ephemeral: true
         });
+
+        if (translationCooldowns.has(userId)) {
+            return await interaction.editReply(
+                "Please finish your previous translation first."
+            );
+        }
+
+        translationCooldowns.add(userId);
+        locked = true;
+
+        if (!interaction.guild) {
+            return await interaction.editReply(
+                "Use this command inside a server."
+            );
+        }
+
+        const fromInput = interaction.options
+            .getString("from", true);
+
+        const toInput = interaction.options
+            .getString("to", true);
+
+        const messageInput = interaction.options
+            .getString("message");
+
+        const messageId = interaction.options
+            .getString("messageid");
+
+        if ((!messageInput && !messageId) ||
+            (messageInput && messageId)) {
+            return await interaction.editReply(
+                "Provide either message or messageid."
+            );
+        }
+
+        const from = resolveTranslationLanguage(fromInput);
+        const to = resolveTranslationLanguage(toInput);
+
+        if (!from || !to || to === "auto") {
+            return await interaction.editReply(
+                "Invalid language. Try English, Thai, Lao, Chinese or auto."
+            );
+        }
+
+        if (from === to) {
+            return await interaction.editReply(
+                "Source and target languages are the same."
+            );
+        }
 
         let original = messageInput?.trim();
 
@@ -3884,146 +3670,103 @@ async function handleTranslate(interaction) {
                     messageId
                 );
             } catch (error) {
-                return interaction.editReply({
-                    content: error.message
-                });
+                return await interaction.editReply(error.message);
             }
         }
 
-        if (!original) {
-            return interaction.editReply({
-                content: "No text was provided."
-            });
-        }
-
-        if (Array.from(original).length > 6000) {
-            return interaction.editReply({
-                content: "The maximum translation length is 6,000 characters."
-            });
-        }
-
-        const languages =
-            await getTranslationLanguages();
-
-        const from = resolveTranslationLanguage(
-            fromInput,
-            languages,
-            true
-        );
-
-        const to = resolveTranslationLanguage(
-            toInput,
-            languages
-        );
-
-        if (!from || !to) {
-            return interaction.editReply({
-                content: "Invalid language. Please select a supported language from autocomplete."
-            });
-        }
-
-        if (from.code === to.code) {
-            return interaction.editReply({
-                content: "The source and target languages are the same."
-            });
-        }
-
-        const result = await translateText(
-            original,
-            from.code,
-            to.code
-        );
-
-        const detectedLanguage =
-            languages.find(language =>
-                language.code.toLowerCase() ===
-                    result.detected.toLowerCase()
+        if (!original || original.length > 4000) {
+            return await interaction.editReply(
+                "Text must contain between 1 and 4,000 characters."
             );
+        }
 
-        const fromName =
-            detectedLanguage?.name ||
-            from.name;
+        // Load only when /translate is used.
+        const { translate } = require(
+            "@vitalets/google-translate-api"
+        );
+
+        const result = await translate(original, {
+            from,
+            to,
+            fetchOptions: {
+                signal: AbortSignal.timeout(15000)
+            }
+        });
+
+        if (!result?.text) {
+            throw new Error("Empty translation response.");
+        }
+
+        const detected = from === "auto"
+            ? result.raw?.src || "auto"
+            : from;
+
+        const preview = text =>
+            text.length > 900
+                ? text.slice(0, 897) + "..."
+                : text;
 
         const embed = new EmbedBuilder()
-
             .setTitle("Translation")
-
             .setColor(0x3498DB)
-
             .setDescription(
-                `**${fromName} → ${to.name}**`
+                `**${getTranslationName(detected)} → ${getTranslationName(to)}**`
             )
-
             .addFields(
                 {
                     name: "Original",
-                    value: translationPreview(original),
-                    inline: false
+                    value: preview(original)
                 },
                 {
                     name: "Translated",
-                    value: translationPreview(result.text),
-                    inline: false
+                    value: preview(result.text)
                 }
             )
-
             .setFooter({
                 text: "NoobV2 • Translator"
             });
 
         const payload = {
             embeds: [embed],
-
-            allowedMentions: {
-                parse: []
-            }
+            allowedMentions: { parse: [] }
         };
 
-        // Attach the full translation when the text
-        // is too long for a compact embed.
-
-        if (
-            Array.from(original).length > 850 ||
-            Array.from(result.text).length > 850
-        ) {
+        if (original.length > 900 || result.text.length > 900) {
             payload.files = [{
                 attachment: Buffer.from(
-                    `Language: ${fromName} → ${to.name}\n\n` +
-                    `ORIGINAL\n${original}\n\n` +
-                    `TRANSLATED\n${result.text}`,
+                    `ORIGINAL\n${original}\n\nTRANSLATED\n${result.text}`,
                     "utf8"
                 ),
-
                 name: "translation.txt"
             }];
         }
 
-        return await interaction.editReply(payload);
+        await interaction.editReply(payload);
 
     } catch (error) {
-        console.error(
-            "[TRANSLATE]",
-            error.message
-        );
+        console.error("[TRANSLATE ERROR]", error.message);
 
         const payload = {
-            content: "Unable to translate this message. Please try again later."
+            content: "Translation is temporarily unavailable."
         };
 
-        if (
-            interaction.deferred ||
-            interaction.replied
-        ) {
+        if (interaction.deferred || interaction.replied) {
             await interaction.editReply(payload)
-                .catch(() => {});
+                .catch(console.error);
         } else {
             await interaction.reply({
                 ...payload,
                 ephemeral: true
-            }).catch(() => {});
+            }).catch(console.error);
+        }
+
+    } finally {
+        if (locked) {
+            translationCooldowns.delete(userId);
         }
     }
 }
+
 async function logSpkUsage(interaction) {
   try {
     const LOG_CHANNEL_ID = "1503741904636874756";
@@ -12269,8 +12012,6 @@ if (
 
   return;
 }
-
-  await call.handleMessage(message);
 
 // level system
 try {
