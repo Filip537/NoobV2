@@ -593,100 +593,122 @@ async function resolveLeaderboardEntries(guild, category) {
   return { rankings: raw, top };
 }
 
-function drawLeaderboardCard(category, entries, rankText, personalText, totalRanked) {
-  const canvas = createCanvas(1100, 760);
+async function drawLeaderboardCard(
+  category, entries, rankText, personalText, totalRanked
+) {
+  const W = 850;
+  const H = 1050;
+  const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
-  const categoryInfo = LB_CATEGORIES[category];
 
-  // background
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#53B8FF");
-  gradient.addColorStop(0.45, "#2C78D3");
-  gradient.addColorStop(1, "#184A92");
+  const gradient = ctx.createLinearGradient(0, 0, 0, H);
+  gradient.addColorStop(0, "#347F9B");
+  gradient.addColorStop(1, "#17435F");
+
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, W, H);
 
-  // outer border
-  box(ctx, 20, 20, 1060, 720, 24, "#174079");
-  box(ctx, 32, 32, 1036, 696, 22, "#2F87E0");
+  // Growtopia border
+  ctx.strokeStyle = "#B6D4DE";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(8, 8, W - 16, H - 16);
 
-  // top panel
-  box(ctx, 55, 50, 990, 95, 20, "#1E4F93");
-  box(ctx, 65, 60, 970, 75, 18, "#2E6FC3");
+  ctx.strokeStyle = "#102C40";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(17, 17, W - 34, H - 34);
 
-  ctx.fillStyle = "#FFD54A";
-  ctx.font = "bold 46px sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText("NOOBV2 LEADERBOARD", 90, 98);
+  // Header
+  box(ctx, 35, 35, 780, 100, 12, "#153D55");
 
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "bold 22px sans-serif";
-  ctx.fillText(`CATEGORY: ${categoryInfo.short}`, 720, 98);
+  text(ctx, "NOOBV2 LEADERBOARD",
+    55, 68, 740, 39, "#FFE779", true);
 
-  // category pills
-  const pillKeys = Object.keys(LB_CATEGORIES);
-  pillKeys.forEach((key, i) => {
+  text(ctx, `${LB_CATEGORIES[category].label} Rankings`,
+    55, 110, 740, 25, "#BDE5F5", true);
+
+  // Categories
+  Object.keys(LB_CATEGORIES).forEach((key, i) => {
     const selected = key === category;
-    const x = 65 + i * 240;
-    const y = 165;
-    box(ctx, x, y, 215, 48, 16, selected ? "#FFD54A" : "#225DAA");
-    text(
-      ctx,
-      LB_CATEGORIES[key].label,
-      x + 20,
-      y + 24,
-      175,
-      24,
-      selected ? "#203760" : "#FFFFFF",
-      true
-    );
+    const x = 35 + i * 197;
+
+    box(ctx, x, 153, 189, 48, 8,
+      selected ? "#F2D58B" : "#20546F");
+
+    text(ctx, LB_CATEGORIES[key].label,
+      x + 16, 177, 157, 23,
+      selected ? "#173B50" : "#D9EFF5", true);
   });
 
-  // table header
-  box(ctx, 65, 235, 970, 44, 12, "#1D4A88");
-  text(ctx, "RANK", 95, 257, 90, 22, "#FFD54A", true);
-  text(ctx, "PLAYER", 235, 257, 430, 22, "#FFD54A", true);
-  text(ctx, "STAT", 760, 257, 220, 22, "#FFD54A", true);
+  // Table headings
+  box(ctx, 35, 221, 780, 45, 8, "#153D55");
 
-  const medals = ["🥇", "🥈", "🥉"];
+  text(ctx, "RANK", 53, 244, 90, 20, "#F2D58B", true);
+  text(ctx, "PLAYER", 160, 244, 340, 20, "#F2D58B", true);
 
-  let y = 295;
+  text(ctx, category === "level" ? "LEVEL / XP" : "WINS",
+    540, 244, 250, 20, "#F2D58B", true);
+
+  // Player rankings
+  const rankColors = ["#FFD76A", "#DCE6EF", "#E8AB79"];
 
   if (!entries.length) {
-    box(ctx, 65, y, 970, 60, 14, "#2C67B1");
-    text(ctx, "No ranked players yet.", 95, y + 30, 900, 24, "#FFFFFF", true);
-  } else {
-    for (const entry of entries) {
-      box(ctx, 65, y, 970, 48, 12, entry.rank % 2 ? "#2C67B1" : "#245A9D");
+    box(ctx, 35, 280, 780, 65, 8, "#20546F");
 
-      const rankLabel = medals[entry.rank - 1] || `#${entry.rank}`;
-      text(ctx, rankLabel, 95, y + 24, 90, 24, "#FFFFFF", true);
-      text(ctx, entry.name, 235, y + 24, 430, 24, "#FFFFFF", true);
-
-      const statText =
-        category === "level"
-          ? `LV ${entry.score} • ${entry.extra}`
-          : `${entry.score} • ${entry.extra}`;
-
-      text(ctx, statText, 760, y + 24, 245, 22, categoryInfo.color, true);
-
-      y += 54;
-    }
+    text(ctx, "No ranked players yet.",
+      55, 312, 740, 25, "#BDE5F5", true);
   }
 
-  // footer panels
-  box(ctx, 65, 650, 450, 55, 16, "#1D4A88");
-  box(ctx, 585, 650, 450, 55, 16, "#1D4A88");
+  entries.slice(0, 10).forEach((entry, i) => {
+    const y = 280 + i * 62;
 
-  text(ctx, `YOUR RANK: ${rankText}`, 90, 678, 400, 24, "#FFD54A", true);
-  text(ctx, personalText, 610, 678, 400, 24, "#FFFFFF", true);
+    const background = i === 0
+      ? "#415D58"
+      : i % 2 === 0
+        ? "#28617D"
+        : "#20546F";
 
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillStyle = "#D9EEFF";
-  ctx.fillText(`Ranked Players: ${totalRanked}`, 70, 726);
-  ctx.fillText("Growtopia-themed NoobV2 leaderboard", 760, 726);
+    box(ctx, 35, y, 780, 56, 8, background);
+    box(ctx, 47, y + 7, 80, 42, 6, "#16394C");
 
-  return canvas.encode("png");
+    text(ctx, `#${entry.rank}`,
+      60, y + 28, 65, 25,
+      rankColors[i] || "#F5F5ED", true);
+
+    text(ctx, entry.name,
+      160, y + 28, 355, 25, "#F5F5ED", true);
+
+    if (category === "level") {
+      text(ctx, `Level ${entry.score}`,
+        540, y + 17, 245, 23, "#80EF48", true);
+
+      text(ctx, entry.extra,
+        540, y + 41, 245, 18, "#BDE5F5");
+    } else {
+      text(ctx, `${Number(entry.score).toLocaleString("en-US")} Wins`,
+        540, y + 28, 245, 24, "#80EF48", true);
+    }
+  });
+
+  // Personal ranking
+  box(ctx, 35, 910, 780, 90, 10, "#102F43");
+
+  text(ctx, "YOUR RANKING",
+    55, 930, 740, 18, "#BDE5F5", true);
+
+  text(ctx, rankText,
+    55, 968, 195, 30, "#FFE779", true);
+
+  text(ctx, personalText,
+    265, 968, 525, 24, "#80EF48", true);
+
+  // Footer
+  text(ctx, `${totalRanked.toLocaleString("en-US")} ranked players`,
+    36, 1022, 430, 17, "#BDE5F5");
+
+  text(ctx, "NoobV2",
+    710, 1022, 100, 17, "#F2D58B", true);
+
+  return await canvas.encode("png");
 }
 
 async function buildLeaderboardPayload(interaction, category = "level") {
@@ -732,10 +754,13 @@ const image = await drawLeaderboardCard(
   return {
     content: null,
     embeds: [],
+    attachments: [],
     files: [attachment(image, "leaderboard.png")],
-    components: [leaderboardMenu(interaction.user.id, category)],
+    components: [
+        leaderboardMenu(interaction.user.id, category)
+    ],
     allowedMentions: NO_MENTIONS
-  };
+};
 }
 
 async function executeLeaderboard(interaction) {
@@ -751,9 +776,12 @@ async function executeLeaderboard(interaction) {
       await interaction.deferReply();
     }
 
-    await interaction.editReply(
-      await buildLeaderboardPayload(interaction, "level")
-    );
+    const category =
+    interaction.options.getString("category") || "level";
+
+await interaction.editReply(
+    await buildLeaderboardPayload(interaction, category)
+);
   } catch (error) {
     console.error("[LEADERBOARD]", error);
 
