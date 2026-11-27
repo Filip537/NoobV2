@@ -408,14 +408,17 @@ new SlashCommandBuilder()
   .setDescription("Get a random dare that will not repeat in 1 day"),
 new SlashCommandBuilder()
   .setName("leaderboard")
-  .setDescription("View the server level leaderboard")
+  .setDescription("View NoobV2 leaderboards")
   .addStringOption(option =>
     option
       .setName("category")
       .setDescription("Choose leaderboard category")
-      .setRequired(true)
+      .setRequired(false)
       .addChoices(
-        { name: "Level", value: "level" }
+        { name: "Level", value: "level" },
+        { name: "Surgery", value: "surgery" },
+        { name: "Startopia", value: "startopia" },
+        { name: "Crime", value: "crime" }
       )
   ),
   new SlashCommandBuilder()
