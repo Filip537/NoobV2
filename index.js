@@ -3450,7 +3450,12 @@ client.on("interactionCreate", async (interaction) => {
     // ==========================================
   // GROWTOPIA SURGERY SIMULATOR
   // ==========================================
-
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "malady"
+) {
+  return surgery.scan(interaction);
+}
   if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "surgery"
