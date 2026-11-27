@@ -11,7 +11,7 @@ const {
 } = require("canvas");
 
 const crypto = require("crypto");
-
+const gameStats = require("./gameStats.js");
 // ===============================
 // CONFIGURATION
 // ===============================
@@ -805,9 +805,17 @@ function resolveTurn(game, playerIndex) {
 
   if (p.life === 0 && v.life === 0) {
     game.stage = "draw";
-  } else if (v.life === 0) {
+} else if (v.life === 0) {
     game.stage = "won";
-  } else if (p.life === 0) {
+
+    if (!game.winRecorded) {
+        game.winRecorded = gameStats.addWin(
+            game.userId,
+            "crime"
+        );
+    }
+
+} else if (p.life === 0) {
     game.stage = "lost";
   }
 
