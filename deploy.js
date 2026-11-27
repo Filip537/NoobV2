@@ -49,6 +49,24 @@ new SlashCommandBuilder()
       .setMinValue(1900)
       .setMaxValue(new Date().getFullYear())
   ),
+  new SlashCommandBuilder()
+  .setName("harvest")
+  .setDescription("Calculate Growtopia tree harvest rewards")
+  .addIntegerOption(option =>
+    option
+      .setName("amount")
+      .setDescription("Amount of trees to harvest")
+      .setRequired(true)
+      .setMinValue(1)
+      .setMaxValue(10000000)
+  )
+  .addStringOption(option =>
+    option
+      .setName("item_name")
+      .setDescription("Search for a Growtopia item")
+      .setRequired(true)
+      .setAutocomplete(true)
+  ),
     new SlashCommandBuilder()
   .setName("surgery")
   .setDescription("Perform a Growtopia surgery")
