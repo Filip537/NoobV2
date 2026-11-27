@@ -1,6 +1,7 @@
 
 const {
   EmbedBuilder,
+  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle
@@ -24,10 +25,7 @@ const CONFIG = {
   wikiAPI: "https://growtopiawiki.com/api.php"
 };
 
-const DATA_FILE = path.join(
-  __dirname,
-  "surgeryData.json"
-);
+const DATA_FILE = path.join(__dirname, "surgeryData.json");
 
 const sessions = new Map();
 
@@ -35,7 +33,7 @@ let syncRunning = false;
 let syncTimer = null;
 
 // ==========================================
-// GROWTopia STATUS BLOCK EMOJIS
+// GROWTopia EMOJIS
 // ==========================================
 
 const STATUS = {
@@ -43,10 +41,6 @@ const STATUS = {
   yellow: "<:yellowblock192x192:1575688203254505482>",
   red: "<:redblock192x192:1575688206035320922>"
 };
-
-// ==========================================
-// SURGICAL TOOL EMOJIS
-// ==========================================
 
 const EMOJIS = {
   antiseptic: "1575685600361586809",
@@ -66,7 +60,21 @@ const EMOJIS = {
 };
 
 // ==========================================
-// FALLBACK GROWTopia DIAGNOSES
+// IMAGE COLORS
+// ==========================================
+
+const COLORS = {
+  white: "#F5F5ED",
+  green: "#80EF48",
+  yellow: "#F2D58B",
+  red: "#FF7777",
+  blue: "#BDE5F5",
+  background: "#245F7B",
+  border: "#9DCAD8"
+};
+
+// ==========================================
+// GROWTopia DIAGNOSES
 // ==========================================
 
 const FALLBACK = [
@@ -284,22 +292,26 @@ const FALLBACK = [
   }
 ];
 
-let diagnoses = FALLBACK.map(d => ({
-  ...d
-}));
+let diagnoses = FALLBACK.map(d => ({ ...d }));
+
+const CONDITIONS = [
+  "Tough Skin",
+  "Antibiotic Resistant",
+  "Absolutely Filthy",
+  "Hyperactive",
+  "Hemophiliac"
+];
 
 // ==========================================
 // UTILITIES
 // ==========================================
 
-function chance(probability) {
-  return Math.random() < probability;
+function chance(value) {
+  return Math.random() < value;
 }
 
 function pick(array) {
-  return array[
-    Math.floor(Math.random() * array.length)
-  ];
+  return array[Math.floor(Math.random() * array.length)];
 }
 
 function limit(value, min, max) {
@@ -319,8 +331,48 @@ function cleanText(text) {
     .trim();
 }
 
+function escapeXML(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function plainText(text) {
+  return String(text || "")
+    .replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, "")
+    .replace(/\*\*/g, "")
+    .trim();
+}
+
+function wrapText(text, maxLength = 60) {
+  const lines = [];
+
+  for (const paragraph of String(text).split("\n")) {
+    let current = "";
+
+    for (const word of paragraph.split(/\s+/)) {
+      if (
+        current.length &&
+        current.length + word.length + 1 > maxLength
+      ) {
+        lines.push(current);
+        current = word;
+      } else {
+        current += (current ? " " : "") + word;
+      }
+    }
+
+    if (current) lines.push(current);
+  }
+
+  return lines;
+}
+
 // ==========================================
-// LOAD CACHED DATA
+// LOAD CACHED WIKI DATA
 // ==========================================
 
 function loadCachedData() {
@@ -397,9 +449,7 @@ async function fetchWiki(page) {
     );
 
     if (!response.ok) {
-      throw new Error(
-        `Wiki HTTP ${response.status}`
-      );
+      throw new Error(`Wiki HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -407,9 +457,7 @@ async function fetchWiki(page) {
     const html = data?.parse?.text?.["*"];
 
     if (!html) {
-      throw new Error(
-        "Wiki returned no content."
-      );
+      throw new Error("Wiki returned no content.");
     }
 
     return html;
@@ -418,10 +466,6 @@ async function fetchWiki(page) {
     clearTimeout(timer);
   }
 }
-
-// ==========================================
-// EXTRACT INCISION REQUIREMENTS
-// ==========================================
 
 function extractCuts(description) {
   const text = description.toLowerCase();
@@ -483,7 +527,6 @@ async function syncWiki() {
     ]) {
       try {
         html = await fetchWiki(page);
-
         if (html) break;
 
       } catch (error) {
@@ -494,9 +537,7 @@ async function syncWiki() {
     }
 
     if (!html) {
-      throw new Error(
-        "No accessible surgery guide."
-      );
+      throw new Error("No accessible surgery guide.");
     }
 
     const $ = cheerio.load(html);
@@ -526,9 +567,7 @@ async function syncWiki() {
       ].map(normalize);
 
       const row = rows.find(item =>
-        names.includes(
-          normalize(item.name)
-        )
+        names.includes(normalize(item.name))
       );
 
       if (!row) return { ...base };
@@ -542,27 +581,15 @@ async function syncWiki() {
         return { ...base };
       }
 
-      const cuts = extractCuts(
-        row.description
-      );
+      const cuts = extractCuts(row.description);
 
-      if (cuts === null) {
-        return { ...base };
-      }
+      if (cuts === null) return { ...base };
 
       const original = FALLBACK.find(
         d => d.name === base.name
       );
 
-      if (
-        Math.abs(
-          cuts - original.cuts
-        ) > 2
-      ) {
-        console.warn(
-          `[SURGERY] Skipped unusual requirement: ${base.name}`
-        );
-
+      if (Math.abs(cuts - original.cuts) > 2) {
         return { ...base };
       }
 
@@ -582,8 +609,7 @@ async function syncWiki() {
 
     const cache = {
       lastSync: Date.now(),
-      source:
-        "https://growtopiawiki.com/w/Guide:Surgery",
+      source: "https://growtopiawiki.com/w/Guide:Surgery",
       matched,
       parsed,
       diagnoses: updated.map(d => ({
@@ -592,16 +618,13 @@ async function syncWiki() {
       }))
     };
 
-    const temporaryFile =
-      DATA_FILE + ".tmp";
-
     fs.writeFileSync(
-      temporaryFile,
+      DATA_FILE + ".tmp",
       JSON.stringify(cache, null, 2)
     );
 
     fs.renameSync(
-      temporaryFile,
+      DATA_FILE + ".tmp",
       DATA_FILE
     );
 
@@ -631,7 +654,7 @@ async function syncWiki() {
 }
 
 // ==========================================
-// START AUTOMATIC SYNCHRONIZATION
+// START FEATURE
 // ==========================================
 
 function start() {
@@ -649,22 +672,10 @@ function start() {
 }
 
 // ==========================================
-// SPECIAL CONDITIONS
-// ==========================================
-
-const CONDITIONS = [
-  "Tough Skin",
-  "Antibiotic Resistant",
-  "Absolutely Filthy",
-  "Hyperactive",
-  "Hemophiliac"
-];
-
-// ==========================================
 // CREATE RANDOM PATIENT
 // ==========================================
 
-function createPatient(userId) {
+function createPatient(userId, username) {
   const diagnosis = pick(diagnoses);
 
   const condition = chance(
@@ -675,7 +686,9 @@ function createPatient(userId) {
 
   return {
     id: randomUUID().slice(0, 12),
+
     userId,
+    username: username || "Surgeon",
 
     diagnosis: diagnosis.name,
     type: diagnosis.type || "operation",
@@ -687,7 +700,6 @@ function createPatient(userId) {
     lab: false,
 
     condition,
-
     requiredCuts: diagnosis.cuts,
 
     incisions: 0,
@@ -719,11 +731,12 @@ function createPatient(userId) {
     success: false,
     busy: false,
 
+    imageFallback: false,
+
     createdAt: Date.now(),
     updatedAt: Date.now(),
 
-    feedback:
-      "You begin examining the patient."
+    feedback: "You begin examining the patient."
   };
 }
 
@@ -732,207 +745,181 @@ function createPatient(userId) {
 // ==========================================
 
 function pulse(p) {
-  if (p.heartStopped || p.blood <= 0)
+  if (p.heartStopped || p.blood <= 0) {
     return "No pulse";
+  }
 
-  if (p.blood >= 80)
-    return "Strong";
-
-  if (p.blood >= 55)
-    return "Steady";
-
-  if (p.blood >= 25)
-    return "Weak";
+  if (p.blood >= 80) return "Strong";
+  if (p.blood >= 55) return "Steady";
+  if (p.blood >= 25) return "Weak";
 
   return "Extremely weak";
 }
 
 function consciousness(p) {
-  if (p.heartStopped)
-    return "Heart stopped!";
+  if (p.heartStopped) return "Heart stopped!";
 
-  if (p.sleep <= 0)
-    return "Awake";
+  if (p.sleep <= 0) return "Awake";
 
-  const hyper =
-    p.condition === "Hyperactive";
+  const hyper = p.condition === "Hyperactive";
 
-  if (p.sleep >= (hyper ? 7 : 14))
+  if (p.sleep >= (hyper ? 7 : 14)) {
     return "Near coma";
+  }
 
-  if (p.sleep <= (hyper ? 1 : 2))
+  if (p.sleep <= (hyper ? 1 : 2)) {
     return "Coming to";
+  }
 
   return "Unconscious";
 }
 
 function sanitation(p) {
-  if (p.dirt >= 3)
-    return "Unsanitary";
-
-  if (p.dirt >= 2)
-    return "Unclean";
-
-  if (p.dirt >= 1)
-    return "Not sanitized";
+  if (p.dirt >= 3) return "Unsanitary";
+  if (p.dirt >= 2) return "Unclean";
+  if (p.dirt >= 1) return "Not sanitized";
 
   return "Clean";
 }
 
 function visibilityStatus(p) {
-  if (p.visibility <= 0)
+  if (p.visibility <= 0) {
     return "You can't see what you are doing!";
+  }
 
-  if (p.visibility <= 50)
+  if (p.visibility <= 50) {
     return "It is becoming hard to see your work.";
+  }
 
   return "Clear";
 }
 
 function bleedingStatus(p) {
-  if (p.bleeding >= 3)
+  if (p.bleeding >= 3) {
     return "Losing blood quickly!";
+  }
 
-  if (p.bleeding >= 2)
+  if (p.bleeding >= 2) {
     return "Losing blood";
+  }
 
-  if (p.bleeding > 0)
+  if (p.bleeding > 0) {
     return "Losing blood slowly";
+  }
 
   return "None";
 }
 
 function feverStatus(p) {
-  if (p.fever >= 0.8)
-    return "Climbing rapidly!";
+  if (p.fever >= 0.8) {
+    return "Patient's fever is climbing rapidly!";
+  }
 
-  if (p.fever >= 0.4)
-    return "Climbing";
+  if (p.fever >= 0.4) {
+    return "Patient's fever is climbing.";
+  }
 
-  if (p.fever > 0)
-    return "Slowly rising";
+  if (p.fever > 0) {
+    return "Patient's fever is slowly rising.";
+  }
 
-  return "Stable";
+  if (p.temp > 100.4) {
+    return "Patient still has a fever.";
+  }
+
+  return "Patient's temperature is stable.";
 }
 
 // ==========================================
-// GROWTopia BLOCK STATUS ICONS
+// STATUS COLORS
 // ==========================================
 
-function pulseIcon(p) {
-  if (
-    p.heartStopped ||
-    p.blood < 25
-  ) {
-    return STATUS.red;
+function pulseColor(p) {
+  if (p.heartStopped || p.blood < 25) {
+    return COLORS.red;
   }
 
-  if (p.blood < 80) {
-    return STATUS.yellow;
-  }
+  if (p.blood < 80) return COLORS.yellow;
 
-  return STATUS.green;
+  return COLORS.green;
 }
 
-function temperatureIcon(p) {
-  if (p.temp > 106)
-    return STATUS.red;
+function temperatureColor(p) {
+  if (p.temp > 106) return COLORS.red;
 
-  if (p.temp > 100.4)
-    return STATUS.yellow;
+  if (p.temp > 100.4) return COLORS.yellow;
 
-  return STATUS.green;
+  return COLORS.blue;
 }
 
-function consciousnessIcon(p) {
+function consciousnessColor(p) {
   const status = consciousness(p);
 
   if (
     status === "Heart stopped!" ||
     status === "Near coma" ||
-    (
-      status === "Awake" &&
-      p.incisions > 0
-    )
+    (status === "Awake" && p.incisions > 0)
   ) {
-    return STATUS.red;
+    return COLORS.red;
   }
 
-  if (
-    status === "Coming to" ||
-    status === "Awake"
-  ) {
-    return STATUS.yellow;
+  if (status === "Unconscious") {
+    return COLORS.green;
   }
 
-  return STATUS.green;
+  return COLORS.yellow;
 }
 
-function sanitationIcon(p) {
-  if (p.dirt >= 3)
-    return STATUS.red;
+function sanitationColor(p) {
+  if (p.dirt >= 2) return COLORS.red;
+  if (p.dirt >= 1) return COLORS.yellow;
 
-  if (p.dirt >= 1)
-    return STATUS.yellow;
-
-  return STATUS.green;
+  return COLORS.green;
 }
 
-function visibilityIcon(p) {
-  if (p.visibility <= 0)
-    return STATUS.red;
+function bleedingColor(p) {
+  if (p.bleeding >= 3) return COLORS.red;
+  if (p.bleeding > 0) return COLORS.yellow;
 
-  if (p.visibility <= 50)
-    return STATUS.yellow;
-
-  return STATUS.green;
+  return COLORS.green;
 }
 
-function bleedingIcon(p) {
-  if (p.bleeding >= 3)
-    return STATUS.red;
+function visibilityColor(p) {
+  if (p.visibility <= 0) return COLORS.red;
 
-  if (p.bleeding > 0)
-    return STATUS.yellow;
-
-  return STATUS.green;
-}
-
-function incisionIcon(p) {
-  if (p.incisions >= 4)
-    return STATUS.red;
-
-  if (p.incisions > 0)
-    return STATUS.yellow;
-
-  return STATUS.green;
-}
-
-function bonesIcon(p) {
-  if (!p.ultrasound)
-    return STATUS.yellow;
-
-  if (p.shattered > 0)
-    return STATUS.red;
-
-  if (p.broken > 0)
-    return STATUS.yellow;
-
-  return STATUS.green;
-}
-
-function feverIcon(p) {
-  if (
-    p.temp > 106 ||
-    p.fever >= 0.8
-  ) {
-    return STATUS.red;
+  if (p.visibility <= 50) {
+    return COLORS.yellow;
   }
 
-  if (
-    p.fever > 0 ||
-    p.temp > 100.4
-  ) {
+  return COLORS.green;
+}
+
+function bonesColor(p) {
+  if (!p.ultrasound) return COLORS.blue;
+
+  if (p.broken > 0 || p.shattered > 0) {
+    return COLORS.red;
+  }
+
+  return COLORS.green;
+}
+
+function feverColor(p) {
+  if (p.temp > 106 || p.fever >= 0.8) {
+    return COLORS.red;
+  }
+
+  if (p.fever > 0 || p.temp > 100.4) {
+    return COLORS.yellow;
+  }
+
+  return COLORS.green;
+}
+
+function statusEmoji(color) {
+  if (color === COLORS.red) return STATUS.red;
+
+  if (color === COLORS.yellow) {
     return STATUS.yellow;
   }
 
@@ -951,11 +938,7 @@ function skillFailRate(p) {
   const multiplier =
     1 + (100 - p.visibility) / 25;
 
-  return limit(
-    base * multiplier,
-    0,
-    1
-  );
+  return limit(base * multiplier, 0, 1);
 }
 
 // ==========================================
@@ -965,26 +948,25 @@ function skillFailRate(p) {
 function canUse(p, tool) {
   if (p.finished) return false;
 
-  if (tool === "cancel")
-    return true;
+  if (tool === "cancel") return true;
 
-  // Emergency tool must remain accessible.
-  if (tool === "defibrillator")
+  if (tool === "defibrillator") {
     return p.heartStopped;
+  }
 
-  const tough =
-    p.condition === "Tough Skin";
+  const tough = p.condition === "Tough Skin";
 
   if (p.visibility <= 0) {
     return tool === "sponge";
   }
 
   switch (tool) {
-
     case "ultrasound":
-      return !p.ultrasound &&
+      return (
+        !p.ultrasound &&
         p.type !== "flu" &&
-        p.diagnosis !== "Nose Job";
+        p.diagnosis !== "Nose Job"
+      );
 
     case "labkit":
       return !p.lab;
@@ -993,23 +975,28 @@ function canUse(p, tool) {
       return p.lab;
 
     case "pins":
-      return p.ultrasound &&
+      return (
+        p.ultrasound &&
         p.shattered > 0 &&
-        p.incisions >= 1;
+        p.incisions >= 1
+      );
 
     case "splint":
-      return p.ultrasound &&
+      return (
+        p.ultrasound &&
         p.broken > 0 &&
-        (!tough || p.incisions >= 2);
+        (!tough || p.incisions >= 2)
+      );
 
     case "clamp":
-      return p.incisions >=
-        (tough ? 2 : 1);
+      return p.incisions >= (tough ? 2 : 1);
 
     case "fix":
-      return p.fixUnlocked &&
+      return (
+        p.fixUnlocked &&
         !p.fixed &&
-        (!tough || p.incisions >= 2);
+        (!tough || p.incisions >= 2)
+      );
 
     case "sponge":
     case "anesthetic":
@@ -1209,10 +1196,7 @@ function advanceTurn(
     tool === "anesthetic" && worked;
 
   if (!anestheticWorked) {
-    p.sleep = Math.max(
-      0,
-      p.sleep - 1
-    );
+    p.sleep = Math.max(0, p.sleep - 1);
   }
 
   if (
@@ -1226,11 +1210,7 @@ function advanceTurn(
       "\nThe patient is screaming and flailing!";
   }
 
-  p.bleeding = limit(
-    p.bleeding,
-    0,
-    6
-  );
+  p.bleeding = limit(p.bleeding, 0, 6);
 
   if (p.bleeding > 0) {
     const multiplier =
@@ -1241,24 +1221,16 @@ function advanceTurn(
     p.blood -=
       p.bleeding * 1.8 * multiplier;
 
-    if (
-      tool !== "sponge" ||
-      !worked
-    ) {
-      p.visibility -=
-        p.bleeding * 3;
+    if (tool !== "sponge" || !worked) {
+      p.visibility -= p.bleeding * 3;
     }
   }
 
   if (
     p.incisions > 0 &&
-    (
-      tool !== "sponge" ||
-      !worked
-    )
+    (tool !== "sponge" || !worked)
   ) {
-    p.visibility -=
-      p.incisions * 2;
+    p.visibility -= p.incisions * 2;
   }
 
   if (
@@ -1276,10 +1248,7 @@ function advanceTurn(
     }
 
     if (p.dirt >= 3) {
-      p.fever = Math.max(
-        p.fever,
-        0.3
-      );
+      p.fever = Math.max(p.fever, 0.3);
     }
   }
 
@@ -1287,30 +1256,13 @@ function advanceTurn(
     p.temp += p.fever;
   }
 
-  if (
-    p.heartStopped &&
-    heartWasStopped
-  ) {
+  if (p.heartStopped && heartWasStopped) {
     p.heartTurns++;
   }
 
-  p.blood = limit(
-    p.blood,
-    0,
-    100
-  );
-
-  p.visibility = limit(
-    p.visibility,
-    0,
-    100
-  );
-
-  p.dirt = limit(
-    p.dirt,
-    0,
-    3
-  );
+  p.blood = limit(p.blood, 0, 100);
+  p.visibility = limit(p.visibility, 0, 100);
+  p.dirt = limit(p.dirt, 0, 3);
 
   checkResult(p);
 
@@ -1335,7 +1287,7 @@ function advanceTurn(
 }
 
 // ==========================================
-// SKILL FAILURE EFFECTS
+// SKILL FAILURES
 // ==========================================
 
 function applySkillFail(p, tool, rate) {
@@ -1386,8 +1338,7 @@ function applySkillFail(p, tool, rate) {
   };
 
   p.feedback =
-    `${STATUS.red} **Skill Fail!** ` +
-    `(${Math.round(rate * 100)}%)\n` +
+    `Skill Fail! (${Math.round(rate * 100)}%)\n` +
     (messages[tool] || "The tool failed.");
 
   if (tool === "scalpel") {
@@ -1420,8 +1371,7 @@ function applyTool(p, tool) {
   p.turns++;
   p.updatedAt = Date.now();
 
-  const heartWasStopped =
-    p.heartStopped;
+  const heartWasStopped = p.heartStopped;
 
   if (
     tool === "scalpel" &&
@@ -1448,12 +1398,12 @@ function applyTool(p, tool) {
   }
 
   switch (tool) {
-
     case "sponge":
       p.visibility = 100;
 
       p.feedback =
         "You cleared the operation site.";
+
       break;
 
     case "anesthetic":
@@ -1464,6 +1414,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You administered anesthetic.";
+
       break;
 
     case "scalpel":
@@ -1479,16 +1430,15 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You made an incision.";
+
       break;
 
     case "stitches":
-
       if (p.incisions > 0) {
         p.incisions--;
 
         if (p.incisions === 0) {
           p.bleeding = 0;
-
         } else {
           p.bleeding = Math.max(
             0,
@@ -1496,15 +1446,19 @@ function applyTool(p, tool) {
           );
         }
 
+        p.feedback =
+          "You stitched up an incision.";
+
       } else {
         p.bleeding = Math.max(
           0,
           p.bleeding - 1.5
         );
+
+        p.feedback =
+          "You applied surgical stitches.";
       }
 
-      p.feedback =
-        "You applied surgical stitches.";
       break;
 
     case "ultrasound":
@@ -1513,7 +1467,8 @@ function applyTool(p, tool) {
       p.conditionRevealed = true;
 
       p.feedback =
-        `Diagnosis: **${p.diagnosis}**`;
+        `Diagnosis: ${p.diagnosis}`;
+
       break;
 
     case "labkit":
@@ -1524,7 +1479,7 @@ function applyTool(p, tool) {
         p.diagnosed = true;
 
         p.feedback =
-          `Diagnosis: **${p.diagnosis}**`;
+          `Diagnosis: ${p.diagnosis}`;
 
       } else {
         p.feedback =
@@ -1546,6 +1501,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You disinfected the operation site.";
+
       break;
 
     case "antibiotics": {
@@ -1554,14 +1510,12 @@ function applyTool(p, tool) {
 
       p.fever = Math.max(
         0,
-        p.fever -
-          (resistant ? 0.2 : 0.5)
+        p.fever - (resistant ? 0.2 : 0.5)
       );
 
       p.temp = Math.max(
         98.6,
-        p.temp -
-          (resistant ? 0.8 : 1.8)
+        p.temp - (resistant ? 0.8 : 1.8)
       );
 
       p.feedback =
@@ -1578,6 +1532,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You performed a blood transfusion.";
+
       break;
 
     case "defibrillator":
@@ -1586,6 +1541,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You restarted the patient's heart.";
+
       break;
 
     case "pins":
@@ -1594,6 +1550,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You repaired a shattered bone.";
+
       break;
 
     case "splint":
@@ -1601,6 +1558,7 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You repaired a broken bone.";
+
       break;
 
     case "clamp":
@@ -1611,10 +1569,10 @@ function applyTool(p, tool) {
 
       p.feedback =
         "You reduced blood loss.";
+
       break;
 
     case "fix":
-
       if (
         p.diagnosis === "Brainworms" &&
         chance(0.25)
@@ -1646,25 +1604,610 @@ function applyTool(p, tool) {
 }
 
 // ==========================================
-// GROWTopia THEMED EMBED
+// GROWTopia DIAGNOSIS DESCRIPTION
+// ==========================================
+
+function diagnosisText(p) {
+  if (!p.diagnosed && !p.finished) {
+    return "You haven't diagnosed the patient yet.";
+  }
+
+  const descriptions = {
+    "Broken Everything":
+      "Patient was run over by a truck.",
+
+    "Broken Arm":
+      "Patient has a broken arm.",
+
+    "Broken Leg":
+      "Patient has a broken leg.",
+
+    "Brain Tumor":
+      "Patient has a brain tumor.",
+
+    "Lung Tumor":
+      "Patient has a lung tumor.",
+
+    "Heart Attack":
+      "Patient suffered a heart attack.",
+
+    "Nose Job":
+      "Patient wants a nose job.",
+
+    "Swallowed a World Lock":
+      "Patient swallowed a World Lock.",
+
+    "Herniated Disc":
+      "Patient has a damaged spine.",
+
+    "Serious Head Injury":
+      "Patient has a serious head injury.",
+
+    "Serious Trauma":
+      "Patient has suffered serious trauma.",
+
+    "Massive Trauma":
+      "Patient has suffered massive trauma."
+  };
+
+  return (
+    descriptions[p.diagnosis] ||
+    `Patient has ${p.diagnosis}.`
+  );
+}
+
+// ==========================================
+// GENERATE PIXEL ART FIST
+// ==========================================
+
+function fistSVG(x, y, scale = 3) {
+  return `
+    <g transform="translate(${x},${y}) scale(${scale})"
+       shape-rendering="crispEdges">
+
+      <path
+        d="M0 5H6V3H10V1H16V3H19V6H20V15H17V18H10V16H6V14H0Z"
+        fill="#3D3024"
+      />
+
+      <path
+        d="M1 6H7V4H11V2H15V4H18V7H19V14H16V17H11V15H7V13H1Z"
+        fill="#DDB678"
+      />
+
+      <path
+        d="M2 7H7V5H11V3H14V5H17V8H18V11H15V8H12V6H8V9H2Z"
+        fill="#FFE3AB"
+      />
+
+      <rect
+        x="1" y="10"
+        width="7" height="3"
+        fill="#C18F52"
+      />
+
+      <rect
+        x="15" y="8"
+        width="4" height="1"
+        fill="#95703F"
+      />
+
+      <rect
+        x="15" y="11"
+        width="4" height="1"
+        fill="#95703F"
+      />
+
+      <rect
+        x="11" y="14"
+        width="5" height="2"
+        fill="#B88A50"
+      />
+
+    </g>
+  `;
+}
+
+// ==========================================
+// GENERATE GROWTopia SVG PANEL
+// ==========================================
+
+function surgerySVG(p) {
+  const width = 960;
+
+  const elements = [];
+
+  let y = 135;
+
+  function drawText(
+    text,
+    x,
+    baseline,
+    color = COLORS.white,
+    size = 27,
+    weight = 600
+  ) {
+    elements.push(`
+      <text
+        x="${x}"
+        y="${baseline}"
+        fill="${color}"
+        font-size="${size}"
+        font-weight="${weight}"
+        font-family="DejaVu Sans, sans-serif"
+      >${escapeXML(text)}</text>
+    `);
+  }
+
+  function drawStatus(label, value, color) {
+    elements.push(`
+      <text
+        x="28"
+        y="${y}"
+        font-size="27"
+        font-weight="600"
+        font-family="DejaVu Sans, sans-serif"
+      >
+        <tspan fill="${COLORS.white}">
+          ${escapeXML(label)}:
+        </tspan>
+        <tspan fill="${color}">
+          ${escapeXML(value)}
+        </tspan>
+      </text>
+    `);
+
+    y += 39;
+  }
+
+  // HEADER ICON
+
+  elements.push(fistSVG(26, 18, 3.2));
+
+  drawText(
+    "Surg-E",
+    110,
+    68,
+    COLORS.white,
+    45,
+    700
+  );
+
+  // DIAGNOSIS
+
+  for (const line of wrapText(diagnosisText(p), 57)) {
+    drawText(
+      line,
+      28,
+      y,
+      COLORS.white,
+      28
+    );
+
+    y += 37;
+  }
+
+  y += 10;
+
+  // LIVE PATIENT INFORMATION
+
+  drawStatus(
+    "Pulse",
+    pulse(p),
+    pulseColor(p)
+  );
+
+  drawStatus(
+    "Status",
+    consciousness(p),
+    consciousnessColor(p)
+  );
+
+  drawStatus(
+    "Temp",
+    p.temp.toFixed(2),
+    temperatureColor(p)
+  );
+
+  drawStatus(
+    "Operation site",
+    sanitation(p),
+    sanitationColor(p)
+  );
+
+  drawStatus(
+    "Incisions",
+    String(p.incisions),
+    p.incisions > 0
+      ? COLORS.yellow
+      : COLORS.blue
+  );
+
+  drawStatus(
+    "Bones",
+    p.ultrasound
+      ? `${p.broken} broken, ${p.shattered} shattered`
+      : "Unknown",
+    bonesColor(p)
+  );
+
+  drawStatus(
+    "Bleeding",
+    bleedingStatus(p),
+    bleedingColor(p)
+  );
+
+  // VISIBILITY
+
+  if (p.visibility <= 50) {
+    for (
+      const line of wrapText(
+        visibilityStatus(p),
+        55
+      )
+    ) {
+      drawText(
+        line,
+        28,
+        y,
+        visibilityColor(p),
+        25
+      );
+
+      y += 34;
+    }
+  }
+
+  // FEVER
+
+  if (
+    p.fever > 0 ||
+    p.temp > 100.4
+  ) {
+    for (
+      const line of wrapText(
+        feverStatus(p),
+        55
+      )
+    ) {
+      drawText(
+        line,
+        28,
+        y,
+        feverColor(p),
+        25
+      );
+
+      y += 34;
+    }
+  }
+
+  // SPECIAL CONDITION
+
+  if (
+    p.condition &&
+    p.conditionRevealed
+  ) {
+    drawText(
+      `Condition: ${p.condition}`,
+      28,
+      y,
+      COLORS.yellow,
+      25
+    );
+
+    y += 35;
+  }
+
+  // FIX IT PROGRESS
+
+  if (
+    canUse(p, "fix") &&
+    !p.finished
+  ) {
+    drawText(
+      "The underlying problem has been located.",
+      28,
+      y,
+      COLORS.green,
+      25
+    );
+
+    y += 35;
+  }
+
+  if (p.fixed && !p.finished) {
+    drawText(
+      "The underlying condition has been treated.",
+      28,
+      y,
+      COLORS.green,
+      25
+    );
+
+    y += 35;
+  }
+
+  // DIVIDER
+
+  y += 8;
+
+  elements.push(`
+    <line
+      x1="28"
+      y1="${y}"
+      x2="${width - 28}"
+      y2="${y}"
+      stroke="#A4CDDC"
+      stroke-opacity="0.35"
+      stroke-width="2"
+    />
+  `);
+
+  y += 39;
+
+  // LAST ACTION MESSAGE
+
+  let feedbackColor = COLORS.blue;
+
+  if (p.finished) {
+    feedbackColor = p.success
+      ? COLORS.green
+      : COLORS.red;
+
+  } else if (
+    p.feedback.includes("Skill Fail!") ||
+    p.feedback.includes("heart has stopped")
+  ) {
+    feedbackColor = COLORS.red;
+  }
+
+  for (
+    const line of wrapText(
+      plainText(p.feedback),
+      57
+    )
+  ) {
+    drawText(
+      line,
+      28,
+      y,
+      feedbackColor,
+      26
+    );
+
+    y += 36;
+  }
+
+  // SURGERY RESULT
+
+  if (p.finished) {
+    y += 10;
+
+    drawText(
+      p.success
+        ? "Surgery Successful!"
+        : "Surgery Failed!",
+      28,
+      y,
+      p.success ? COLORS.green : COLORS.red,
+      31,
+      700
+    );
+
+    y += 40;
+
+    const seconds = Math.floor(
+      (Date.now() - p.createdAt) / 1000
+    );
+
+    drawText(
+      `Time Taken: ${seconds}s`,
+      28,
+      y,
+      COLORS.blue,
+      22
+    );
+
+    y += 32;
+  }
+
+  // FOOTER
+
+  y += 10;
+
+  drawText(
+    `Surgeon Skill: ${CONFIG.surgeonSkill}  |  Turns: ${p.turns}  |  Skill Fails: ${p.skillFails}`,
+    28,
+    y,
+    COLORS.blue,
+    20
+  );
+
+  const height = y + 28;
+
+  return `
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="${width}"
+      height="${height}"
+      viewBox="0 0 ${width} ${height}"
+    >
+
+      <defs>
+
+        <linearGradient
+          id="background"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="1"
+        >
+          <stop
+            offset="0%"
+            stop-color="#32758E"
+          />
+
+          <stop
+            offset="100%"
+            stop-color="#20546F"
+          />
+        </linearGradient>
+
+        <pattern
+          id="robots"
+          width="105"
+          height="105"
+          patternUnits="userSpaceOnUse"
+        >
+          <g
+            fill="#B7D8E5"
+            opacity="0.075"
+          >
+            <rect
+              x="35" y="9"
+              width="35" height="29"
+              rx="3"
+            />
+
+            <rect
+              x="26" y="42"
+              width="53" height="38"
+              rx="3"
+            />
+
+            <rect
+              x="12" y="44"
+              width="10" height="30"
+            />
+
+            <rect
+              x="83" y="44"
+              width="10" height="30"
+            />
+
+            <rect
+              x="31" y="84"
+              width="15" height="15"
+            />
+
+            <rect
+              x="59" y="84"
+              width="15" height="15"
+            />
+          </g>
+        </pattern>
+
+      </defs>
+
+      <rect
+        x="3"
+        y="3"
+        width="${width - 6}"
+        height="${height - 6}"
+        rx="5"
+        fill="url(#background)"
+        stroke="${COLORS.border}"
+        stroke-width="4"
+      />
+
+      <rect
+        x="8"
+        y="8"
+        width="${width - 16}"
+        height="${height - 16}"
+        fill="url(#robots)"
+      />
+
+      ${elements.join("")}
+
+    </svg>
+  `;
+}
+
+// ==========================================
+// RENDER SURGERY IMAGE
+// ==========================================
+
+async function renderSurgeryImage(p) {
+  const sharp = require("sharp");
+
+  const svg = surgerySVG(p);
+
+  return sharp(
+    Buffer.from(svg)
+  )
+    .png({
+      compressionLevel: 6
+    })
+    .toBuffer();
+}
+
+// ==========================================
+// FALLBACK DISCORD EMBED
 // ==========================================
 
 function buildEmbed(p) {
-  const resultIcon =
-    p.finished
-      ? p.success
-        ? STATUS.green
-        : STATUS.red
-      : "";
+  const rows = [
+    `${statusEmoji(pulseColor(p))} **Pulse:** ${pulse(p)}`,
 
-  const embed = new EmbedBuilder()
+    `${statusEmoji(consciousnessColor(p))} **Status:** ${consciousness(p)}`,
+
+    `${statusEmoji(temperatureColor(p))} **Temp:** ${p.temp.toFixed(2)}`,
+
+    `${statusEmoji(sanitationColor(p))} **Operation site:** ${sanitation(p)}`,
+
+    `**Incisions:** ${p.incisions}`,
+
+    `${statusEmoji(bonesColor(p))} **Bones:** ${
+      p.ultrasound
+        ? `${p.broken} broken, ${p.shattered} shattered`
+        : "Unknown"
+    }`,
+
+    `${statusEmoji(bleedingColor(p))} **Bleeding:** ${bleedingStatus(p)}`,
+
+    `${statusEmoji(visibilityColor(p))} **Visibility:** ${visibilityStatus(p)}`
+  ];
+
+  if (
+    p.fever > 0 ||
+    p.temp > 100.4
+  ) {
+    rows.push(
+      `${statusEmoji(feverColor(p))} ${feverStatus(p)}`
+    );
+  }
+
+  if (
+    p.condition &&
+    p.conditionRevealed
+  ) {
+    rows.push(
+      `${STATUS.yellow} **Condition:** ${p.condition}`
+    );
+  }
+
+  if (canUse(p, "fix")) {
+    rows.push(
+      `${STATUS.green} The underlying problem has been located.`
+    );
+  }
+
+  if (p.fixed && !p.finished) {
+    rows.push(
+      `${STATUS.green} The underlying condition has been treated.`
+    );
+  }
+
+  return new EmbedBuilder()
 
     .setColor(
       p.finished
         ? p.success
-          ? 0x70B900
-          : 0xFF332B
-        : 0x3498DB
+          ? 0x80EF48
+          : 0xFF7777
+        : 0x32758E
     )
 
     .setTitle(
@@ -1672,136 +2215,25 @@ function buildEmbed(p) {
         ? p.success
           ? "Surgery Successful!"
           : "Surgery Failed!"
-        : "Performing Surgery"
+        : "Surg-E"
     )
 
     .setDescription(
-      resultIcon
-        ? `${resultIcon} ${p.feedback}`
-        : p.feedback
+      `${diagnosisText(p)}\n\n` +
+      rows.join("\n") +
+      `\n\n${p.feedback}`
     )
-
-    .addFields({
-      name: "Patient Information",
-
-      value:
-
-        `**Diagnosis:** ${
-          p.diagnosed || p.finished
-            ? p.diagnosis
-            : "Unknown"
-        }\n\n` +
-
-        `${pulseIcon(p)} **Pulse:** ${
-          pulse(p)
-        }\n` +
-
-        `${temperatureIcon(p)} **Temperature:** ${
-          p.temp.toFixed(1)
-        }°F\n` +
-
-        `${consciousnessIcon(p)} **Status:** ${
-          consciousness(p)
-        }\n` +
-
-        `${sanitationIcon(p)} **Operation Site:** ${
-          sanitation(p)
-        }\n` +
-
-        `${incisionIcon(p)} **Incisions:** ${
-          p.incisions
-        }\n` +
-
-        `${bleedingIcon(p)} **Bleeding:** ${
-          bleedingStatus(p)
-        }\n` +
-
-        `${visibilityIcon(p)} **Visibility:** ${
-          visibilityStatus(p)
-        }\n` +
-
-        `${bonesIcon(p)} **Bones:** ${
-          p.ultrasound
-            ? `${p.broken} broken, ${p.shattered} shattered`
-            : "Unknown"
-        }`
-    })
 
     .setFooter({
       text:
-        `Surgeon Skill: ${CONFIG.surgeonSkill} • ` +
-        `Turns: ${p.turns} • ` +
+        `Surgeon Skill: ${CONFIG.surgeonSkill} | ` +
+        `Turns: ${p.turns} | ` +
         `Skill Fails: ${p.skillFails}`
     });
-
-  if (
-    p.fever > 0 ||
-    p.temp > 100.4
-  ) {
-    embed.addFields({
-      name: "Fever",
-
-      value:
-        `${feverIcon(p)} ${feverStatus(p)}`
-    });
-  }
-
-  if (
-    p.condition &&
-    p.conditionRevealed
-  ) {
-    embed.addFields({
-      name: "Additional Condition",
-
-      value:
-        `${STATUS.yellow} ${p.condition}`
-    });
-  }
-
-  if (
-    canUse(p, "fix") &&
-    !p.finished
-  ) {
-    embed.addFields({
-      name: "Surgical Progress",
-
-      value:
-        `${STATUS.green} The underlying problem has been located.`
-    });
-  }
-
-  if (
-    p.fixed &&
-    !p.finished
-  ) {
-    embed.addFields({
-      name: "Surgical Progress",
-
-      value:
-        `${STATUS.green} The underlying condition has been treated.`
-    });
-  }
-
-  if (p.finished) {
-    const seconds = Math.floor(
-      (Date.now() - p.createdAt) / 1000
-    );
-
-    embed.addFields({
-      name: "Surgery Results",
-
-      value:
-        `**Tools Used:** ${p.turns}\n` +
-        `**Skill Failures:** ${p.skillFails}\n` +
-        `**Time Taken:** ${seconds}s`
-    });
-  }
-
-  return embed;
 }
 
 // ==========================================
-// ORIGINAL SURGICAL TOOL BUTTONS
+// SURGICAL TOOL BUTTONS
 // ==========================================
 
 const TOOL_ROWS = [
@@ -1835,22 +2267,21 @@ const TOOL_ROWS = [
 function buildButtons(p) {
   if (p.finished) {
     return [
-      new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
 
-            .setCustomId(
-              `surg:${p.id}:restart`
-            )
+          .setCustomId(
+            `surg:${p.id}:restart`
+          )
 
-            .setLabel(
-              "Perform Surgery Again"
-            )
+          .setLabel(
+            "Perform Surgery Again"
+          )
 
-            .setStyle(
-              ButtonStyle.Success
-            )
-        )
+          .setStyle(
+            ButtonStyle.Success
+          )
+      )
     ];
   }
 
@@ -1869,10 +2300,8 @@ function buildButtons(p) {
           .setStyle(
             tool === "fix"
               ? ButtonStyle.Success
-
               : tool === "cancel"
                 ? ButtonStyle.Danger
-
                 : ButtonStyle.Secondary
           )
 
@@ -1890,6 +2319,70 @@ function buildButtons(p) {
       })
     )
   );
+}
+
+// ==========================================
+// SEND OR UPDATE PUBLIC SURGERY PANEL
+// ==========================================
+
+async function updatePanel(interaction, p) {
+  const components = buildButtons(p);
+
+  const content =
+    `**Surgeon:** <@${p.userId}>`;
+
+  const common = {
+    content,
+    components,
+    allowedMentions: {
+      parse: []
+    }
+  };
+
+  if (!p.imageFallback) {
+    try {
+      const buffer =
+        await renderSurgeryImage(p);
+
+      const attachment =
+        new AttachmentBuilder(buffer, {
+          name: `surgery-${p.id}-${p.turns}.png`
+        });
+
+      return await interaction.editReply({
+        ...common,
+
+        embeds: [],
+
+        // Remove previous image before replacing it.
+        attachments: [],
+
+        files: [attachment]
+      });
+
+    } catch (error) {
+      console.error(
+        "[SURGERY] Image error:",
+        error.message
+      );
+
+      console.log(
+        "[SURGERY] Switching to embed fallback."
+      );
+
+      p.imageFallback = true;
+    }
+  }
+
+  // If image uploads fail, keep the game playable.
+
+  return interaction.editReply({
+    ...common,
+    attachments: [],
+    embeds: [
+      buildEmbed(p)
+    ]
+  });
 }
 
 // ==========================================
@@ -1917,33 +2410,30 @@ async function execute(interaction) {
   ) {
     return interaction.reply({
       content:
-        "You already have an active surgery. " +
-        "Finish or cancel it first.",
+        "You already have an active surgery. Finish or cancel it first.",
       ephemeral: true
     });
   }
 
-  const patient = createPatient(userId);
+  const patient = createPatient(
+    userId,
+    interaction.user.username
+  );
 
   patient.busy = true;
 
-  sessions.set(
-    userId,
-    patient
-  );
+  sessions.set(userId, patient);
 
   try {
-    await interaction.deferReply({
-      ephemeral: true
-    });
+    // PUBLIC MESSAGE
+    // Everyone in the channel can see the surgery.
 
-    await interaction.editReply({
-      embeds: [
-        buildEmbed(patient)
-      ],
-      components:
-        buildButtons(patient)
-    });
+    await interaction.deferReply();
+
+    await updatePanel(
+      interaction,
+      patient
+    );
 
   } catch (error) {
     sessions.delete(userId);
@@ -1953,12 +2443,21 @@ async function execute(interaction) {
       error
     );
 
-    if (interaction.deferred) {
+    if (
+      interaction.deferred ||
+      interaction.replied
+    ) {
       await interaction.editReply({
-        content:
-          "Unable to start surgery.",
+        content: "Unable to start surgery.",
+        attachments: [],
         embeds: [],
         components: []
+      }).catch(() => {});
+
+    } else {
+      await interaction.reply({
+        content: "Unable to start surgery.",
+        ephemeral: true
       }).catch(() => {});
     }
 
@@ -1973,6 +2472,12 @@ async function execute(interaction) {
 
 async function handleButton(interaction) {
   if (!interaction.isButton()) return;
+
+  if (
+    !interaction.customId.startsWith("surg:")
+  ) {
+    return;
+  }
 
   const parts =
     interaction.customId.split(":");
@@ -1990,25 +2495,41 @@ async function handleButton(interaction) {
     ? "restart"
     : parts[3];
 
-  const userId =
-    interaction.user.id;
+  const userId = interaction.user.id;
 
-  const patient =
-    sessions.get(userId);
+  // Find the session using its unique ID.
+  // Prevent other members from controlling it.
+
+  const patient = Array.from(
+    sessions.values()
+  ).find(p => p.id === sessionId);
 
   if (
     !patient ||
-    patient.id !== sessionId ||
     Date.now() - patient.updatedAt >
       CONFIG.sessionTimeout
   ) {
     return interaction.reply({
       content:
-        "This surgery session has expired. " +
-        "Use /surgery again.",
+        "This surgery session has expired. Use /surgery again.",
       ephemeral: true
     });
   }
+
+  // OWNER-ONLY BUTTON PROTECTION
+
+  if (patient.userId !== userId) {
+    return interaction.reply({
+      content:
+        `Only <@${patient.userId}> can use these surgery buttons.`,
+      allowedMentions: {
+        parse: []
+      },
+      ephemeral: true
+    });
+  }
+
+  // PROTECT AGAINST DUPLICATE CLICKS
 
   if (
     patient.busy ||
@@ -2029,6 +2550,8 @@ async function handleButton(interaction) {
   let previousState = null;
 
   try {
+    // Acknowledge immediately.
+
     await interaction.deferUpdate();
 
     // RESTART SURGERY
@@ -2037,23 +2560,20 @@ async function handleButton(interaction) {
       tool === "restart" &&
       patient.finished
     ) {
-      const next = createPatient(userId);
+      const next = createPatient(
+        userId,
+        interaction.user.username
+      );
 
       next.busy = true;
 
-      sessions.set(
-        userId,
-        next
-      );
+      sessions.set(userId, next);
 
       try {
-        await interaction.editReply({
-          embeds: [
-            buildEmbed(next)
-          ],
-          components:
-            buildButtons(next)
-        });
+        await updatePanel(
+          interaction,
+          next
+        );
 
       } catch (error) {
         sessions.set(
@@ -2070,21 +2590,24 @@ async function handleButton(interaction) {
       return;
     }
 
-    // VALIDATE SELECTED TOOL
+    // CHECK TOOL AVAILABILITY
 
     if (!canUse(patient, tool)) {
-      return await interaction.editReply({
-        embeds: [
-          buildEmbed(patient)
-        ],
-        components:
-          buildButtons(patient)
-      });
+      await updatePanel(
+        interaction,
+        patient
+      );
+
+      return;
     }
+
+    // SAVE STATE BEFORE THE ACTION
 
     previousState = {
       ...patient
     };
+
+    // APPLY SURGICAL TOOL
 
     applyTool(
       patient,
@@ -2094,20 +2617,15 @@ async function handleButton(interaction) {
     patient.updatedAt =
       Date.now();
 
-    // UPDATE EXISTING MESSAGE
+    // REGENERATE IMAGE AND UPDATE SAME MESSAGE
 
-    await interaction.editReply({
-      embeds: [
-        buildEmbed(patient)
-      ],
-      components:
-        buildButtons(patient)
-    });
+    await updatePanel(
+      interaction,
+      patient
+    );
 
   } catch (error) {
-
-    // Restore previous patient state
-    // if the Discord message update fails.
+    // Restore previous state if updating fails.
 
     if (previousState) {
       Object.assign(
@@ -2123,7 +2641,7 @@ async function handleButton(interaction) {
 
     const payload = {
       content:
-        "An error occurred during surgery.",
+        "An error occurred during surgery. Please try again.",
       ephemeral: true
     };
 
@@ -2147,7 +2665,7 @@ async function handleButton(interaction) {
 }
 
 // ==========================================
-// SESSION CLEANUP
+// EXPIRED SESSION CLEANUP
 // ==========================================
 
 const cleanupTimer = setInterval(() => {
