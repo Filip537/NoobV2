@@ -323,6 +323,7 @@ const {
   handleCrime,
   handleCrimeButton
 } = require("./feature/crime.js");
+const startopia = require("./startopia");
 const createpoll = require("./feature/createpoll.js");
 const harvest = require("./feature/harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
@@ -3451,6 +3452,9 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+     if (await startopia.handleInteraction(interaction)) {
+    return;
+}
     // HARVEST BUFF CONFIGURATION
   if (interaction.customId?.startsWith("harvest:")) {
     return harvest.handleInteraction(interaction);
