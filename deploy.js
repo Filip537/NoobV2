@@ -50,8 +50,24 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
     new SlashCommandBuilder()
-    .setName("surgery")
-    .setDescription("Perform a Growtopia surgery"),
+  .setName("surgery")
+  .setDescription("Perform a Growtopia surgery")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Member to treat")
+      .setRequired(false)
+  ),
+
+new SlashCommandBuilder()
+  .setName("malady")
+  .setDescription("Scan a member for a malady")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Member to scan")
+      .setRequired(true)
+  ),
     new SlashCommandBuilder()
     .setName("sendpanel")
     .setDescription("Post or refresh the NoobV2 Profile Setup panel"),
