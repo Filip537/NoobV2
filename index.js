@@ -318,7 +318,7 @@ const dice = require("./commands/dice.js");
 const quote = require("./commands/quote.js");
 const renderWorld = require("./commands/renderworld.js");
 const call = require("./feature/call.js");
-
+const surgery = require("./feature/surgery.js");
 const createpoll = require("./feature/createpoll.js");
 
 const inventoryFeature = require("./feature/inventory.js");
@@ -2376,7 +2376,7 @@ function getUI(game) {
 }
 
 client.once("ready", async () => {
-  
+    surgery.start();
   await botCustomization.start(client).catch(error => {
     console.error("[BOT CUSTOMIZATION]", error);
 });
@@ -3447,6 +3447,23 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+    // ==========================================
+  // GROWTOPIA SURGERY SIMULATOR
+  // ==========================================
+
+  if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "surgery"
+  ) {
+    return surgery.execute(interaction);
+  }
+
+  if (
+    interaction.isButton() &&
+    interaction.customId.startsWith("surg:")
+  ) {
+    return surgery.handleButton(interaction);
+  }
     if (interaction.isChatInputCommand() && interaction.commandName === "coinflip") {
     const bet = interaction.options.getInteger("bet");
     const side = interaction.options.getString("side");
