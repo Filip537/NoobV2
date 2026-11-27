@@ -50,6 +50,40 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
   new SlashCommandBuilder()
+    .setName("translate")
+    .setDescription("Translate text or a Discord message")
+
+    .addStringOption(option =>
+        option
+            .setName("from")
+            .setDescription("Original language")
+            .setRequired(true)
+            .setAutocomplete(true)
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("to")
+            .setDescription("Target language")
+            .setRequired(true)
+            .setAutocomplete(true)
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("message")
+            .setDescription("Text you want to translate")
+            .setRequired(false)
+            .setMaxLength(6000)
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("messageid")
+            .setDescription("Discord message ID or message link")
+            .setRequired(false)
+    ),
+  new SlashCommandBuilder()
     .setName("startopia")
     .setDescription("Begin a Growtopia Star Voyage"),
   new SlashCommandBuilder()
