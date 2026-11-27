@@ -4066,7 +4066,26 @@ if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "translate"
 ) {
-    return handleTranslate(interaction);
+    console.log("[TRANSLATE] Command received");
+
+    try {
+        return await handleTranslate(interaction);
+    } catch (error) {
+        console.error("[TRANSLATE ERROR]", error);
+
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
+                content: "Translation failed."
+            }).catch(console.error);
+        } else {
+            await interaction.reply({
+                content: "Translation failed.",
+                ephemeral: true
+            }).catch(console.error);
+        }
+    }
+
+    return;
 }
      if (await startopia.handleInteraction(interaction)) {
     return;
