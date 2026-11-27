@@ -51,6 +51,12 @@ const cookingFolder = path.join(
   __dirname, "..", "images", "cooking"
 );
 
+const characterPath = path.join(
+  __dirname,
+  "..",
+  "images",
+  "125F2011-4DA5-4A99-8F28-54E0B0C343C9.png"
+);  
 const fontPath = path.join(
   __dirname, "..", "fonts", "Grobold.ttf"
 );
@@ -918,224 +924,26 @@ async function executeInventory(interaction) {
 // PROGRAMMATIC PIXEL ART
 // ==========================================
 
-function drawGrowtopiaCharacter(
+async function drawGrowtopiaCharacter(
   ctx,
   centerX,
-  startY,
-  scale = 16
+  startY
 ) {
-  ctx.save();
+  const image = await loadImage(characterPath);
+
+  const height = 490;
+  const width = height * (image.width / image.height);
 
   ctx.imageSmoothingEnabled = false;
 
-  const spriteWidth = 23;
-
-  const startX = Math.round(
-    centerX - spriteWidth * scale / 2
+  ctx.drawImage(
+    image,
+    centerX - width / 2,
+    startY,
+    width,
+    height
   );
-
-  const colors = {
-    base: "#a17b6a",
-    shadow: "#896758",
-    deepShadow: "#765547",
-    light: "#b48975",
-    highlight: "#c09580",
-    body: "#bd907c",
-    bodyLight: "#c99c88",
-    bodyShadow: "#a77d69",
-    eyeWhite: "#f7f5f2",
-    eyeGrey: "#e1dfdc",
-    pupil: "#0e0c0b",
-    mouth: "#664639"
-  };
-
-  function rect(x, y, w, h, color) {
-    pixelRect(
-      ctx,
-      startX + x * scale,
-      startY + y * scale,
-      w * scale,
-      h * scale,
-      color
-    );
-  }
-
-  // ======================================
-  // HEAD SILHOUETTE
-  // ======================================
-
-  rect(3, 0, 17, 1, colors.base);
-  rect(2, 1, 19, 1, colors.base);
-  rect(1, 2, 21, 13, colors.base);
-  rect(2, 15, 19, 1, colors.base);
-  rect(4, 16, 15, 1, colors.base);
-
-  // Head Highlights
-
-  rect(3, 1, 16, 1, colors.light);
-  rect(2, 2, 9, 1, colors.light);
-  rect(3, 3, 5, 1, colors.highlight);
-  rect(13, 2, 2, 1, colors.light);
-  rect(17, 2, 1, 1, colors.light);
-
-  // Head Shadows
-
-  rect(21, 3, 1, 11, colors.shadow);
-  rect(20, 5, 1, 9, colors.shadow);
-  rect(19, 4, 2, 1, colors.shadow);
-  rect(19, 7, 1, 1, colors.shadow);
-  rect(19, 10, 2, 1, colors.shadow);
-
-  rect(1, 10, 1, 4, colors.shadow);
-  rect(2, 15, 3, 1, colors.shadow);
-  rect(5, 16, 13, 1, colors.shadow);
-
-  // ======================================
-  // BROWS
-  // ======================================
-
-  rect(1, 4, 5, 1, colors.light);
-  rect(2, 5, 5, 1, colors.light);
-
-  rect(10, 4, 5, 1, colors.light);
-  rect(9, 5, 6, 1, colors.light);
-
-  // ======================================
-  // LEFT EYE
-  // ======================================
-
-  rect(1, 6, 7, 2, colors.eyeWhite);
-  rect(2, 8, 5, 1, colors.eyeGrey);
-
-  // Pupil looking left
-
-  rect(2, 6, 2, 2, colors.pupil);
-
-  // ======================================
-  // RIGHT EYE
-  // ======================================
-
-  rect(9, 6, 7, 2, colors.eyeWhite);
-  rect(10, 8, 5, 1, colors.eyeGrey);
-
-  rect(10, 6, 2, 2, colors.pupil);
-
-  // ======================================
-  // NOSE
-  // ======================================
-
-  rect(8, 8, 1, 1, colors.light);
-  rect(7, 9, 2, 1, colors.light);
-
-  rect(6, 10, 5, 1, colors.shadow);
-
-  // ======================================
-  // SMIRK
-  // ======================================
-
-  rect(6, 13, 7, 1, colors.mouth);
-  rect(13, 12, 1, 1, colors.mouth);
-
-  // ======================================
-  // NECK
-  // ======================================
-
-  rect(7, 17, 9, 2, colors.shadow);
-  rect(8, 17, 7, 2, colors.base);
-
-  // ======================================
-  // BODY
-  // ======================================
-
-  rect(5, 19, 13, 1, colors.base);
-  rect(4, 20, 15, 1, colors.base);
-  rect(3, 21, 17, 6, colors.base);
-
-  // Front torso
-
-  rect(6, 20, 11, 1, colors.body);
-  rect(6, 21, 11, 4, colors.body);
-  rect(5, 25, 13, 2, colors.body);
-  rect(5, 27, 13, 2, colors.body);
-
-  // Torso highlights
-
-  rect(7, 21, 9, 3, colors.bodyLight);
-  rect(5, 25, 12, 1, colors.bodyLight);
-
-  // Shoulder details
-
-  rect(6, 18, 1, 3, colors.light);
-  rect(16, 18, 1, 3, colors.light);
-
-  // Torso Shadows
-
-  rect(17, 22, 1, 3, colors.bodyShadow);
-  rect(5, 26, 1, 2, colors.bodyShadow);
-
-  // ======================================
-  // LEFT ARM
-  // ======================================
-
-  rect(3, 20, 2, 1, colors.base);
-  rect(2, 21, 3, 5, colors.base);
-  rect(1, 26, 3, 3, colors.base);
-
-  rect(2, 22, 1, 3, colors.light);
-  rect(1, 27, 1, 1, colors.shadow);
-
-  rect(2, 29, 2, 1, colors.shadow);
-
-  // ======================================
-  // RIGHT ARM
-  // ======================================
-
-  rect(18, 20, 2, 1, colors.base);
-  rect(18, 21, 3, 5, colors.base);
-  rect(19, 26, 3, 3, colors.base);
-
-  rect(19, 22, 1, 3, colors.light);
-  rect(21, 27, 1, 1, colors.shadow);
-
-  rect(19, 29, 2, 1, colors.shadow);
-
-  // ======================================
-  // LEGS
-  // ======================================
-
-  // Left Leg
-
-  rect(5, 28, 5, 2, colors.body);
-  rect(5, 30, 4, 3, colors.base);
-  rect(4, 33, 5, 1, colors.base);
-
-  rect(5, 30, 1, 2, colors.light);
-
-  // Left Foot
-
-  rect(3, 33, 6, 2, colors.base);
-  rect(3, 34, 6, 1, colors.shadow);
-
-  rect(4, 33, 3, 1, colors.light);
-
-  // Right Leg
-
-  rect(13, 28, 5, 2, colors.body);
-  rect(14, 30, 4, 3, colors.base);
-  rect(14, 33, 5, 1, colors.base);
-
-  rect(17, 30, 1, 2, colors.shadow);
-
-  // Right Foot
-
-  rect(13, 33, 6, 2, colors.base);
-  rect(13, 34, 6, 1, colors.shadow);
-
-  rect(14, 33, 3, 1, colors.light);
-
-  ctx.restore();
 }
-
 // ==========================================
 // DRAW DISCORD USERNAME
 // ==========================================
