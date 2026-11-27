@@ -50,6 +50,32 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
   new SlashCommandBuilder()
+    .setName("playsnake")
+    .setDescription("Play Growtopia Snakes and Ladders")
+    .addIntegerOption(option =>
+        option
+            .setName("players")
+            .setDescription("Number of players")
+            .setRequired(true)
+            .addChoices(
+                { name: "2 Players", value: 2 },
+                { name: "3 Players", value: 3 },
+                { name: "4 Players", value: 4 }
+            )
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("winners")
+            .setDescription("Number of winners")
+            .setRequired(true)
+            .addChoices(
+                { name: "1 Winner", value: 1 },
+                { name: "2 Winners", value: 2 },
+                { name: "3 Winners", value: 3 },
+                { name: "4 Winners", value: 4 }
+            )
+    ),
+  new SlashCommandBuilder()
     .setName("translate")
     .setDescription("Translate text or a Discord message")
     .addStringOption(option =>
