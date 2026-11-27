@@ -17,7 +17,8 @@ const {
 const EMOJIS = {
   gems: "<:dumbgem192x192:1575743139522674688>",
   xp: "<:experiencepotion192x192:1575743137010417755>",
-  seed: "<:unknownseedicon192x192:1575743134267342858>"
+  seed: "<:unknownseedicon192x192:1575743134267342858>",
+  check: "<:emoji_28:1439046091201839225>"
 };
 
 // ==========================================
@@ -111,27 +112,27 @@ const BUFFS = [
   {
     id: "staff",
     name: "Dreamcatcher Staff",
-    description: "Estimated chance of extra harvested fruit"
+    description: "Chance of additional harvested fruit"
   },
   {
     id: "harvester",
     name: "Harvester",
-    description: "Chance of double fruit using Fuel Packs"
+    description: "Double fruit chance using Fuel Packs"
   },
   {
     id: "sorrow",
     name: "Harvester of Sorrows",
-    description: "Chance of double fruit using Fuel Packs"
+    description: "Double fruit chance using Fuel Packs"
   },
   {
     id: "xp",
     name: "Experience Potion",
-    description: "Additional experience from potions"
+    description: "Additional XP from consuming potions"
   },
   {
     id: "farmer",
     name: "Farmer Role",
-    description: "Farmer role bonus rewards"
+    description: "Unlock special farmer role rewards"
   }
 ];
 
@@ -222,7 +223,9 @@ async function getItemThumbnail(itemName) {
     );
 
     if (!response.ok) {
-      throw new Error(`Wiki HTTP ${response.status}`);
+      throw new Error(
+        `Wiki HTTP ${response.status}`
+      );
     }
 
     const data = await response.json();
@@ -250,7 +253,7 @@ async function getItemThumbnail(itemName) {
 
   } catch (error) {
     console.warn(
-      `[HARVEST] Thumbnail failed for ${itemName}:`,
+      `[HARVEST THUMBNAIL] ${itemName}:`,
       error.message
     );
 
@@ -267,12 +270,13 @@ async function getItemThumbnail(itemName) {
 }
 
 // ==========================================
-// ITEM AUTOCOMPLETE
+// AUTOCOMPLETE
 // ==========================================
 
 async function autocomplete(interaction) {
   try {
     const query = interaction.options.getFocused();
+
     const key = normalize(query);
     const alias = ALIASES[key];
 
@@ -280,6 +284,19 @@ async function autocomplete(interaction) {
       normalize(item.name).includes(key) ||
       (alias && item.name === alias)
     );
+
+    results.sort((a, b) => {
+      const aStarts =
+        normalize(a.name).startsWith(key);
+
+      const bStarts =
+        normalize(b.name).startsWith(key);
+
+      return (
+        Number(bStarts) - Number(aStarts) ||
+        a.name.localeCompare(b.name)
+      );
+    });
 
     await interaction.respond(
       results.slice(0, 25).map(item => ({
@@ -333,7 +350,7 @@ function calculateHarvest(amount, item) {
 }
 
 // ==========================================
-// FARMER ROLE SPECIAL DROPS
+// FARMER ROLE DROPS
 // ==========================================
 
 function getFarmerDrops(level, rarity) {
@@ -369,13 +386,19 @@ function boosted(amount, item, buffs) {
   let fuelUsed = 0;
   let potionXP = 0;
 
-  // Dreamcatcher Staff estimate
-  if (eligible && hasBuff(buffs, "staff")) {
-    staffBonus = Math.round(amount * 0.02);
+  if (
+    eligible &&
+    hasBuff(buffs, "staff")
+  ) {
+    staffBonus = Math.round(
+      amount * 0.02
+    );
   }
 
-  // Harvester estimated double-fruit activations
-  if (eligible && hasHarvester(buffs)) {
+  if (
+    eligible &&
+    hasHarvester(buffs)
+  ) {
     fuelUsed = Math.min(
       buffs.fuel,
       amount * 0.10
@@ -386,14 +409,14 @@ function boosted(amount, item, buffs) {
     );
   }
 
-  // Potion XP is separate from harvest XP.
   if (hasBuff(buffs, "xp")) {
     potionXP = buffs.potions * 10000;
   }
 
-  const farmerLevel = hasBuff(buffs, "farmer")
-    ? buffs.farmer
-    : 0;
+  const farmerLevel =
+    hasBuff(buffs, "farmer")
+      ? buffs.farmer
+      : 0;
 
   const farmerDrops = getFarmerDrops(
     farmerLevel,
@@ -420,7 +443,7 @@ function boosted(amount, item, buffs) {
 }
 
 // ==========================================
-// CONFIGURATION AND RESULTS EMBED
+// CLEAN HARVEST EMBED
 // ==========================================
 
 function buildPanel(session, showResults = false) {
@@ -439,59 +462,86 @@ function buildPanel(session, showResults = false) {
       showResults
         ? "Harvest Results"
         : "Harvest Configuration"
-    )
-    .setDescription(
-      `**Item:** [${item.name}](${wikiURL})\n` +
-      `**Amount:** ${format(session.amount)} trees\n` +
-      `**Rarity:** ${item.rarity}`
     );
 
   if (session.thumbnail) {
     embed.setThumbnail(session.thumbnail);
   }
 
-  // Show selected buffs
-  const buffText = BUFFS.map(buff => {
-    const selected = hasBuff(buffs, buff.id);
+  const description = [
+    `**Item:** [${item.name}](${wikiURL})`,
+    `**Amount:** ${format(session.amount)} trees`,
+    `**Rarity:** ${item.rarity}`
+  ];
 
-    return `${selected ? "☑" : "☐"} ${buff.name}`;
-  }).join("\n");
+  // ==========================================
+  // CONFIGURATION PANEL
+  // ==========================================
 
-  embed.addFields({
-    name: "Select your buffs",
-    value: buffText
-  });
-
-  // Display quantities
-  const quantities = [];
-
-  if (hasHarvester(buffs)) {
-    quantities.push(
-      `**Available Fuel Packs:** ${format(buffs.fuel)}`
+  if (!showResults) {
+    description.push(
+      "",
+      "━━━━━━━━━━━━━━━━━━━━",
+      "",
+      "### Select Your Buffs"
     );
-  }
 
-  if (hasBuff(buffs, "xp")) {
-    quantities.push(
-      `**Experience Potions:** ${format(buffs.potions)}`
+    for (const buff of BUFFS) {
+      const selected = hasBuff(
+        buffs,
+        buff.id
+      );
+
+      description.push(
+        selected
+          ? `${EMOJIS.check} **${buff.name}**`
+          : `☐ ${buff.name}`
+      );
+    }
+
+    const quantities = [];
+
+    if (hasHarvester(buffs)) {
+      quantities.push(
+        `Fuel Packs: **${format(buffs.fuel)}**`
+      );
+    }
+
+    if (hasBuff(buffs, "xp")) {
+      quantities.push(
+        `Experience Potions: **${format(buffs.potions)}**`
+      );
+    }
+
+    if (hasBuff(buffs, "farmer")) {
+      quantities.push(
+        `Farmer Role: **Level ${buffs.farmer}**`
+      );
+    }
+
+    if (quantities.length) {
+      description.push(
+        "",
+        "### Consumables & Levels",
+        ...quantities
+      );
+    }
+
+    description.push(
+      "",
+      "━━━━━━━━━━━━━━━━━━━━",
+      "",
+      "Select your buffs and set their quantities before calculating."
     );
-  }
 
-  if (hasBuff(buffs, "farmer")) {
-    quantities.push(
-      `**Farmer Role Level:** ${buffs.farmer}/10`
-    );
-  }
-
-  if (quantities.length > 0) {
-    embed.addFields({
-      name: "Buff Quantities",
-      value: quantities.join("\n")
+    embed.setFooter({
+      text:
+        "NoobV2 • Harvest Configuration"
     });
   }
 
   // ==========================================
-  // HARVEST RESULTS
+  // RESULTS PANEL
   // ==========================================
 
   if (showResults) {
@@ -501,103 +551,164 @@ function buildPanel(session, showResults = false) {
       buffs
     );
 
-    const base = result.base;
-
-    embed.addFields(
-      {
-        name: "Blocks / Fruit",
-        value:
-          `**${format(result.totalBlocks)}**\n` +
-          `Base: ${format(base.blocks)}\n` +
-          `Bonus: +${format(result.extraBlocks)}`,
-        inline: true
-      },
-      {
-        name: `${EMOJIS.seed} Seeds`,
-        value:
-          `**${format(result.totalSeeds)}**\n` +
-          `Base: ${format(base.seeds)}`,
-        inline: true
-      },
-      {
-        name: `${EMOJIS.gems} Gems`,
-        value:
-          `**${format(result.totalGems)}**\n` +
-          `Base estimate`,
-        inline: true
-      },
-      {
-        name: `${EMOJIS.xp} Experience`,
-        value:
-          `**${format(result.totalXP)} XP**\n` +
-          `Harvest: ${format(base.xp)} XP\n` +
-          `Potions: +${format(result.extraXP)} XP`,
-        inline: true
-      },
-      {
-        name: "XP per Tree",
-        value: `${base.xpPerTree} XP`,
-        inline: true
-      },
-      {
-        name: "Average Gems per Tree",
-        value: `~${base.averageGems.toFixed(2)}`,
-        inline: true
-      }
+    description.push(
+      "",
+      "━━━━━━━━━━━━━━━━━━━━",
+      "",
+      "### Harvest Rewards",
+      `**Blocks:** ${format(result.totalBlocks)}`,
+      `${EMOJIS.seed} **Seeds:** ${format(result.totalSeeds)}`,
+      `${EMOJIS.gems} **Gems:** ${format(result.totalGems)}`,
+      `${EMOJIS.xp} **Experience:** ${format(result.totalXP)} XP`
     );
+
+    // ==========================================
+    // SELECTED BUFFS ONLY
+    // ==========================================
+
+    const selectedBuffs = BUFFS.filter(
+      buff => hasBuff(buffs, buff.id)
+    );
+
+    description.push(
+      "",
+      "━━━━━━━━━━━━━━━━━━━━",
+      "",
+      "### Selected Buffs"
+    );
+
+    if (!selectedBuffs.length) {
+      description.push("None");
+    }
+
+    for (const buff of selectedBuffs) {
+      let suffix = "";
+
+      if (
+        buff.id === "harvester" ||
+        buff.id === "sorrow"
+      ) {
+        suffix =
+          ` — ${format(buffs.fuel)} Fuel Packs`;
+      }
+
+      if (buff.id === "xp") {
+        suffix =
+          ` ×${format(buffs.potions)}`;
+      }
+
+      if (buff.id === "farmer") {
+        suffix =
+          ` — Level ${buffs.farmer}`;
+      }
+
+      description.push(
+        `${EMOJIS.check} ${buff.name}${suffix}`
+      );
+    }
+
+    // ==========================================
+    // ADDITIONAL REWARDS
+    // ==========================================
 
     const bonuses = [];
 
-    if (hasBuff(buffs, "staff")) {
+    if (result.extraBlocks > 0) {
       bonuses.push(
-        `**Dreamcatcher Staff:** ` +
-        `+${format(result.staffBonus)} fruit`
+        `**Extra Blocks:** +${format(result.extraBlocks)}`
       );
     }
 
-    if (hasHarvester(buffs)) {
+    if (result.extraXP > 0) {
       bonuses.push(
-        `**Harvester Bonus:** ` +
-        `+${format(result.harvesterBonus)} fruit`
-      );
-
-      bonuses.push(
-        `**Estimated Fuel Used:** ` +
-        `${format(result.fuelUsed)}/${format(buffs.fuel)}`
-      );
-
-      bonuses.push(
-        `**Estimated Fuel Remaining:** ` +
-        `${format(Math.max(0, buffs.fuel - result.fuelUsed))}`
+        `${EMOJIS.xp} **Potion XP:** +${format(result.extraXP)} XP`
       );
     }
 
-    if (hasBuff(buffs, "xp")) {
-      bonuses.push(
-        `**Experience Potions:** ` +
-        `+${format(result.extraXP)} XP`
+    description.push(
+      "",
+      "### Bonus Rewards"
+    );
+
+    if (bonuses.length) {
+      description.push(...bonuses);
+    } else {
+      description.push(
+        "No additional rewards."
       );
     }
 
-    if (bonuses.length > 0) {
-      embed.addFields({
-        name: "Buff Breakdown",
-        value: bonuses.join("\n")
-      });
+    // ==========================================
+    // CONSUMABLE USAGE
+    // ==========================================
+
+    const consumables = [];
+
+    if (hasHarvester(buffs) && buffs.fuel > 0) {
+      consumables.push(
+        `Fuel Used: **~${format(result.fuelUsed)}**`,
+        `Fuel Remaining: **~${format(
+          Math.max(
+            0,
+            buffs.fuel - result.fuelUsed
+          )
+        )}**`
+      );
     }
+
+    if (
+      hasBuff(buffs, "xp") &&
+      buffs.potions > 0
+    ) {
+      consumables.push(
+        `Potions Used: **${format(buffs.potions)}**`
+      );
+    }
+
+    if (consumables.length) {
+      description.push(
+        "",
+        "### Consumable Usage",
+        ...consumables
+      );
+    }
+
+    // ==========================================
+    // FARMER ROLE SPECIAL REWARDS
+    // ==========================================
 
     if (hasBuff(buffs, "farmer")) {
-      embed.addFields({
-        name: "Farmer Role Bonuses",
-        value:
-          `**Level:** ${buffs.farmer}/10\n` +
-          `**Eligible Drops:** ${
-            result.farmerDrops.join(", ") || "None"
-          }\n\n` +
-          `Special drop and gem bonus rates are not ` +
-          `included in the estimated totals.`
-      });
+      description.push(
+        "",
+        "### Possible Farmer Rewards"
+      );
+
+      if (result.farmerDrops.length) {
+        description.push(
+          ...result.farmerDrops.map(
+            drop => `• ${drop}`
+          )
+        );
+
+        description.push(
+          "Drop quantities are not estimated."
+        );
+      } else {
+        description.push(
+          "No eligible special drops."
+        );
+      }
+
+      description.push(
+        "Farmer gem bonuses are not included."
+      );
     }
+
+    // ==========================================
+    // RESTRICTIONS AND WARNINGS
+    // ==========================================
+
+    const warnings = [];
 
     if (
       item.rarity >= 100 &&
@@ -606,22 +717,51 @@ function buildPanel(session, showResults = false) {
         hasHarvester(buffs)
       )
     ) {
-      embed.addFields({
-        name: "Equipment Restriction",
-        value:
-          "These extra-fruit buffs are disabled " +
-          "for items with rarity 100 or higher."
-      });
+      warnings.push(
+        "Extra-fruit buffs are unavailable for this rarity."
+      );
     }
+
+    if (
+      hasHarvester(buffs) &&
+      buffs.fuel === 0
+    ) {
+      warnings.push(
+        "Harvester bonus was not applied because no Fuel Packs were entered."
+      );
+    }
+
+    if (
+      hasBuff(buffs, "xp") &&
+      buffs.potions === 0
+    ) {
+      warnings.push(
+        "No Experience Potions were entered."
+      );
+    }
+
+    if (warnings.length) {
+      description.push(
+        "",
+        "### Notes",
+        ...warnings.map(
+          warning => `• ${warning}`
+        )
+      );
+    }
+
+    embed.setFooter({
+      text:
+        "NoobV2 • Estimated harvest rewards"
+    });
   }
 
-  embed.setFooter({
-    text:
-      "Estimated rewards • Session expires after 15 minutes of inactivity"
-  });
+  embed.setDescription(
+    description.join("\n")
+  );
 
   // ==========================================
-  // BUTTONS AND DROPDOWN
+  // COMPONENTS
   // ==========================================
 
   const customId = action =>
@@ -630,30 +770,43 @@ function buildPanel(session, showResults = false) {
   const components = [];
 
   if (!showResults) {
-    const buffMenu = new StringSelectMenuBuilder()
-      .setCustomId(customId("select"))
-      .setPlaceholder("Select your harvest buffs")
-      .setMinValues(0)
-      .setMaxValues(BUFFS.length)
-      .addOptions(
-        BUFFS.map(buff => ({
-          label: buff.name,
-          description: buff.description,
-          value: buff.id,
-          default: hasBuff(buffs, buff.id)
-        }))
-      );
+    const buffMenu =
+      new StringSelectMenuBuilder()
+        .setCustomId(customId("select"))
+        .setPlaceholder(
+          "Select your harvest buffs"
+        )
+        .setMinValues(0)
+        .setMaxValues(BUFFS.length)
+        .addOptions(
+          BUFFS.map(buff => ({
+            label: buff.name,
+            description: buff.description,
+            value: buff.id,
+            default: hasBuff(
+              buffs,
+              buff.id
+            )
+          }))
+        );
 
     components.push(
       new ActionRowBuilder()
         .addComponents(buffMenu)
     );
 
-    if (quantities.length > 0) {
+    const needsQuantities =
+      hasHarvester(buffs) ||
+      hasBuff(buffs, "xp") ||
+      hasBuff(buffs, "farmer");
+
+    if (needsQuantities) {
       components.push(
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId(customId("quantity"))
+            .setCustomId(
+              customId("quantity")
+            )
             .setLabel("Set Quantities")
             .setStyle(ButtonStyle.Primary)
         )
@@ -663,12 +816,16 @@ function buildPanel(session, showResults = false) {
     components.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(customId("calculate"))
+          .setCustomId(
+            customId("calculate")
+          )
           .setLabel("Calculate Harvest")
           .setStyle(ButtonStyle.Success),
 
         new ButtonBuilder()
-          .setCustomId(customId("reset"))
+          .setCustomId(
+            customId("reset")
+          )
           .setLabel("Reset Buffs")
           .setStyle(ButtonStyle.Secondary)
       )
@@ -678,12 +835,16 @@ function buildPanel(session, showResults = false) {
     components.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(customId("edit"))
+          .setCustomId(
+            customId("edit")
+          )
           .setLabel("Edit Buffs")
           .setStyle(ButtonStyle.Primary),
 
         new ButtonBuilder()
-          .setCustomId(customId("reset"))
+          .setCustomId(
+            customId("reset")
+          )
           .setLabel("Reset Buffs")
           .setStyle(ButtonStyle.Secondary)
       )
@@ -697,7 +858,7 @@ function buildPanel(session, showResults = false) {
 }
 
 // ==========================================
-// MAIN /HARVEST COMMAND
+// EXECUTE /HARVEST
 // ==========================================
 
 async function execute(interaction) {
@@ -739,9 +900,8 @@ async function execute(interaction) {
       }
     }
 
-    const thumbnail = await getItemThumbnail(
-      item.name
-    );
+    const thumbnail =
+      await getItemThumbnail(item.name);
 
     const session = {
       id: interaction.id,
@@ -750,27 +910,39 @@ async function execute(interaction) {
       item,
       thumbnail,
       buffs: defaultBuffs(),
-      expires: Date.now() + SESSION_DURATION
+      expires:
+        Date.now() + SESSION_DURATION
     };
 
-    sessions.set(session.id, session);
+    sessions.set(
+      session.id,
+      session
+    );
 
     return await interaction.editReply(
       buildPanel(session)
     );
 
   } catch (error) {
-    console.error("[HARVEST COMMAND]", error);
+    console.error(
+      "[HARVEST COMMAND]",
+      error
+    );
 
     const message = {
-      content: "Could not open the harvest calculator.",
+      content:
+        "Could not open the harvest calculator.",
       embeds: [],
       components: []
     };
 
-    if (interaction.deferred || interaction.replied) {
-      return interaction.editReply(message)
-        .catch(() => {});
+    if (
+      interaction.deferred ||
+      interaction.replied
+    ) {
+      return interaction.editReply(
+        message
+      ).catch(() => {});
     }
 
     return interaction.reply({
@@ -781,23 +953,32 @@ async function execute(interaction) {
 }
 
 // ==========================================
-// QUANTITY MODAL
+// BUFF QUANTITY MODAL
 // ==========================================
 
 function buildQuantityModal(session) {
   const buffs = session.buffs;
 
   const modal = new ModalBuilder()
-    .setCustomId(`harvest:${session.id}:save`)
+    .setCustomId(
+      `harvest:${session.id}:save`
+    )
     .setTitle("Harvest Buff Quantities");
 
-  function addInput(id, label, value, placeholder) {
+  function addInput(
+    id,
+    label,
+    value,
+    placeholder
+  ) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(id)
           .setLabel(label)
-          .setStyle(TextInputStyle.Short)
+          .setStyle(
+            TextInputStyle.Short
+          )
           .setPlaceholder(placeholder)
           .setValue(String(value))
           .setRequired(true)
@@ -837,7 +1018,7 @@ function buildQuantityModal(session) {
 }
 
 // ==========================================
-// HANDLE BUTTONS, MENUS AND MODALS
+// HANDLE INTERACTIONS
 // ==========================================
 
 async function handleInteraction(interaction) {
@@ -845,9 +1026,13 @@ async function handleInteraction(interaction) {
     const [, sessionId, action] =
       interaction.customId.split(":");
 
-    const session = sessions.get(sessionId);
+    const session =
+      sessions.get(sessionId);
 
-    // Expired session
+    // ==========================================
+    // SESSION VALIDATION
+    // ==========================================
+
     if (
       !session ||
       session.expires < Date.now()
@@ -856,18 +1041,17 @@ async function handleInteraction(interaction) {
 
       return interaction.reply({
         content:
-          "This harvest session has expired. " +
-          "Use /harvest again.",
+          "This harvest session has expired. Use /harvest again.",
         ephemeral: true
       });
     }
 
-    // Only original command user can edit
-    if (interaction.user.id !== session.owner) {
+    if (
+      interaction.user.id !== session.owner
+    ) {
       return interaction.reply({
         content:
-          "Only the person who opened this " +
-          "calculator can modify its buffs.",
+          "Only the person who opened this calculator can modify it.",
         ephemeral: true
       });
     }
@@ -883,7 +1067,12 @@ async function handleInteraction(interaction) {
       action === "select" &&
       interaction.isStringSelectMenu()
     ) {
-      const selected = interaction.values;
+      const selected =
+        interaction.values.filter(
+          value => BUFFS.some(
+            buff => buff.id === value
+          )
+        );
 
       if (
         selected.includes("harvester") &&
@@ -911,7 +1100,8 @@ async function handleInteraction(interaction) {
       action === "quantity" &&
       interaction.isButton()
     ) {
-      const modal = buildQuantityModal(session);
+      const modal =
+        buildQuantityModal(session);
 
       if (!modal.components.length) {
         return interaction.reply({
@@ -921,7 +1111,9 @@ async function handleInteraction(interaction) {
         });
       }
 
-      return interaction.showModal(modal);
+      return interaction.showModal(
+        modal
+      );
     }
 
     // ==========================================
@@ -939,19 +1131,23 @@ async function handleInteraction(interaction) {
         "potions",
         "farmer"
       ]) {
-        if (!interaction.fields.fields.has(key)) {
+        if (
+          !interaction.fields.fields.has(key)
+        ) {
           continue;
         }
 
-        const raw = interaction.fields
-          .getTextInputValue(key)
-          .trim();
+        const raw =
+          interaction.fields
+            .getTextInputValue(key)
+            .trim();
 
         const value = Number(raw);
 
-        const max = key === "farmer"
-          ? 10
-          : MAX_TREES;
+        const max =
+          key === "farmer"
+            ? 10
+            : MAX_TREES;
 
         if (
           !/^\d+$/.test(raw) ||
@@ -970,7 +1166,10 @@ async function handleInteraction(interaction) {
         updates[key] = value;
       }
 
-      Object.assign(session.buffs, updates);
+      Object.assign(
+        session.buffs,
+        updates
+      );
 
       return interaction.update(
         buildPanel(session)
@@ -985,6 +1184,47 @@ async function handleInteraction(interaction) {
       action === "calculate" &&
       interaction.isButton()
     ) {
+      const buffs = session.buffs;
+
+      // Prevent calculating with empty fuel
+      if (
+        session.item.rarity < 100 &&
+        hasHarvester(buffs) &&
+        buffs.fuel === 0
+      ) {
+        return interaction.reply({
+          content:
+            "You selected a Harvester but entered 0 Fuel Packs. " +
+            "Use **Set Quantities** or remove the Harvester buff.",
+          ephemeral: true
+        });
+      }
+
+      // Prevent calculating with empty potions
+      if (
+        hasBuff(buffs, "xp") &&
+        buffs.potions === 0
+      ) {
+        return interaction.reply({
+          content:
+            "You selected Experience Potion but entered 0 potions. " +
+            "Use **Set Quantities** or remove the potion buff.",
+          ephemeral: true
+        });
+      }
+
+      // Prevent calculating without a farmer level
+      if (
+        hasBuff(buffs, "farmer") &&
+        buffs.farmer === 0
+      ) {
+        return interaction.reply({
+          content:
+            "Please enter your Farmer Role level or remove the Farmer Role buff.",
+          ephemeral: true
+        });
+      }
+
       return interaction.update(
         buildPanel(session, true)
       );
@@ -1019,7 +1259,8 @@ async function handleInteraction(interaction) {
     }
 
     return interaction.reply({
-      content: "Unknown harvest action.",
+      content:
+        "Unknown harvest action.",
       ephemeral: true
     });
 
