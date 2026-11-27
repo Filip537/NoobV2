@@ -332,6 +332,7 @@ const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
 const music = require("./feature/music.js");
 const trade = require("./feature/trade.js");
+const snake = require("./feature/snake.js");
 const buildRoleFeature = require("./feature/buildrole");
 const cookingFeature = require("./feature/cooking.js");
 const setplanner = require("./feature/setplanner");
@@ -3797,6 +3798,21 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+  // GROWTOPIA SNAKES AND LADDERS
+
+if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "playsnake"
+) {
+    return snake.execute(interaction);
+}
+
+if (
+    interaction.isButton() &&
+    interaction.customId.startsWith("snake:")
+) {
+    return snake.handleInteraction(interaction);
+}
   // TRANSLATION COMMAND
 if (
     interaction.isAutocomplete() &&
