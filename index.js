@@ -4054,6 +4054,20 @@ async function handleTranslate(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+  // TRANSLATION COMMAND
+if (
+    interaction.isAutocomplete() &&
+    interaction.commandName === "translate"
+) {
+    return handleTranslateAutocomplete(interaction);
+}
+
+if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "translate"
+) {
+    return handleTranslate(interaction);
+}
      if (await startopia.handleInteraction(interaction)) {
     return;
 }
