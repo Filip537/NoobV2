@@ -3451,6 +3451,10 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+    // HARVEST BUFF CONFIGURATION
+  if (interaction.customId?.startsWith("harvest:")) {
+    return harvest.handleInteraction(interaction);
+  }
     // GROWTOPIA HARVEST CALCULATOR
   if (interaction.commandName === "harvest") {
     if (interaction.isAutocomplete()) {
