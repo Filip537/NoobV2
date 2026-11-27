@@ -102,12 +102,36 @@ const COOKING_ITEM_IMAGES = {
 };
 
 // ==========================================
-// INVENTORY SETTINGS
+// INVENTORY CONFIGURATION
 // ==========================================
 
 const BASE_EXTRA_SLOT_COST = 100;
 const SLOTS_PER_PAGE = 11;
 const SLOTS_PER_UPGRADE = 11;
+
+const MYSTAT_CONFIG = {
+  width: 1600,
+  height: 800,
+
+  columns: 5,
+  rows: 5,
+
+  slotSize: 142,
+  slotGap: 9,
+
+  inventoryX: 810,
+  inventoryY: 27,
+
+  characterCenterX: 390,
+  characterY: 245,
+  characterScale: 16,
+
+  background: "#000000"
+};
+
+// ==========================================
+// FONT
+// ==========================================
 
 try {
   if (fs.existsSync(fontPath)) {
@@ -117,7 +141,7 @@ try {
     );
   }
 } catch (error) {
-  console.log(
+  console.error(
     "[INVENTORY] Font error:",
     error.message
   );
@@ -172,11 +196,15 @@ function getNextUpgradeCost(data) {
     data.extraBackpackLevel || 0
   );
 
-  return BASE_EXTRA_SLOT_COST +
-    upgradeLevel * 100;
+  return (
+    BASE_EXTRA_SLOT_COST +
+    upgradeLevel * 100
+  );
 }
 
 function drawAmount(ctx, amount, x, y) {
+  ctx.save();
+
   ctx.font = '30px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
   ctx.lineWidth = 5;
@@ -184,6 +212,8 @@ function drawAmount(ctx, amount, x, y) {
 
   ctx.strokeText(String(amount), x, y);
   ctx.fillText(String(amount), x, y);
+
+  ctx.restore();
 }
 
 async function safeLoadImage(imagePath) {
@@ -199,10 +229,233 @@ async function safeLoadImage(imagePath) {
 }
 
 // ==========================================
+// PIXEL RECTANGLE
+// ==========================================
+
+function pixelRect(
+  ctx,
+  x,
+  y,
+  width,
+  height,
+  color
+) {
+  ctx.fillStyle = color;
+
+  ctx.fillRect(
+    Math.round(x),
+    Math.round(y),
+    Math.round(width),
+    Math.round(height)
+  );
+}
+
+// ==========================================
+// PIXEL BEVEL SHAPE
+// ==========================================
+
+function pixelShape(
+  ctx,
+  x,
+  y,
+  width,
+  height,
+  cut,
+  color
+) {
+  ctx.fillStyle = color;
+
+  ctx.beginPath();
+
+  ctx.moveTo(x + cut, y);
+
+  ctx.lineTo(
+    x + width - cut,
+    y
+  );
+
+  ctx.lineTo(
+    x + width - cut,
+    y + cut / 2
+  );
+
+  ctx.lineTo(
+    x + width,
+    y + cut / 2
+  );
+
+  ctx.lineTo(
+    x + width,
+    y + height - cut / 2
+  );
+
+  ctx.lineTo(
+    x + width - cut,
+    y + height - cut / 2
+  );
+
+  ctx.lineTo(
+    x + width - cut,
+    y + height
+  );
+
+  ctx.lineTo(
+    x + cut,
+    y + height
+  );
+
+  ctx.lineTo(
+    x + cut,
+    y + height - cut / 2
+  );
+
+  ctx.lineTo(
+    x,
+    y + height - cut / 2
+  );
+
+  ctx.lineTo(
+    x,
+    y + cut / 2
+  );
+
+  ctx.lineTo(
+    x + cut,
+    y + cut / 2
+  );
+
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ==========================================
+// GROWTOPIA INVENTORY SLOT
+// ==========================================
+
+function drawInventorySlot(
+  ctx,
+  x,
+  y,
+  size
+) {
+  ctx.save();
+
+  // Outer white border
+
+  pixelShape(
+    ctx,
+    x,
+    y,
+    size,
+    size,
+    12,
+    "#f5fbff"
+  );
+
+  // Subtle grey border
+
+  pixelShape(
+    ctx,
+    x + 7,
+    y + 7,
+    size - 14,
+    size - 14,
+    8,
+    "#b5d1dd"
+  );
+
+  // Inner dark blue bevel
+
+  pixelShape(
+    ctx,
+    x + 12,
+    y + 12,
+    size - 24,
+    size - 24,
+    6,
+    "#477f98"
+  );
+
+  // Dark inset
+
+  pixelShape(
+    ctx,
+    x + 17,
+    y + 17,
+    size - 34,
+    size - 34,
+    5,
+    "#092d3d"
+  );
+
+  // Main blue interior
+
+  pixelShape(
+    ctx,
+    x + 23,
+    y + 23,
+    size - 46,
+    size - 46,
+    4,
+    "#183b49"
+  );
+
+  // Top inner shadow
+
+  pixelRect(
+    ctx,
+    x + 23,
+    y + 18,
+    size - 46,
+    7,
+    "#0c2633"
+  );
+
+  // Left inner shadow
+
+  pixelRect(
+    ctx,
+    x + 18,
+    y + 25,
+    7,
+    size - 50,
+    "#102c3a"
+  );
+
+  // Bottom highlight
+
+  pixelRect(
+    ctx,
+    x + 23,
+    y + size - 23,
+    size - 46,
+    6,
+    "#3c7c98"
+  );
+
+  // Right highlight
+
+  pixelRect(
+    ctx,
+    x + size - 23,
+    y + 25,
+    6,
+    size - 50,
+    "#326b84"
+  );
+
+  ctx.restore();
+}
+
+// ==========================================
 // INVENTORY BUTTONS
 // ==========================================
 
-function buildButtons(userId, page, data) {
+function buildButtons(
+  userId,
+  page,
+  data
+) {
   const totalSlots = getTotalSlots(data);
 
   const maxPage = Math.max(
@@ -248,11 +501,12 @@ function buildButtons(userId, page, data) {
 function getAllInventoryItems(data) {
   const items = [];
 
-  const totalWl = data.wl || 0;
+  const totalWl = Number(data.wl || 0);
+
   const dl = Math.floor(totalWl / 100);
   const wl = totalWl % 100;
 
-  // DIAMOND LOCKS
+  // Diamond Locks
 
   if (dl > 0) {
     items.push({
@@ -262,7 +516,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // WORLD LOCKS
+  // World Locks
 
   if (wl > 0) {
     items.push({
@@ -272,7 +526,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // FISHING ROD
+  // Fishing Rod
 
   if ((data.items?.fishingRod || 0) > 0) {
     items.push({
@@ -282,7 +536,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // WIGGLY WORM
+  // Wiggly Worm
 
   if ((data.items?.wigglyWorm || 0) > 0) {
     items.push({
@@ -292,7 +546,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // COOKING INGREDIENTS
+  // Cooking Items
 
   for (
     const [key, file] of Object.entries(
@@ -307,15 +561,17 @@ function getAllInventoryItems(data) {
 
     items.push({
       type: "image",
+
       imagePath: path.join(
         cookingFolder,
         file
       ),
+
       amount
     });
   }
 
-  // FISHING BACKPACK
+  // Fishing Items
 
   const fishes = Array.isArray(
     data.fishBackpack
@@ -346,94 +602,17 @@ function getAllInventoryItems(data) {
   ) {
     items.push({
       type: "image",
+
       imagePath: path.join(
         fishFolder,
         file
       ),
+
       amount
     });
   }
 
   return items;
-}
-
-// ==========================================
-// GENERATED INVENTORY SLOT
-// ==========================================
-
-function drawInventorySlot(ctx, x, y, size) {
-  // Dark outer border
-
-  ctx.fillStyle = "#092f3e";
-  ctx.fillRect(x, y, size, size);
-
-  // Bright cyan border
-
-  ctx.fillStyle = "#91d9ec";
-  ctx.fillRect(
-    x + 3,
-    y + 3,
-    size - 6,
-    size - 6
-  );
-
-  // Inner bevel
-
-  ctx.fillStyle = "#397e94";
-  ctx.fillRect(
-    x + 7,
-    y + 7,
-    size - 14,
-    size - 14
-  );
-
-  // Empty slot background
-
-  ctx.fillStyle = "#23596e";
-  ctx.fillRect(
-    x + 11,
-    y + 11,
-    size - 22,
-    size - 22
-  );
-
-  // Top shadow
-
-  ctx.fillStyle = "#153e50";
-  ctx.fillRect(
-    x + 11,
-    y + 11,
-    size - 22,
-    6
-  );
-
-  // Left shadow
-
-  ctx.fillRect(
-    x + 11,
-    y + 11,
-    6,
-    size - 22
-  );
-
-  // Bottom highlight
-
-  ctx.fillStyle = "#38768a";
-  ctx.fillRect(
-    x + 11,
-    y + size - 17,
-    size - 22,
-    6
-  );
-
-  // Right highlight
-
-  ctx.fillRect(
-    x + size - 17,
-    y + 11,
-    6,
-    size - 22
-  );
 }
 
 // ==========================================
@@ -461,6 +640,7 @@ async function createInventoryCard(
   );
 
   ctx.fillStyle = "#000000";
+
   ctx.fillRect(
     0,
     0,
@@ -474,7 +654,7 @@ async function createInventoryCard(
     14
   ).toUpperCase();
 
-  // USERNAME
+  // Username
 
   ctx.font = '58px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
@@ -485,7 +665,7 @@ async function createInventoryCard(
     70
   );
 
-  // BACKPACK SLOTS
+  // Backpack Slots
 
   ctx.font = '40px "Grobold", Arial';
 
@@ -495,7 +675,7 @@ async function createInventoryCard(
     124
   );
 
-  // PAGE
+  // Page
 
   ctx.font = '28px "Grobold", Arial';
 
@@ -505,7 +685,7 @@ async function createInventoryCard(
     124
   );
 
-  // INVENTORY BACKGROUND
+  // Inventory Background
 
   ctx.fillStyle = "#8edbf0";
   ctx.fillRect(0, 162, 900, 350);
@@ -521,30 +701,27 @@ async function createInventoryCard(
   const gap = 7;
   const startX = 76;
 
-  const row1Y = 230;
-  const row2Y = 350;
-
   const slots = [];
 
-  // FIRST ROW
+  // First Row
 
   for (let i = 0; i < 6; i++) {
     slots.push({
       x: startX + i * (slotSize + gap),
-      y: row1Y
+      y: 230
     });
   }
 
-  // SECOND ROW
+  // Second Row
 
   for (let i = 0; i < 5; i++) {
     slots.push({
       x: startX + i * (slotSize + gap),
-      y: row2Y
+      y: 350
     });
   }
 
-  // DRAW SLOTS
+  // Draw Inventory Slots
 
   for (const slot of slots) {
     if (itemBox) {
@@ -565,7 +742,7 @@ async function createInventoryCard(
     }
   }
 
-  // DRAW ITEMS
+  // Draw Items
 
   const allItems = getAllInventoryItems(
     data
@@ -631,6 +808,7 @@ async function sendInventory(
       displayName:
         targetUser.globalName ||
         targetUser.username,
+
       user: targetUser
     };
 
@@ -736,262 +914,292 @@ async function executeInventory(interaction) {
 }
 
 // ==========================================
-// PIXEL ART DRAWING HELPER
-// ==========================================
-
-function drawPixelArt(
-  ctx,
-  sprite,
-  palette,
-  x,
-  y,
-  scale = 5
-) {
-  ctx.imageSmoothingEnabled = false;
-
-  for (
-    let row = 0;
-    row < sprite.length;
-    row++
-  ) {
-    for (
-      let col = 0;
-      col < sprite[row].length;
-      col++
-    ) {
-      const pixel = sprite[row][col];
-
-      if (
-        pixel === "." ||
-        !palette[pixel]
-      ) {
-        continue;
-      }
-
-      ctx.fillStyle = palette[pixel];
-
-      ctx.fillRect(
-        x + col * scale,
-        y + row * scale,
-        scale,
-        scale
-      );
-    }
-  }
-}
-
-// ==========================================
-// GENERATED GROWTOPIA STYLE CHARACTER
+// GROWTOPIA CHARACTER
+// PROGRAMMATIC PIXEL ART
 // ==========================================
 
 function drawGrowtopiaCharacter(
   ctx,
   centerX,
-  bottomY,
-  scale = 6
+  startY,
+  scale = 16
 ) {
-  const palette = {
-    X: "#38261d",
-    H: "#693e23",
-    L: "#a66a36",
-    D: "#482d20",
+  ctx.save();
 
-    S: "#f0ad70",
-    A: "#ffd59c",
-    T: "#cb8050",
+  ctx.imageSmoothingEnabled = false;
 
-    W: "#ffffff",
-    E: "#252525",
+  const spriteWidth = 23;
 
-    G: "#79b448",
-    F: "#a2d568",
-    R: "#477d2d",
+  const startX = Math.round(
+    centerX - spriteWidth * scale / 2
+  );
 
-    B: "#496b9d",
-    C: "#304a78",
-
-    K: "#302b2b",
-    J: "#60514a"
+  const colors = {
+    base: "#a17b6a",
+    shadow: "#896758",
+    deepShadow: "#765547",
+    light: "#b48975",
+    highlight: "#c09580",
+    body: "#bd907c",
+    bodyLight: "#c99c88",
+    bodyShadow: "#a77d69",
+    eyeWhite: "#f7f5f2",
+    eyeGrey: "#e1dfdc",
+    pupil: "#0e0c0b",
+    mouth: "#664639"
   };
 
-  const sprite = [
-    ".......XXXXXX.......",
-    ".....XXHHHHHHXX.....",
-    "....XHLLLLHHHHHX....",
-    "...XHLLLHHHHDDDDX...",
-    "...XHHHHHHHDDDDDX...",
-    "...XHHHXXXXXXXDDX...",
-    "...XHHXAAAAAAAXHX...",
-    "...XHXAAAAAAAASXX...",
-    "...XXAAWWAAWWASXX...",
-    "...XAAAWEAAWEAASX...",
-    "...XAAAAAAAAAAASX...",
-    "...XAAAATTTAAAASX...",
-    "....XAAATXXTAASX....",
-    ".....XSSSSSSSXX.....",
-    "......XXXXXXX.......",
-    ".......XASX.........",
-    ".....XXGGGGXX.......",
-    "....XFFGGGGGRX......",
-    "...XASXGGGGRXASX....",
-    "...XSSXGGGGRXSSX....",
-    "...XSSXGGGGRXSSX....",
-    "....XXGGGGGRXX......",
-    ".....XGGGGRX........",
-    ".....XBBBBBX........",
-    ".....XBBCBBX........",
-    ".....XBCXCBX........",
-    ".....XBC.XBX........",
-    "....XKKX.XKKX.......",
-    "...XJJJX.XJJJX......",
-    "...XXXXX.XXXXX......"
-  ];
+  function rect(x, y, w, h, color) {
+    pixelRect(
+      ctx,
+      startX + x * scale,
+      startY + y * scale,
+      w * scale,
+      h * scale,
+      color
+    );
+  }
 
-  const width = Math.max(
-    ...sprite.map(row => row.length)
-  ) * scale;
+  // ======================================
+  // HEAD SILHOUETTE
+  // ======================================
 
-  const height = sprite.length * scale;
+  rect(3, 0, 17, 1, colors.base);
+  rect(2, 1, 19, 1, colors.base);
+  rect(1, 2, 21, 13, colors.base);
+  rect(2, 15, 19, 1, colors.base);
+  rect(4, 16, 15, 1, colors.base);
 
-  drawPixelArt(
-    ctx,
-    sprite,
-    palette,
-    Math.round(centerX - width / 2),
-    Math.round(bottomY - height),
-    scale
-  );
+  // Head Highlights
+
+  rect(3, 1, 16, 1, colors.light);
+  rect(2, 2, 9, 1, colors.light);
+  rect(3, 3, 5, 1, colors.highlight);
+  rect(13, 2, 2, 1, colors.light);
+  rect(17, 2, 1, 1, colors.light);
+
+  // Head Shadows
+
+  rect(21, 3, 1, 11, colors.shadow);
+  rect(20, 5, 1, 9, colors.shadow);
+  rect(19, 4, 2, 1, colors.shadow);
+  rect(19, 7, 1, 1, colors.shadow);
+  rect(19, 10, 2, 1, colors.shadow);
+
+  rect(1, 10, 1, 4, colors.shadow);
+  rect(2, 15, 3, 1, colors.shadow);
+  rect(5, 16, 13, 1, colors.shadow);
+
+  // ======================================
+  // BROWS
+  // ======================================
+
+  rect(1, 4, 5, 1, colors.light);
+  rect(2, 5, 5, 1, colors.light);
+
+  rect(10, 4, 5, 1, colors.light);
+  rect(9, 5, 6, 1, colors.light);
+
+  // ======================================
+  // LEFT EYE
+  // ======================================
+
+  rect(1, 6, 7, 2, colors.eyeWhite);
+  rect(2, 8, 5, 1, colors.eyeGrey);
+
+  // Pupil looking left
+
+  rect(2, 6, 2, 2, colors.pupil);
+
+  // ======================================
+  // RIGHT EYE
+  // ======================================
+
+  rect(9, 6, 7, 2, colors.eyeWhite);
+  rect(10, 8, 5, 1, colors.eyeGrey);
+
+  rect(10, 6, 2, 2, colors.pupil);
+
+  // ======================================
+  // NOSE
+  // ======================================
+
+  rect(8, 8, 1, 1, colors.light);
+  rect(7, 9, 2, 1, colors.light);
+
+  rect(6, 10, 5, 1, colors.shadow);
+
+  // ======================================
+  // SMIRK
+  // ======================================
+
+  rect(6, 13, 7, 1, colors.mouth);
+  rect(13, 12, 1, 1, colors.mouth);
+
+  // ======================================
+  // NECK
+  // ======================================
+
+  rect(7, 17, 9, 2, colors.shadow);
+  rect(8, 17, 7, 2, colors.base);
+
+  // ======================================
+  // BODY
+  // ======================================
+
+  rect(5, 19, 13, 1, colors.base);
+  rect(4, 20, 15, 1, colors.base);
+  rect(3, 21, 17, 6, colors.base);
+
+  // Front torso
+
+  rect(6, 20, 11, 1, colors.body);
+  rect(6, 21, 11, 4, colors.body);
+  rect(5, 25, 13, 2, colors.body);
+  rect(5, 27, 13, 2, colors.body);
+
+  // Torso highlights
+
+  rect(7, 21, 9, 3, colors.bodyLight);
+  rect(5, 25, 12, 1, colors.bodyLight);
+
+  // Shoulder details
+
+  rect(6, 18, 1, 3, colors.light);
+  rect(16, 18, 1, 3, colors.light);
+
+  // Torso Shadows
+
+  rect(17, 22, 1, 3, colors.bodyShadow);
+  rect(5, 26, 1, 2, colors.bodyShadow);
+
+  // ======================================
+  // LEFT ARM
+  // ======================================
+
+  rect(3, 20, 2, 1, colors.base);
+  rect(2, 21, 3, 5, colors.base);
+  rect(1, 26, 3, 3, colors.base);
+
+  rect(2, 22, 1, 3, colors.light);
+  rect(1, 27, 1, 1, colors.shadow);
+
+  rect(2, 29, 2, 1, colors.shadow);
+
+  // ======================================
+  // RIGHT ARM
+  // ======================================
+
+  rect(18, 20, 2, 1, colors.base);
+  rect(18, 21, 3, 5, colors.base);
+  rect(19, 26, 3, 3, colors.base);
+
+  rect(19, 22, 1, 3, colors.light);
+  rect(21, 27, 1, 1, colors.shadow);
+
+  rect(19, 29, 2, 1, colors.shadow);
+
+  // ======================================
+  // LEGS
+  // ======================================
+
+  // Left Leg
+
+  rect(5, 28, 5, 2, colors.body);
+  rect(5, 30, 4, 3, colors.base);
+  rect(4, 33, 5, 1, colors.base);
+
+  rect(5, 30, 1, 2, colors.light);
+
+  // Left Foot
+
+  rect(3, 33, 6, 2, colors.base);
+  rect(3, 34, 6, 1, colors.shadow);
+
+  rect(4, 33, 3, 1, colors.light);
+
+  // Right Leg
+
+  rect(13, 28, 5, 2, colors.body);
+  rect(14, 30, 4, 3, colors.base);
+  rect(14, 33, 5, 1, colors.base);
+
+  rect(17, 30, 1, 2, colors.shadow);
+
+  // Right Foot
+
+  rect(13, 33, 6, 2, colors.base);
+  rect(13, 34, 6, 1, colors.shadow);
+
+  rect(14, 33, 3, 1, colors.light);
+
+  ctx.restore();
 }
 
 // ==========================================
-// GENERATED GRASS BLOCK
+// DRAW DISCORD USERNAME
 // ==========================================
 
-function drawGrassBlock(ctx, x, y, size) {
-  const scale = size / 16;
+function drawMyStatUsername(
+  ctx,
+  username,
+  centerX
+) {
+  ctx.save();
 
-  const palette = {
-    X: "#39291b",
+  const name = String(
+    username || "discord_user"
+  ).slice(0, 32);
 
-    G: "#488d25",
-    L: "#80ca40",
-    H: "#a5e45a",
-    D: "#326b1e",
+  let fontSize = 72;
 
-    B: "#855126",
-    C: "#a56c35",
-    E: "#69411f",
-    F: "#bd8248",
-    R: "#50331c"
-  };
+  const maxWidth = 720;
 
-  const sprite = [
-    "XXXXXXXXXXXXXXXX",
-    "XHHHLHHHLLHHHHLX",
-    "XLLLLGLLGLLLLGLX",
-    "XGGGGGGGGGGGGGGX",
-    "XDDGDDGGDDGDDDGX",
-    "XBBDBBDDBBDBBDBX",
-    "XBCCBBFCCBBCCBBX",
-    "XCBBEBBBCBBEBBCX",
-    "XBBBBCCBBBBCCBBX",
-    "XBEFBBBBEBBBBBBX",
-    "XBBBBEBCBBBFBBBX",
-    "XBCCBBBBBBCBBEBX",
-    "XBBBBRBBEBBBBBBX",
-    "XEBBBBBBBBBBCCBX",
-    "XRRERERRERERRERX",
-    "XXXXXXXXXXXXXXXX"
-  ];
+  ctx.font =
+    `bold ${fontSize}px Arial`;
 
-  drawPixelArt(
-    ctx,
-    sprite,
-    palette,
-    x,
-    y,
-    scale
+  while (
+    ctx.measureText(name).width > maxWidth &&
+    fontSize > 24
+  ) {
+    fontSize -= 2;
+
+    ctx.font =
+      `bold ${fontSize}px Arial`;
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#ffffff";
+
+  ctx.fillText(
+    name,
+    centerX,
+    150
   );
+
+  ctx.restore();
 }
 
 // ==========================================
-// GENERATED GROWTOPIA BACKPACK PANEL
+// DRAW 5X5 EMPTY BACKPACK
 // ==========================================
 
-function drawMyStatBackpack(ctx, canvasWidth) {
-  const columns = 6;
-  const rows = 4;
+function drawMyStatBackpack(ctx) {
+  const {
+    columns,
+    rows,
+    slotSize,
+    slotGap,
+    inventoryX,
+    inventoryY
+  } = MYSTAT_CONFIG;
 
-  const slotSize = 126;
-  const gap = 6;
-
-  const gridWidth =
-    columns * slotSize +
-    (columns - 1) * gap;
-
-  const gridHeight =
-    rows * slotSize +
-    (rows - 1) * gap;
-
-  const padding = 15;
-
-  const panelWidth =
-    gridWidth + padding * 2;
-
-  const panelHeight =
-    gridHeight + padding * 2;
-
-  const panelX = Math.round(
-    (canvasWidth - panelWidth) / 2
-  );
-
-  const panelY = 325;
-
-  // OUTER BORDER
-
-  ctx.fillStyle = "#0a2834";
-
-  ctx.fillRect(
-    panelX - 4,
-    panelY - 4,
-    panelWidth + 8,
-    panelHeight + 8
-  );
-
-  // CYAN FRAME
-
-  ctx.fillStyle = "#a0dce9";
-
-  ctx.fillRect(
-    panelX,
-    panelY,
-    panelWidth,
-    panelHeight
-  );
-
-  // DARK INNER FRAME
-
-  ctx.fillStyle = "#377b90";
-
-  ctx.fillRect(
-    panelX + 5,
-    panelY + 5,
-    panelWidth - 10,
-    panelHeight - 10
-  );
-
-  // BACKPACK BACKGROUND
-
-  ctx.fillStyle = "#153f50";
-
-  ctx.fillRect(
-    panelX + 10,
-    panelY + 10,
-    panelWidth - 20,
-    panelHeight - 20
-  );
-
-  // DRAW ALL 24 EMPTY SLOTS
+  // No surrounding background.
+  // No equipment bar.
+  // No scrollbar.
+  // Individual squares only.
 
   for (let row = 0; row < rows; row++) {
     for (
@@ -1000,14 +1208,12 @@ function drawMyStatBackpack(ctx, canvasWidth) {
       col++
     ) {
       const x =
-        panelX +
-        padding +
-        col * (slotSize + gap);
+        inventoryX +
+        col * (slotSize + slotGap);
 
       const y =
-        panelY +
-        padding +
-        row * (slotSize + gap);
+        inventoryY +
+        row * (slotSize + slotGap);
 
       drawInventorySlot(
         ctx,
@@ -1020,23 +1226,25 @@ function drawMyStatBackpack(ctx, canvasWidth) {
 }
 
 // ==========================================
-// /MYSTAT CANVAS
-// NO EXTERNAL IMAGE REQUIRED
+// NEW /MYSTAT CANVAS
 // ==========================================
 
-async function createMyStatCard() {
+async function createMyStatCard(user) {
   const canvas = createCanvas(
-    900,
-    900
+    MYSTAT_CONFIG.width,
+    MYSTAT_CONFIG.height
   );
 
   const ctx = canvas.getContext("2d");
 
   ctx.imageSmoothingEnabled = false;
 
+  // ======================================
   // BLACK BACKGROUND
+  // ======================================
 
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle =
+    MYSTAT_CONFIG.background;
 
   ctx.fillRect(
     0,
@@ -1045,35 +1253,36 @@ async function createMyStatCard() {
     canvas.height
   );
 
-  const centerX = canvas.width / 2;
+  // ======================================
+  // USERNAME ABOVE CHARACTER
+  // ======================================
 
-  // CHARACTER PLATFORM
-
-  const blockSize = 96;
-  const blockY = 205;
-
-  drawGrassBlock(
+  drawMyStatUsername(
     ctx,
-    centerX - blockSize / 2,
-    blockY,
-    blockSize
+    user.username,
+    MYSTAT_CONFIG.characterCenterX
   );
 
-  // GROWTOPIA STYLE CHARACTER
+  // ======================================
+  // CHARACTER ON LEFT
+  // ======================================
 
   drawGrowtopiaCharacter(
     ctx,
-    centerX,
-    blockY,
-    6
+    MYSTAT_CONFIG.characterCenterX,
+    MYSTAT_CONFIG.characterY,
+    MYSTAT_CONFIG.characterScale - 2
   );
 
-  // EMPTY BACKPACK
+  // ======================================
+  // 25 EMPTY BACKPACK SLOTS ON RIGHT
+  // ======================================
 
-  drawMyStatBackpack(
-    ctx,
-    canvas.width
-  );
+  drawMyStatBackpack(ctx);
+
+  // ======================================
+  // RETURN GENERATED PNG
+  // ======================================
 
   return canvas.encode("png");
 }
@@ -1086,10 +1295,9 @@ async function executeMyStat(interaction) {
   await interaction.deferReply();
 
   try {
-    // Generate everything using Canvas.
-    // No mystat.png template required.
-
-    const image = await createMyStatCard();
+    const image = await createMyStatCard(
+      interaction.user
+    );
 
     const attachment = new AttachmentBuilder(
       image,
@@ -1097,6 +1305,9 @@ async function executeMyStat(interaction) {
         name: "mystat.png"
       }
     );
+
+    // Public image.
+    // No buttons or extra messages.
 
     return await interaction.editReply({
       files: [attachment]
@@ -1140,6 +1351,8 @@ async function handleButton(interaction) {
     parts[3] || 1
   );
 
+  // Owner-only button protection
+
   if (interaction.user.id !== ownerId) {
     await interaction.reply({
       content:
@@ -1172,7 +1385,9 @@ async function handleButton(interaction) {
       data.fishBackpack = [];
     }
 
+    // ======================================
     // NEXT PAGE
+    // ======================================
 
     if (action === "next") {
       await interaction.deferUpdate();
@@ -1203,7 +1418,9 @@ async function handleButton(interaction) {
       return true;
     }
 
+    // ======================================
     // PREVIOUS PAGE
+    // ======================================
 
     if (action === "prev") {
       await interaction.deferUpdate();
@@ -1223,7 +1440,9 @@ async function handleButton(interaction) {
       return true;
     }
 
-    // UPGRADE BACKPACK
+    // ======================================
+    // BUY BACKPACK UPGRADE
+    // ======================================
 
     if (action === "buy") {
       const cost = getNextUpgradeCost(
