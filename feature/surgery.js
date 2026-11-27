@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const cheerio = require("cheerio");
 const { randomUUID } = require("crypto");
-
+const gameStats = require("./gameStats.js");
 // ==========================================
 // CONFIGURATION
 // ==========================================
@@ -1399,9 +1399,18 @@ function canUse(p, tool) {
 // ==========================================
 
 function finish(p, success, reason) {
-  p.finished = true;
-  p.success = success;
-  p.feedback = reason;
+    if (p.finished) return;
+
+    p.finished = true;
+    p.success = success;
+    p.feedback = reason;
+
+    if (success) {
+        gameStats.addWin(
+            p.userId,
+            "surgery"
+        );
+    }
 }
 
 function checkResult(p) {
