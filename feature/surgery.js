@@ -981,9 +981,7 @@ function createPatient(
 
     type: diagnosis.type || "operation",
 
-    diagnosed:
-      Boolean(record || diagnosis.known),
-
+    diagnosed: Boolean(diagnosis.known),
     conditionRevealed: false,
 
     ultrasound: false,
@@ -1449,24 +1447,24 @@ function checkResult(p) {
     );
   }
 
+    // Broken bones do not require Fix It.
   if (
     p.type === "bones" &&
-    p.diagnosed &&
+    p.ultrasound &&
     p.broken === 0 &&
     p.shattered === 0
   ) {
     p.fixed = true;
   }
 
-  if (
-    p.type === "flu" &&
-    p.lab &&
-    p.temp <= 100.4 &&
-    p.fever === 0
-  ) {
-    p.fixed = true;
+  // Flu does not require Fix It.
+  if (p.type === "flu") {
+    p.fixed =
+      p.lab &&
+      p.temp <= 100.4;
   }
 
+  // Automatically complete surgery.
   if (
     p.fixed &&
     p.incisions === 0 &&
@@ -2018,20 +2016,44 @@ function applyTool(p, tool) {
     // FIX IT
 
     case "fix":
-      if (
-        p.diagnosis === "Brainworms" &&
-        chance(0.25)
-      ) {
-        p.feedback =
-          "The brainworms escaped!";
-      } else {
-        p.fixed = true;
+  if (
+    p.diagnosis === "Brainworms" &&
+    chance(0.25)
+  ) {
+    p.feedback = "The brainworms escaped!";
+  } else {
+    p.fixed = true;
 
-        p.feedback =
-          "You resolved the diagnosis!";
-      }
+    const remaining = [];
 
-      break;
+    if (p.incisions > 0) {
+      remaining.push("Close remaining incisions.");
+    }
+
+    if (p.broken > 0 || p.shattered > 0) {
+      remaining.push("Repair remaining bones.");
+    }
+
+    if (totalBleeding(p) > 0) {
+      remaining.push("Stop the bleeding.");
+    }
+
+    if (p.temp > 100.4) {
+      remaining.push("Reduce the patient's fever.");
+    }
+
+    if (p.heartStopped) {
+      remaining.push("Restart the patient's heart.");
+    }
+
+    p.feedback = "You resolved the diagnosis!";
+
+    if (remaining.length > 0) {
+      p.feedback += "\n" + remaining.join("\n");
+    }
+  }
+
+  break;
   }
 
   unlockFix(p);
@@ -2280,15 +2302,15 @@ function surgerySVG(p) {
 
   y += 40;
 
+  if (p.ultrasound) {
   status(
     "Bones",
-    p.ultrasound
-      ? `${p.broken} broken, ${p.shattered} shattered`
-      : "Unknown",
+    `${p.broken} broken, ${p.shattered} shattered`,
     bonesColor(p)
   );
 
   y += 40;
+}
 
   // ONLY DISPLAY BLEEDING IF BLEEDING EXISTS
 
@@ -2317,18 +2339,6 @@ function surgerySVG(p) {
     paragraph(
       feverStatus(p),
       feverColor(p)
-    );
-  }
-
-  // SPECIAL CONDITIONS
-
-  if (
-    p.condition &&
-    p.conditionRevealed
-  ) {
-    paragraph(
-      `Condition: ${p.condition}`,
-      COLORS.yellow
     );
   }
 
@@ -2552,15 +2562,14 @@ function buildEmbed(p) {
 
     `${statusEmoji(sanitationColor(p))} **Operation site:** ${sanitation(p)}`,
 
-    `**Incisions:** ${p.incisions}`,
-
-    `${statusEmoji(bonesColor(p))} **Bones:** ${
-      p.ultrasound
-        ? `${p.broken} broken, ${p.shattered} shattered`
-        : "Unknown"
-    }`
+    `**Incisions:** ${p.incisions}`
   ];
 
+  if (p.ultrasound) {
+    rows.push(
+      `${statusEmoji(bonesColor(p))} **Bones:** ${p.broken} broken, ${p.shattered} shattered`
+    );
+  }
   if (totalBleeding(p) > 0) {
     rows.push(
       `${statusEmoji(bleedingColor(p))} ${bleedingStatus(p)}`
@@ -2579,15 +2588,6 @@ function buildEmbed(p) {
   ) {
     rows.push(
       `${statusEmoji(feverColor(p))} ${feverStatus(p)}`
-    );
-  }
-
-  if (
-    p.condition &&
-    p.conditionRevealed
-  ) {
-    rows.push(
-      `${STATUS.yellow} **Condition:** ${p.condition}`
     );
   }
 
