@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 
 const { createCanvas, loadImage } = require("canvas");
-
+const gameStats = require("./gameStats.js");
 // ==========================================
 // CONFIGURATION
 // ==========================================
@@ -266,8 +266,10 @@ function random(min, max) {
 
 function getProgress(userId) {
     if (!progress.has(userId)) {
+        const saved = gameStats.getUserStats(userId);
+
         progress.set(userId, {
-            completed: 0,
+            completed: Number(saved.startopia || 0),
             failed: 0
         });
     }
@@ -879,7 +881,9 @@ function useTool(game, key) {
         ) {
             game.status = "success";
 
-            getProgress(game.userId).completed++;
+if (gameStats.addWin(game.userId, "startopia")) {
+    getProgress(game.userId).completed++;
+}
 
             game.scanner = "Mission complete";
 
