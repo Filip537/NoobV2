@@ -1027,7 +1027,7 @@ function createPatient(
     finished: false,
     success: false,
     busy: false,
-
+winRecorded: false,
     imageFallback: false,
 
     createdAt: Date.now(),
@@ -1404,15 +1404,7 @@ function finish(p, success, reason) {
     p.finished = true;
     p.success = success;
     p.feedback = reason;
-
-    if (success) {
-        gameStats.addWin(
-            p.userId,
-            "surgery"
-        );
-    }
 }
-
 function checkResult(p) {
   if (p.finished) return;
 
@@ -3077,12 +3069,25 @@ async function handleButton(interaction) {
       cureCommitted = cureMalady(patient);
     }
 
-    // UPDATE SAME PUBLIC MESSAGE
+// UPDATE SAME PUBLIC MESSAGE
 
-    await updatePanel(
-      interaction,
-      patient
-    );
+await updatePanel(
+  interaction,
+  patient
+);
+
+// RECORD SUCCESSFUL SURGERY
+
+if (
+  patient.finished &&
+  patient.success &&
+  !patient.winRecorded
+) {
+  patient.winRecorded = gameStats.addWin(
+    patient.userId,
+    "surgery"
+  );
+}
 
   } catch (error) {
     // Roll back the game action unless the cure
