@@ -324,7 +324,7 @@ const {
   handleCrimeButton
 } = require("./feature/crime.js");
 const createpoll = require("./feature/createpoll.js");
-const harvest = require("./harvest.js");
+const harvest = require("./features/harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
