@@ -324,7 +324,7 @@ const {
   handleCrimeButton
 } = require("./feature/crime.js");
 const createpoll = require("./feature/createpoll.js");
-
+const harvest = require("./harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
@@ -3649,6 +3649,13 @@ const selected = shuffled.slice(0, 17);
 
   return;
 }
+
+  if (
+  interaction.isAutocomplete() &&
+  interaction.commandName === "harvest"
+) {
+  return harvest.autocomplete(interaction);
+}
   if (
     interaction.isChatInputCommand() &&
     interaction.commandName === "deletecategory"
@@ -3961,6 +3968,7 @@ if (
     ephemeral: true
   });
 }
+
   if (
   interaction.isChatInputCommand() &&
   interaction.commandName === "changeavar"
@@ -4782,6 +4790,9 @@ const embed = new EmbedBuilder()
     content: "✅ Unblacklist request submitted.",
     ephemeral: true
   });
+}
+  if (interaction.commandName === "harvest") {
+  return harvest.execute(interaction);
 }
 if (interaction.commandName === "howfurry") {
   const target =
