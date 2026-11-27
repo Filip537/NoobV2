@@ -6116,7 +6116,12 @@ if (interaction.commandName === "editwiki") {
  if (interaction.isChatInputCommand() && interaction.commandName === "inventory") {
   return inventoryFeature.executeInventory(interaction);
 }
-
+if (
+  interaction.isChatInputCommand() &&
+  interaction.commandName === "mystat"
+) {
+  return inventoryFeature.executeMyStat(interaction);
+}
 if (interaction.commandName === "tellstory") {
   const storyId = interaction.options.getString("story");
   const story = tellStories[storyId];
