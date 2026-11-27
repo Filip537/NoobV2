@@ -1,22 +1,42 @@
 const fs = require("fs");
 const path = require("path");
 const dev = require("./dev.js");
+
 const {
   AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle
 } = require("discord.js");
-const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
+
+const {
+  createCanvas,
+  loadImage,
+  GlobalFonts
+} = require("@napi-rs/canvas");
+
+// ==========================================
+// FILE PATHS
+// ==========================================
 
 const levelsFile = path.join(__dirname, "..", "levels.json");
 
 const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
 const wlPath = path.join(__dirname, "..", "images", "wl.png");
 const dlPath = path.join(__dirname, "..", "images", "dl.png");
-const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
+const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");
+const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
+
+const myStatPath = path.join(__dirname, "..", "images", "mystat.png");
+
 const fishFolder = path.join(__dirname, "..", "fish");
 const cookingFolder = path.join(__dirname, "..", "images", "cooking");
+
+const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
+
+// ==========================================
+// COOKING ITEMS
+// ==========================================
 
 const COOKING_ITEM_IMAGES = {
   apple: "Apple.webp",
@@ -59,7 +79,10 @@ const COOKING_ITEM_IMAGES = {
   waterBucket: "Water_Bucket.webp",
   chipsAndGuacamole: "Chips_And_Guacamole.webp"
 };
-const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
+
+// ==========================================
+// INVENTORY SETTINGS
+// ==========================================
 
 const BASE_EXTRA_SLOT_COST = 100;
 const SLOTS_PER_PAGE = 11;
@@ -71,33 +94,53 @@ try {
   console.log("Failed to load Grobold font:", err);
 }
 
-function loadLevels() {
-  if (!fs.existsSync(levelsFile)) fs.writeFileSync(levelsFile, "{}");
+// ==========================================
+// DATABASE
+// ==========================================
 
-  try {
-    return JSON.parse(fs.readFileSync(levelsFile, "utf8"));
-  } catch {
+function loadLevels() {
+  if (!fs.existsSync(levelsFile)) {
     fs.writeFileSync(levelsFile, "{}");
-    return {};
   }
+
+  return JSON.parse(
+    fs.readFileSync(levelsFile, "utf8")
+  );
 }
 
 function saveLevels(data) {
-  fs.writeFileSync(levelsFile, JSON.stringify(data, null, 2));
+  fs.writeFileSync(
+    levelsFile,
+    JSON.stringify(data, null, 2)
+  );
 }
+
+// ==========================================
+// HELPERS
+// ==========================================
 
 function shorten(text, max = 14) {
   if (!text) return "USER";
-  return text.length > max ? text.slice(0, max - 2) + ".." : text;
+
+  return text.length > max
+    ? text.slice(0, max - 2) + ".."
+    : text;
 }
 
 function getTotalSlots(data) {
-  const upgradeLevel = Number(data.extraBackpackLevel || 0);
-  return SLOTS_PER_PAGE + upgradeLevel * SLOTS_PER_UPGRADE;
+  const upgradeLevel = Number(
+    data.extraBackpackLevel || 0
+  );
+
+  return SLOTS_PER_PAGE +
+    upgradeLevel * SLOTS_PER_UPGRADE;
 }
 
 function getNextUpgradeCost(data) {
-  const upgradeLevel = Number(data.extraBackpackLevel || 0);
+  const upgradeLevel = Number(
+    data.extraBackpackLevel || 0
+  );
+
   return BASE_EXTRA_SLOT_COST + upgradeLevel * 100;
 }
 
@@ -106,13 +149,31 @@ function drawAmount(ctx, amount, x, y) {
   ctx.fillStyle = "#ffffff";
   ctx.lineWidth = 5;
   ctx.strokeStyle = "#5f5f5f";
+
   ctx.strokeText(String(amount), x, y);
   ctx.fillText(String(amount), x, y);
 }
 
+async function safeLoadImage(imagePath) {
+  if (!imagePath || !fs.existsSync(imagePath)) {
+    return null;
+  }
+
+  return loadImage(imagePath).catch(() => null);
+}
+
+// ==========================================
+// INVENTORY BUTTONS
+// ==========================================
+
 function buildButtons(userId, page, data) {
   const totalSlots = getTotalSlots(data);
-  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+
+  const maxPage = Math.max(
+    1,
+    Math.ceil(totalSlots / SLOTS_PER_PAGE)
+  );
+
   const nextCost = getNextUpgradeCost(data);
 
   return new ActionRowBuilder().addComponents(
@@ -135,10 +196,9 @@ function buildButtons(userId, page, data) {
   );
 }
 
-async function safeLoadImage(imagePath) {
-  if (!imagePath || !fs.existsSync(imagePath)) return null;
-  return await loadImage(imagePath).catch(() => null);
-}
+// ==========================================
+// COLLECT INVENTORY ITEMS
+// ==========================================
 
 function getAllInventoryItems(data) {
   const items = [];
@@ -146,6 +206,8 @@ function getAllInventoryItems(data) {
   const totalWl = data.wl || 0;
   const dl = Math.floor(totalWl / 100);
   const wl = totalWl % 100;
+
+  // Diamond Locks
 
   if (dl > 0) {
     items.push({
@@ -155,6 +217,8 @@ function getAllInventoryItems(data) {
     });
   }
 
+  // World Locks
+
   if (wl > 0) {
     items.push({
       type: "image",
@@ -162,6 +226,8 @@ function getAllInventoryItems(data) {
       amount: wl
     });
   }
+
+  // Fishing Rod
 
   if ((data.items?.fishingRod || 0) > 0) {
     items.push({
@@ -171,6 +237,8 @@ function getAllInventoryItems(data) {
     });
   }
 
+  // Wiggly Worm
+
   if ((data.items?.wigglyWorm || 0) > 0) {
     items.push({
       type: "image",
@@ -179,19 +247,27 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // Cooking ingredients / cooked foods
-for (const [key, file] of Object.entries(COOKING_ITEM_IMAGES)) {
-  const amount = Number(data.items?.[key] || 0);
+  // Cooking ingredients
 
-  if (amount <= 0) continue;
+  for (const [key, file] of Object.entries(
+    COOKING_ITEM_IMAGES
+  )) {
+    const amount = Number(data.items?.[key] || 0);
 
-  items.push({
-    type: "image",
-    imagePath: path.join(cookingFolder, file),
-    amount
-  });
-}
-  const fishes = Array.isArray(data.fishBackpack) ? data.fishBackpack : [];
+    if (amount <= 0) continue;
+
+    items.push({
+      type: "image",
+      imagePath: path.join(cookingFolder, file),
+      amount
+    });
+  }
+
+  // Fishing backpack
+
+  const fishes = Array.isArray(data.fishBackpack)
+    ? data.fishBackpack
+    : [];
 
   const mergedFish = new Map();
 
@@ -199,6 +275,7 @@ for (const [key, file] of Object.entries(COOKING_ITEM_IMAGES)) {
     if (!fish?.file) continue;
 
     const amount = Number(fish.amount || 1);
+
     if (amount <= 0) continue;
 
     mergedFish.set(
@@ -218,28 +295,54 @@ for (const [key, file] of Object.entries(COOKING_ITEM_IMAGES)) {
   return items;
 }
 
-async function createInventoryCard(member, data, page = 1) {
+// ==========================================
+// ORIGINAL INVENTORY CANVAS
+// ==========================================
+
+async function createInventoryCard(
+  member,
+  data,
+  page = 1
+) {
   const canvas = createCanvas(900, 515);
   const ctx = canvas.getContext("2d");
 
   const totalSlots = getTotalSlots(data);
-  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+
+  const maxPage = Math.max(
+    1,
+    Math.ceil(totalSlots / SLOTS_PER_PAGE)
+  );
+
   page = Math.min(Math.max(page, 1), maxPage);
+
+  // Background
 
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const username = shorten(member.displayName || member.user.username, 14).toUpperCase();
+  const username = shorten(
+    member.displayName || member.user.username,
+    14
+  ).toUpperCase();
+
+  // Username
 
   ctx.font = '58px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
   ctx.fillText(`@${username} INV`, 30, 70);
 
+  // Backpack slots
+
   ctx.font = '40px "Grobold", Arial';
   ctx.fillText(`BP SLOTS: ${totalSlots}`, 37, 124);
 
+  // Current page
+
   ctx.font = '28px "Grobold", Arial';
   ctx.fillText(`PAGE ${page}/${maxPage}`, 650, 124);
+
+  // Inventory background
 
   ctx.fillStyle = "#8edbf0";
   ctx.fillRect(0, 162, 900, 350);
@@ -252,26 +355,52 @@ async function createInventoryCard(member, data, page = 1) {
   const slotSize = 120;
   const gap = 7;
   const startX = 76;
+
   const row1Y = 230;
   const row2Y = 350;
 
   const slots = [];
 
+  // First row
+
   for (let i = 0; i < 6; i++) {
-    slots.push({ x: startX + i * (slotSize + gap), y: row1Y });
+    slots.push({
+      x: startX + i * (slotSize + gap),
+      y: row1Y
+    });
   }
+
+  // Second row
 
   for (let i = 0; i < 5; i++) {
-    slots.push({ x: startX + i * (slotSize + gap), y: row2Y });
+    slots.push({
+      x: startX + i * (slotSize + gap),
+      y: row2Y
+    });
   }
+
+  // Draw slots
 
   for (const slot of slots) {
-    ctx.drawImage(itemBox, slot.x, slot.y, slotSize, slotSize);
+    ctx.drawImage(
+      itemBox,
+      slot.x,
+      slot.y,
+      slotSize,
+      slotSize
+    );
   }
 
+  // Draw items
+
   const allItems = getAllInventoryItems(data);
+
   const startIndex = (page - 1) * SLOTS_PER_PAGE;
-  const pageItems = allItems.slice(startIndex, startIndex + SLOTS_PER_PAGE);
+
+  const pageItems = allItems.slice(
+    startIndex,
+    startIndex + SLOTS_PER_PAGE
+  );
 
   let itemIndex = 0;
 
@@ -279,34 +408,77 @@ async function createInventoryCard(member, data, page = 1) {
     if (!slots[itemIndex]) break;
 
     const image = await safeLoadImage(item.imagePath);
+
     if (!image) continue;
 
     const slot = slots[itemIndex++];
-    ctx.drawImage(image, slot.x + 14, slot.y + 12, 92, 92);
+
+    ctx.drawImage(
+      image,
+      slot.x + 14,
+      slot.y + 12,
+      92,
+      92
+    );
 
     if ((item.amount || 0) > 1) {
-      drawAmount(ctx, item.amount, slot.x + 78, slot.y + 102);
+      drawAmount(
+        ctx,
+        item.amount,
+        slot.x + 78,
+        slot.y + 102
+      );
     }
   }
 
   return canvas.encode("png");
 }
 
-async function sendInventory(interaction, targetUser, page = 1, update = false) {
+// ==========================================
+// SEND ORIGINAL INVENTORY
+// ==========================================
+
+async function sendInventory(
+  interaction,
+  targetUser,
+  page = 1,
+  update = false
+) {
   const member =
-    await interaction.guild.members.fetch(targetUser.id).catch(() => null) ||
-    interaction.member;
+    await interaction.guild.members
+      .fetch(targetUser.id)
+      .catch(() => null) ||
+    {
+      displayName: targetUser.globalName || targetUser.username,
+      user: targetUser
+    };
 
   const levels = loadLevels();
-const data = levels[targetUser.id] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
 
-dev.applyDeveloperPerks(targetUser.id, data);
+  const data = levels[targetUser.id] || {
+    wl: 0,
+    level: 1,
+    xp: 0,
+    items: {},
+    fishBackpack: []
+  };
 
-const totalSlots = getTotalSlots(data);
-  const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
+  dev.applyDeveloperPerks(targetUser.id, data);
+
+  const totalSlots = getTotalSlots(data);
+
+  const maxPage = Math.max(
+    1,
+    Math.ceil(totalSlots / SLOTS_PER_PAGE)
+  );
+
   page = Math.min(Math.max(page, 1), maxPage);
 
-  const image = await createInventoryCard(member, data, page);
+  const image = await createInventoryCard(
+    member,
+    data,
+    page
+  );
 
   const attachment = new AttachmentBuilder(image, {
     name: "inventory.png"
@@ -315,30 +487,151 @@ const totalSlots = getTotalSlots(data);
   const payload = {
     content: `${targetUser}, here's your inventory,`,
     files: [attachment],
-    components: [buildButtons(targetUser.id, page, data)],
+    components: [
+      buildButtons(targetUser.id, page, data)
+    ],
     allowedMentions: {
       users: [targetUser.id]
     }
   };
 
-  if (update) return interaction.update(payload);
+  if (update && !interaction.deferred) {
+    return interaction.update(payload);
+  }
+
+  if (update) {
+    payload.attachments = [];
+  }
+
   return interaction.editReply(payload);
-  
 }
+
+// ==========================================
+// /INVENTORY COMMAND
+// ==========================================
 
 async function executeInventory(interaction) {
   await interaction.deferReply();
 
-  const targetUser = interaction.options.getUser("user") || interaction.user;
+  try {
+    const targetUser =
+      interaction.options.getUser("user") ||
+      interaction.user;
 
-  return sendInventory(interaction, targetUser, 1, false);
+    return await sendInventory(
+      interaction,
+      targetUser,
+      1,
+      false
+    );
+
+  } catch (error) {
+    console.error("[INVENTORY ERROR]", error);
+
+    return interaction.editReply({
+      content: "Could not load the inventory."
+    }).catch(console.error);
+  }
 }
+
+// ==========================================
+// NEW /MYSTAT CANVAS
+// ==========================================
+
+async function createMyStatCard() {
+  const template = await loadImage(myStatPath);
+
+  const canvas = createCanvas(
+    template.width,
+    template.height
+  );
+
+  const ctx = canvas.getContext("2d");
+
+  // Preserve Growtopia pixel-art quality
+
+  ctx.imageSmoothingEnabled = false;
+
+  // Black background
+
+  ctx.fillStyle = "#000000";
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  // Draw character, platform and empty backpack
+
+  ctx.drawImage(
+    template,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  return canvas.encode("png");
+}
+
+// ==========================================
+// NEW /MYSTAT COMMAND
+// ==========================================
+
+async function executeMyStat(interaction) {
+  await interaction.deferReply();
+
+  try {
+    if (!fs.existsSync(myStatPath)) {
+      console.error(
+        "[MYSTAT] Template not found:",
+        myStatPath
+      );
+
+      return interaction.editReply({
+        content: "The mystat.png template is missing."
+      });
+    }
+
+    const image = await createMyStatCard();
+
+    const attachment = new AttachmentBuilder(
+      image,
+      {
+        name: "mystat.png"
+      }
+    );
+
+    // Send image publicly
+
+    return await interaction.editReply({
+      files: [attachment]
+    });
+
+  } catch (error) {
+    console.error("[MYSTAT ERROR]", error);
+
+    return interaction.editReply({
+      content: "Could not generate your backpack."
+    }).catch(console.error);
+  }
+}
+
+// ==========================================
+// INVENTORY BUTTON HANDLER
+// ==========================================
 
 async function handleButton(interaction) {
   if (!interaction.isButton()) return false;
-  if (!interaction.customId.startsWith("inv_")) return false;
+
+  if (!interaction.customId.startsWith("inv_")) {
+    return false;
+  }
 
   const parts = interaction.customId.split("_");
+
   const action = parts[1];
   const ownerId = parts[2];
   const currentPage = Number(parts[3] || 1);
@@ -348,59 +641,139 @@ async function handleButton(interaction) {
       content: "❌ This is not your inventory.",
       ephemeral: true
     });
+
     return true;
   }
 
-  const levels = loadLevels();
-  const data = levels[ownerId] || { wl: 0, level: 1, xp: 0, items: {}, fishBackpack: [] };
+  try {
+    const levels = loadLevels();
 
-  if (!data.items) data.items = {};
-  if (!Array.isArray(data.fishBackpack)) data.fishBackpack = [];
+    const data = levels[ownerId] || {
+      wl: 0,
+      level: 1,
+      xp: 0,
+      items: {},
+      fishBackpack: []
+    };
 
-  if (action === "next") {
-    const totalSlots = getTotalSlots(data);
-    const maxPage = Math.max(1, Math.ceil(totalSlots / SLOTS_PER_PAGE));
-    const nextPage = Math.min(currentPage + 1, maxPage);
+    if (!data.items) {
+      data.items = {};
+    }
 
-    return sendInventory(interaction, interaction.user, nextPage, true);
-  }
+    if (!Array.isArray(data.fishBackpack)) {
+      data.fishBackpack = [];
+    }
 
-  if (action === "prev") {
-    const prevPage = Math.max(currentPage - 1, 1);
+    // Next page
 
-    return sendInventory(interaction, interaction.user, prevPage, true);
-  }
+    if (action === "next") {
+      await interaction.deferUpdate();
 
-  if (action === "buy") {
-    const cost = getNextUpgradeCost(data);
+      const totalSlots = getTotalSlots(data);
 
-    if ((data.wl || 0) < cost) {
-      await interaction.reply({
-        content: `❌ You need **${cost} World Locks** to upgrade your backpack.\nYou currently have **${data.wl || 0} WL**.`,
-        ephemeral: true
-      });
+      const maxPage = Math.max(
+        1,
+        Math.ceil(totalSlots / SLOTS_PER_PAGE)
+      );
+
+      const nextPage = Math.min(
+        currentPage + 1,
+        maxPage
+      );
+
+      await sendInventory(
+        interaction,
+        interaction.user,
+        nextPage,
+        true
+      );
+
       return true;
     }
 
-    data.wl -= cost;
-    data.extraBackpackLevel = Number(data.extraBackpackLevel || 0) + 1;
-    data.extraBackpack = true;
+    // Previous page
 
-    levels[ownerId] = data;
-    saveLevels(levels);
+    if (action === "prev") {
+      await interaction.deferUpdate();
 
-    await interaction.reply({
-      content: `✅ Backpack upgraded for **${cost} WL**!\nYou now have **${getTotalSlots(data)} slots**.`,
+      const prevPage = Math.max(
+        currentPage - 1,
+        1
+      );
+
+      await sendInventory(
+        interaction,
+        interaction.user,
+        prevPage,
+        true
+      );
+
+      return true;
+    }
+
+    // Upgrade backpack
+
+    if (action === "buy") {
+      const cost = getNextUpgradeCost(data);
+
+      if ((data.wl || 0) < cost) {
+        await interaction.reply({
+          content:
+            `❌ You need **${cost} World Locks** to upgrade your backpack.\n` +
+            `You currently have **${data.wl || 0} WL**.`,
+          ephemeral: true
+        });
+
+        return true;
+      }
+
+      data.wl -= cost;
+
+      data.extraBackpackLevel =
+        Number(data.extraBackpackLevel || 0) + 1;
+
+      data.extraBackpack = true;
+
+      levels[ownerId] = data;
+
+      saveLevels(levels);
+
+      await interaction.reply({
+        content:
+          `✅ Backpack upgraded for **${cost} WL**!\n` +
+          `You now have **${getTotalSlots(data)} slots**.`,
+        ephemeral: true
+      });
+
+      return true;
+    }
+
+    return false;
+
+  } catch (error) {
+    console.error("[INVENTORY BUTTON ERROR]", error);
+
+    const payload = {
+      content: "Could not process your inventory action.",
       ephemeral: true
-    });
+    };
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(payload).catch(console.error);
+    } else {
+      await interaction.reply(payload).catch(console.error);
+    }
 
     return true;
   }
-
-  return false;
 }
+
+// ==========================================
+// EXPORTS
+// ==========================================
 
 module.exports = {
   executeInventory,
+  executeMyStat,
   handleButton
 };
