@@ -1661,6 +1661,30 @@ function diagnosisText(p) {
 // ==========================================
 
 function fistSVG(x, y, scale = 3) {
+  const fistPath = path.join(
+    __dirname,
+    "..",
+    "images",
+    "fist-192x192.png"
+  );
+
+  const base64 = fs.readFileSync(fistPath)
+    .toString("base64");
+
+  const size = 20 * scale;
+
+  return `
+    <image
+      x="${x}"
+      y="${y}"
+      width="${size}"
+      height="${size}"
+      href="data:image/png;base64,${base64}"
+      image-rendering="pixelated"
+      preserveAspectRatio="xMidYMid meet"
+    />
+  `;
+}
   return `
     <g transform="translate(${x},${y}) scale(${scale})"
        shape-rendering="crispEdges">
