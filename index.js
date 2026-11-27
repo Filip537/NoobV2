@@ -3609,7 +3609,7 @@ async function handleTranslate(interaction) {
 
     try {
         await interaction.deferReply({
-            ephemeral: true
+
         });
 
         if (translationCooldowns.has(userId)) {
