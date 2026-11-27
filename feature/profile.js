@@ -4,13 +4,14 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
+  EmbedBuilder,
+StringSelectMenuBuilder
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const { attachment } = require("./mediaUpload.js");
 const levelFeature = require("./level.js");
 const { getProfileDetails } = require("./furrytest.js");
-
+const gameStats = require("./gameStats.js");
 const LEVELS_FILE = path.join(__dirname, "..", "levels.json");
 const CARD_NAME = "profile.jpg";
 const WIDTH = 1100;
@@ -496,63 +497,322 @@ async function handleButton(interaction) {
 
   return true;
 }
+const LEADERBOARD_PREFIX = "nv2leaderboard:";
+
+const LB_CATEGORIES = {
+  level: {
+    label: "Level",
+    short: "LEVEL",
+    color: "#4FC3FF",
+    accent: "#FFD54A"
+  },
+  surgery: {
+    label: "Surgery",
+    short: "SURGERY",
+    color: "#71F0A8",
+    accent: "#FFD54A"
+  },
+  startopia: {
+    label: "Startopia",
+    short: "STARTOPIA",
+    color: "#B28CFF",
+    accent: "#FFD54A"
+  },
+  crime: {
+    label: "Crime",
+    short: "CRIME",
+    color: "#FF7A7A",
+    accent: "#FFD54A"
+  }
+};
+
+function leaderboardMenu(ownerId, selected = "level") {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`${LEADERBOARD_PREFIX}${ownerId}`)
+      .setPlaceholder("Select leaderboard")
+      .addOptions(
+        Object.entries(LB_CATEGORIES).map(([key, value]) => ({
+          label: value.label,
+          value: key,
+          default: key === selected
+        }))
+      )
+  );
+}
+
+async function resolveLeaderboardEntries(guild, category) {
+  if (category === "level") {
+    const levels = await loadLevels();
+    const rankings = getRankings(guild, levels);
+
+    const top = await Promise.all(
+      rankings.slice(0, 10).map(async ([id, data], index) => {
+        const member =
+          guild.members.cache.get(id) ||
+          await guild.members.fetch(id).catch(() => null);
+
+        return {
+          rank: index + 1,
+          id,
+          name: member?.displayName || `User ${id.slice(-4)}`,
+          score: data.level,
+          extra: `XP ${Number(data.xp || 0).toLocaleString("en-US")}`
+        };
+      })
+    );
+
+    return { levels, rankings, top };
+  }
+
+  const raw = gameStats
+    .getRankings(category)
+    .filter(player => !guild.members.cache.get(player.id)?.user?.bot);
+
+  const top = await Promise.all(
+    raw.slice(0, 10).map(async (player, index) => {
+      const member =
+        guild.members.cache.get(player.id) ||
+        await guild.members.fetch(player.id).catch(() => null);
+
+      return {
+        rank: index + 1,
+        id: player.id,
+        name: member?.displayName || `User ${player.id.slice(-4)}`,
+        score: player.score,
+        extra:
+          category === "startopia"
+            ? "successful voyages"
+            : category === "surgery"
+              ? "successful surgeries"
+              : "wins"
+      };
+    })
+  );
+
+  return { rankings: raw, top };
+}
+
+function drawLeaderboardCard(category, entries, rankText, personalText, totalRanked) {
+  const canvas = createCanvas(1100, 760);
+  const ctx = canvas.getContext("2d");
+  const categoryInfo = LB_CATEGORIES[category];
+
+  // background
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#53B8FF");
+  gradient.addColorStop(0.45, "#2C78D3");
+  gradient.addColorStop(1, "#184A92");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // outer border
+  box(ctx, 20, 20, 1060, 720, 24, "#174079");
+  box(ctx, 32, 32, 1036, 696, 22, "#2F87E0");
+
+  // top panel
+  box(ctx, 55, 50, 990, 95, 20, "#1E4F93");
+  box(ctx, 65, 60, 970, 75, 18, "#2E6FC3");
+
+  ctx.fillStyle = "#FFD54A";
+  ctx.font = "bold 46px sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText("NOOBV2 LEADERBOARD", 90, 98);
+
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText(`CATEGORY: ${categoryInfo.short}`, 720, 98);
+
+  // category pills
+  const pillKeys = Object.keys(LB_CATEGORIES);
+  pillKeys.forEach((key, i) => {
+    const selected = key === category;
+    const x = 65 + i * 240;
+    const y = 165;
+    box(ctx, x, y, 215, 48, 16, selected ? "#FFD54A" : "#225DAA");
+    text(
+      ctx,
+      LB_CATEGORIES[key].label,
+      x + 20,
+      y + 24,
+      175,
+      24,
+      selected ? "#203760" : "#FFFFFF",
+      true
+    );
+  });
+
+  // table header
+  box(ctx, 65, 235, 970, 44, 12, "#1D4A88");
+  text(ctx, "RANK", 95, 257, 90, 22, "#FFD54A", true);
+  text(ctx, "PLAYER", 235, 257, 430, 22, "#FFD54A", true);
+  text(ctx, "STAT", 760, 257, 220, 22, "#FFD54A", true);
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  let y = 295;
+
+  if (!entries.length) {
+    box(ctx, 65, y, 970, 60, 14, "#2C67B1");
+    text(ctx, "No ranked players yet.", 95, y + 30, 900, 24, "#FFFFFF", true);
+  } else {
+    for (const entry of entries) {
+      box(ctx, 65, y, 970, 48, 12, entry.rank % 2 ? "#2C67B1" : "#245A9D");
+
+      const rankLabel = medals[entry.rank - 1] || `#${entry.rank}`;
+      text(ctx, rankLabel, 95, y + 24, 90, 24, "#FFFFFF", true);
+      text(ctx, entry.name, 235, y + 24, 430, 24, "#FFFFFF", true);
+
+      const statText =
+        category === "level"
+          ? `LV ${entry.score} • ${entry.extra}`
+          : `${entry.score} • ${entry.extra}`;
+
+      text(ctx, statText, 760, y + 24, 245, 22, categoryInfo.color, true);
+
+      y += 54;
+    }
+  }
+
+  // footer panels
+  box(ctx, 65, 650, 450, 55, 16, "#1D4A88");
+  box(ctx, 585, 650, 450, 55, 16, "#1D4A88");
+
+  text(ctx, `YOUR RANK: ${rankText}`, 90, 678, 400, 24, "#FFD54A", true);
+  text(ctx, personalText, 610, 678, 400, 24, "#FFFFFF", true);
+
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillStyle = "#D9EEFF";
+  ctx.fillText(`Ranked Players: ${totalRanked}`, 70, 726);
+  ctx.fillText("Growtopia-themed NoobV2 leaderboard", 760, 726);
+
+  return canvas.encode("png");
+}
+
+async function buildLeaderboardPayload(interaction, category = "level") {
+  const guild = interaction.guild;
+  const categoryInfo = LB_CATEGORIES[category];
+
+  const data = await resolveLeaderboardEntries(guild, category);
+  const entries = data.top || [];
+  const rankings = data.rankings || [];
+
+  let rankText = "Unranked";
+  let personalText = "No stats yet";
+
+  if (category === "level") {
+    const levels = data.levels || {};
+    const myRank = rankings.findIndex(([id]) => id === interaction.user.id);
+    const myData = levels[interaction.user.id] || { level: 0, xp: 0 };
+
+    rankText = myRank >= 0 ? `#${myRank + 1}` : "Unranked";
+    personalText = `Level ${myData.level} • XP ${Number(myData.xp || 0).toLocaleString("en-US")}`;
+  } else {
+    const myRank = rankings.findIndex(player => player.id === interaction.user.id);
+    const myStats = gameStats.getUserStats(interaction.user.id);
+    const myScore = Number(myStats[category] || 0);
+
+    rankText = myRank >= 0 ? `#${myRank + 1}` : "Unranked";
+    personalText =
+      category === "startopia"
+        ? `${myScore} successful voyages`
+        : category === "surgery"
+          ? `${myScore} successful surgeries`
+          : `${myScore} wins`;
+  }
+
+const image = await drawLeaderboardCard(
+    category,
+    entries,
+    rankText,
+    personalText,
+    rankings.length
+  );
+
+  return {
+    content: null,
+    embeds: [],
+    files: [attachment(image, "leaderboard.png")],
+    components: [leaderboardMenu(interaction.user.id, category)],
+    allowedMentions: NO_MENTIONS
+  };
+}
 
 async function executeLeaderboard(interaction) {
   try {
+    if (!interaction.guild) {
+      return await interaction.reply({
+        content: "Use this command in a server.",
+        ephemeral: true
+      });
+    }
+
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply();
     }
 
-    if (!interaction.guild) {
-      return await interaction.editReply("Use this command in a server.");
-    }
-
-    const levels = await loadLevels();
-    const rankings = getRankings(interaction.guild, levels);
-    const myRank = rankings.findIndex(([id]) => id === interaction.user.id);
-    const myData = levels[interaction.user.id] || { level: 0, xp: 0 };
-
-    const description = rankings
-      .slice(0, 10)
-      .map(([id, data], index) =>
-        `**#${index + 1}** <@${id}>\n` +
-        `Level **${data.level}** | XP **${Number(data.xp || 0).toLocaleString("en-US")}**`
-      )
-      .join("\n\n");
-
-    const embed = new EmbedBuilder()
-      .setTitle("Level Leaderboard")
-      .setColor(0x3498DB)
-      .setDescription(description || "No ranked members yet.")
-      .addFields({
-        name: "Your Ranking",
-        value:
-          `Rank: **${myRank >= 0 ? `#${myRank + 1}` : "Unranked"}**\n` +
-          `Level: **${myData.level}**\n` +
-          `XP: **${Number(myData.xp || 0).toLocaleString("en-US")}**`
-      })
-      .setFooter({ text: `${rankings.length} ranked members | NoobV2` });
-
-    await interaction.editReply({
-      embeds: [embed],
-      allowedMentions: NO_MENTIONS
-    });
+    await interaction.editReply(
+      await buildLeaderboardPayload(interaction, "level")
+    );
   } catch (error) {
-    console.error("[LEADERBOARD]", error.code ?? error.message);
+    console.error("[LEADERBOARD]", error);
 
-    const content = "Unable to load leaderboard.";
+    const payload = { content: "Unable to load leaderboard." };
 
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content }).catch(() => {});
+      await interaction.editReply(payload).catch(() => {});
     } else {
-      await interaction.reply({ content, ephemeral: true }).catch(() => {});
+      await interaction.reply({ ...payload, ephemeral: true }).catch(() => {});
     }
   }
 }
 
-async function handleSelect() {
-  return false;
+async function handleSelect(interaction) {
+  if (
+    !interaction.isStringSelectMenu() ||
+    !interaction.customId.startsWith(LEADERBOARD_PREFIX)
+  ) {
+    return false;
+  }
+
+  const ownerId = interaction.customId.slice(LEADERBOARD_PREFIX.length);
+
+  if (interaction.user.id !== ownerId) {
+    await interaction.reply({
+      content: "Open your own leaderboard with /leaderboard.",
+      ephemeral: true
+    }).catch(() => {});
+    return true;
+  }
+
+  const category = interaction.values[0];
+
+  if (!LB_CATEGORIES[category]) {
+    await interaction.reply({
+      content: "Invalid leaderboard category.",
+      ephemeral: true
+    }).catch(() => {});
+    return true;
+  }
+
+  try {
+    await interaction.deferUpdate();
+
+    await interaction.editReply(
+      await buildLeaderboardPayload(interaction, category)
+    );
+  } catch (error) {
+    console.error("[LEADERBOARD SELECT]", error);
+
+    await interaction.followUp({
+      content: "Unable to switch leaderboard.",
+      ephemeral: true
+    }).catch(() => {});
+  }
+
+  return true;
 }
+
 
 module.exports = {
   executeProfile,
