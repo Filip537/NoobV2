@@ -50,6 +50,9 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
   new SlashCommandBuilder()
+    .setName("startopia")
+    .setDescription("Begin a Growtopia Star Voyage"),
+  new SlashCommandBuilder()
   .setName("harvest")
   .setDescription("Calculate Growtopia tree harvest rewards")
   .addIntegerOption(option =>
