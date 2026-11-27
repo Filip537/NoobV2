@@ -3451,6 +3451,16 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+    // GROWTOPIA HARVEST CALCULATOR
+  if (interaction.commandName === "harvest") {
+    if (interaction.isAutocomplete()) {
+      return harvest.autocomplete(interaction);
+    }
+
+    if (interaction.isChatInputCommand()) {
+      return harvest.execute(interaction);
+    }
+  }
   // ==========================================
 // GROWTOPIA CRIME FIGHTING
 // ==========================================
@@ -3648,13 +3658,6 @@ const selected = shuffled.slice(0, 17);
   }
 
   return;
-}
-
-  if (
-  interaction.isChatInputCommand() &&
-  interaction.commandName === "harvest"
-) {
-  return harvest.execute(interaction);
 }
   if (
     interaction.isChatInputCommand() &&
@@ -4790,9 +4793,6 @@ const embed = new EmbedBuilder()
     content: "✅ Unblacklist request submitted.",
     ephemeral: true
   });
-}
-  if (interaction.commandName === "harvest") {
-  return harvest.execute(interaction);
 }
 if (interaction.commandName === "howfurry") {
   const target =
