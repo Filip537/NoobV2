@@ -12,7 +12,14 @@ const {
     loadImage
 } = require("@napi-rs/canvas");
 
-const { randomUUID, randomInt } = require("crypto");
+const {
+    randomUUID,
+    randomInt
+} = require("crypto");
+
+// ==========================================
+// CONFIGURATION
+// ==========================================
 
 const DICE_EMOJI = "1575805377524670605";
 
@@ -21,7 +28,10 @@ const avatarCache = new Map();
 
 const TIMEOUT = 15 * 60 * 1000;
 
-const NO_MENTIONS = { parse: [] };
+const NO_MENTIONS = {
+    parse: [],
+    repliedUser: false
+};
 
 const COLORS = [
     "#FF5555",
@@ -29,10 +39,6 @@ const COLORS = [
     "#F5D547",
     "#B878FF"
 ];
-
-// ==========================================
-// SNAKES AND LADDERS
-// ==========================================
 
 const LADDERS = {
     3: 22,
@@ -67,15 +73,29 @@ const BOARD_X = 50;
 const BOARD_Y = 155;
 const CELL = 90;
 
+let cachedBoard = null;
+
+// ==========================================
+// DRAWING UTILITIES
+// ==========================================
+
 function box(ctx, x, y, w, h, r, color) {
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, r);
+
+    ctx.roundRect(
+        x, y, w, h,
+        Math.min(r, w / 2, h / 2)
+    );
+
     ctx.fillStyle = color;
     ctx.fill();
 }
 
 function text(
-    ctx, value, x, y,
+    ctx,
+    value,
+    x,
+    y,
     size = 24,
     color = "#FFFFFF",
     align = "left"
@@ -92,11 +112,12 @@ function fitText(ctx, value, width, size) {
     ctx.font = `bold ${size}px sans-serif`;
 
     const original = String(value);
-    let characters = Array.from(original);
 
     if (ctx.measureText(original).width <= width) {
         return original;
     }
+
+    const characters = Array.from(original);
 
     while (
         characters.length &&
@@ -115,7 +136,10 @@ function fitText(ctx, value, width, size) {
 // ==========================================
 
 function getCell(position) {
-    position = Math.max(1, Math.min(100, position));
+    position = Math.max(
+        1,
+        Math.min(100, position)
+    );
 
     const index = position - 1;
     const row = Math.floor(index / 10);
@@ -142,7 +166,7 @@ function getCenter(position) {
 }
 
 // ==========================================
-// AVATAR LOADER
+// AVATAR CACHE
 // ==========================================
 
 async function getAvatar(player) {
@@ -152,17 +176,20 @@ async function getAvatar(player) {
                 const response = await fetch(
                     player.avatar,
                     {
-                        signal: AbortSignal.timeout(2000)
+                        signal: AbortSignal.timeout(1800)
                     }
                 );
 
-                if (!response.ok) return null;
+                if (!response.ok) {
+                    return null;
+                }
 
                 return await loadImage(
                     Buffer.from(
                         await response.arrayBuffer()
                     )
                 );
+
             } catch {
                 return null;
             }
@@ -171,17 +198,11 @@ async function getAvatar(player) {
         avatarCache.set(player.avatar, request);
     }
 
-    const image = await avatarCache.get(player.avatar);
-
-    if (!image) {
-        avatarCache.delete(player.avatar);
-    }
-
-    return image;
+    return await avatarCache.get(player.avatar);
 }
 
 // ==========================================
-// GROWTOPIA BACKGROUND
+// BACKGROUND
 // ==========================================
 
 function drawBackground(ctx) {
@@ -209,7 +230,7 @@ function drawBackground(ctx) {
         ctx.fillRect(x + 25, y - 20, 95, 20);
     }
 
-    // Dirt and grass blocks
+    // Growtopia dirt blocks
 
     for (let x = 0; x < WIDTH; x += 50) {
         ctx.fillStyle = "#795033";
@@ -224,7 +245,7 @@ function drawBackground(ctx) {
 }
 
 // ==========================================
-// DRAW LADDER
+// DRAW LADDERS
 // ==========================================
 
 function drawLadder(ctx, start, end) {
@@ -241,13 +262,21 @@ function drawLadder(ctx, start, end) {
     ctx.translate(a.x, a.y);
     ctx.rotate(Math.atan2(dy, dx));
 
+    // Wooden outline
+
     ctx.fillStyle = "#57351D";
+
     ctx.fillRect(0, -18, length, 10);
     ctx.fillRect(0, 8, length, 10);
 
+    // Wooden rails
+
     ctx.fillStyle = "#C48B48";
+
     ctx.fillRect(0, -16, length, 6);
     ctx.fillRect(0, 10, length, 6);
+
+    // Ladder steps
 
     for (let x = 10; x < length; x += 25) {
         ctx.fillStyle = "#57351D";
@@ -261,7 +290,7 @@ function drawLadder(ctx, start, end) {
 }
 
 // ==========================================
-// DRAW SNAKE
+// DRAW SNAKES
 // ==========================================
 
 function drawSnake(ctx, start, end, index) {
@@ -279,6 +308,7 @@ function drawSnake(ctx, start, end, index) {
 
     const dx = b.x - a.x;
     const dy = b.y - a.y;
+
     const length = Math.hypot(dx, dy);
 
     const nx = -dy / length;
@@ -301,7 +331,11 @@ function drawSnake(ctx, start, end, index) {
 
     function drawPath(width, stroke) {
         ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
+
+        ctx.moveTo(
+            points[0].x,
+            points[0].y
+        );
 
         for (const point of points.slice(1)) {
             ctx.lineTo(point.x, point.y);
@@ -311,6 +345,7 @@ function drawSnake(ctx, start, end, index) {
         ctx.lineJoin = "round";
         ctx.lineWidth = width;
         ctx.strokeStyle = stroke;
+
         ctx.stroke();
     }
 
@@ -320,20 +355,227 @@ function drawSnake(ctx, start, end, index) {
 
     // Snake head
 
-    box(ctx, a.x - 18, a.y - 15, 36, 30, 9, "#30402B");
-    box(ctx, a.x - 15, a.y - 12, 30, 24, 7, color);
+    box(
+        ctx,
+        a.x - 18,
+        a.y - 15,
+        36, 30, 9,
+        "#30402B"
+    );
+
+    box(
+        ctx,
+        a.x - 15,
+        a.y - 12,
+        30, 24, 7,
+        color
+    );
+
+    // Eyes
 
     ctx.fillStyle = "#FFFFFF";
+
     ctx.fillRect(a.x - 10, a.y - 8, 8, 8);
     ctx.fillRect(a.x + 3, a.y - 8, 8, 8);
 
     ctx.fillStyle = "#162216";
+
     ctx.fillRect(a.x - 6, a.y - 7, 4, 5);
     ctx.fillRect(a.x + 7, a.y - 7, 4, 5);
 }
 
 // ==========================================
-// PLAYER TOKEN
+// STATIC BOARD CACHE
+// ==========================================
+
+// The background, numbers, snakes and ladders
+// are drawn only once.
+// Each turn only renders the changing players.
+
+function getStaticBoard() {
+    if (cachedBoard) {
+        return cachedBoard;
+    }
+
+    const canvas = createCanvas(WIDTH, HEIGHT);
+    const ctx = canvas.getContext("2d");
+
+    drawBackground(ctx);
+
+    // Header
+
+    box(ctx, 40, 25, 920, 110, 15, "#294C34");
+    box(ctx, 48, 33, 904, 94, 12, "#417D38");
+
+    text(
+        ctx,
+        "SNAKES & LADDERS",
+        500, 65, 43,
+        "#FFE68A",
+        "center"
+    );
+
+    text(
+        ctx,
+        "NOOBV2 • GROWTOPIA",
+        500, 106, 22,
+        "#FFFFFF",
+        "center"
+    );
+
+    // Board frame
+
+    box(
+        ctx,
+        39, 144,
+        922, 922,
+        8,
+        "#563C28"
+    );
+
+    // Draw all 100 tiles
+
+    for (let position = 1; position <= 100; position++) {
+        const { x, y } = getCell(position);
+
+        const row = Math.floor(
+            (position - 1) / 10
+        );
+
+        ctx.fillStyle =
+            (position + row) % 2 === 0
+                ? "#D0E99D"
+                : "#A7D66F";
+
+        ctx.fillRect(x, y, CELL, CELL);
+
+        ctx.strokeStyle = "#648E47";
+        ctx.lineWidth = 2;
+
+        ctx.strokeRect(x, y, CELL, CELL);
+
+        ctx.fillStyle = "#FFFFFF25";
+
+        ctx.fillRect(
+            x + 3,
+            y + 3,
+            CELL - 6,
+            5
+        );
+
+        if (position === 1) {
+            ctx.fillStyle = "#72C95A";
+
+            ctx.fillRect(
+                x + 3,
+                y + 3,
+                CELL - 6,
+                CELL - 6
+            );
+        }
+
+        if (position === 100) {
+            ctx.fillStyle = "#FFDE66";
+
+            ctx.fillRect(
+                x + 3,
+                y + 3,
+                CELL - 6,
+                CELL - 6
+            );
+        }
+    }
+
+    // Ladders
+
+    Object.entries(LADDERS).forEach(
+        ([start, end]) => {
+            drawLadder(
+                ctx,
+                Number(start),
+                end
+            );
+        }
+    );
+
+    // Snakes
+
+    Object.entries(SNAKES).forEach(
+        ([start, end], i) => {
+            drawSnake(
+                ctx,
+                Number(start),
+                end,
+                i
+            );
+        }
+    );
+
+    // Numbers
+
+    for (let position = 1; position <= 100; position++) {
+        const { x, y } = getCell(position);
+
+        box(
+            ctx,
+            x + 3,
+            y + 3,
+            37,
+            22,
+            4,
+            "#FFFFFFD9"
+        );
+
+        text(
+            ctx,
+            position,
+            x + 21,
+            y + 14,
+            18,
+            "#29482A",
+            "center"
+        );
+
+        if (position === 1) {
+            text(
+                ctx,
+                "START",
+                x + 45,
+                y + 47,
+                19,
+                "#29482A",
+                "center"
+            );
+        }
+
+        if (position === 100) {
+            text(
+                ctx,
+                "FINISH",
+                x + 45,
+                y + 47,
+                19,
+                "#6B4C17",
+                "center"
+            );
+        }
+    }
+
+    box(
+        ctx,
+        40, 1080,
+        920, 140,
+        12,
+        "#294C34"
+    );
+
+    cachedBoard = canvas;
+
+    return cachedBoard;
+}
+
+// ==========================================
+// PLAYER TOKENS
 // ==========================================
 
 function drawToken(ctx, player, avatar, index) {
@@ -353,15 +595,23 @@ function drawToken(ctx, player, avatar, index) {
 
     ctx.save();
 
+    // Outer border
+
     ctx.beginPath();
     ctx.arc(x, y, 18, 0, Math.PI * 2);
+
     ctx.fillStyle = "#24382B";
     ctx.fill();
 
+    // Player color
+
     ctx.beginPath();
     ctx.arc(x, y, 15, 0, Math.PI * 2);
+
     ctx.fillStyle = player.color;
     ctx.fill();
+
+    // Avatar
 
     ctx.beginPath();
     ctx.arc(x, y, 11, 0, Math.PI * 2);
@@ -375,11 +625,14 @@ function drawToken(ctx, player, avatar, index) {
             22,
             22
         );
+
     } else {
         text(
             ctx,
             index + 1,
-            x, y, 16,
+            x,
+            y,
+            16,
             "#FFFFFF",
             "center"
         );
@@ -389,139 +642,30 @@ function drawToken(ctx, player, avatar, index) {
 }
 
 // ==========================================
-// RENDER GAME BOARD
+// RENDER BOARD
 // ==========================================
 
 async function renderBoard(game) {
-    const canvas = createCanvas(WIDTH, HEIGHT);
+    const canvas = createCanvas(
+        WIDTH,
+        HEIGHT
+    );
+
     const ctx = canvas.getContext("2d");
 
-    drawBackground(ctx);
+    // Reuse cached background
 
-    // Header
-
-    box(ctx, 40, 25, 920, 110, 15, "#294C34");
-    box(ctx, 48, 33, 904, 94, 12, "#417D38");
-
-    text(
-        ctx,
-        "SNAKES & LADDERS",
-        500, 65, 43,
-        "#FFE68A", "center"
+    ctx.drawImage(
+        getStaticBoard(),
+        0,
+        0
     );
-
-    text(
-        ctx,
-        "NOOBV2 • GROWTOPIA",
-        500, 106, 22,
-        "#FFFFFF", "center"
-    );
-
-    // Board outline
-
-    box(ctx, 39, 144, 922, 922, 8, "#563C28");
-
-    // Draw 100 squares
-
-    for (let position = 1; position <= 100; position++) {
-        const { x, y } = getCell(position);
-
-        const row = Math.floor((position - 1) / 10);
-
-        const color =
-            (position + row) % 2 === 0
-                ? "#D0E99D"
-                : "#A7D66F";
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, CELL, CELL);
-
-        ctx.strokeStyle = "#648E47";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, CELL, CELL);
-
-        ctx.fillStyle = "#FFFFFF25";
-        ctx.fillRect(x + 3, y + 3, CELL - 6, 5);
-
-        if (position === 1) {
-            ctx.fillStyle = "#72C95A";
-            ctx.fillRect(
-                x + 3, y + 3,
-                CELL - 6, CELL - 6
-            );
-        }
-
-        if (position === 100) {
-            ctx.fillStyle = "#FFDE66";
-            ctx.fillRect(
-                x + 3, y + 3,
-                CELL - 6, CELL - 6
-            );
-        }
-    }
-
-    // Ladders
-
-    Object.entries(LADDERS).forEach(([start, end]) => {
-        drawLadder(ctx, Number(start), end);
-    });
-
-    // Snakes
-
-    Object.entries(SNAKES).forEach(([start, end], i) => {
-        drawSnake(ctx, Number(start), end, i);
-    });
-
-    // Tile numbers
-
-    for (let position = 1; position <= 100; position++) {
-        const { x, y } = getCell(position);
-
-        box(
-            ctx,
-            x + 3, y + 3,
-            37, 22, 4,
-            "#FFFFFFD9"
-        );
-
-        text(
-            ctx,
-            position,
-            x + 21,
-            y + 14,
-            18,
-            "#29482A",
-            "center"
-        );
-
-        if (position === 100) {
-            text(
-                ctx,
-                "FINISH",
-                x + 45, y + 47,
-                19,
-                "#6B4C17",
-                "center"
-            );
-        }
-
-        if (position === 1) {
-            text(
-                ctx,
-                "START",
-                x + 45, y + 47,
-                19,
-                "#29482A",
-                "center"
-            );
-        }
-    }
-
-    // Player avatars
 
     const avatars = await Promise.all(
         game.players.map(getAvatar)
     );
+
+    // Player positions
 
     game.players.forEach((player, i) => {
         if (player.position > 0) {
@@ -534,9 +678,7 @@ async function renderBoard(game) {
         }
     });
 
-    // Player information panel
-
-    box(ctx, 40, 1080, 920, 140, 12, "#294C34");
+    // Player information
 
     game.players.forEach((player, i) => {
         const x = 55 + (i % 2) * 455;
@@ -547,13 +689,19 @@ async function renderBoard(game) {
             game.turn === i;
 
         box(
-            ctx, x, y, 435, 48, 7,
-            active ? "#568D42" : "#365B35"
+            ctx,
+            x, y,
+            435, 48,
+            7,
+            active
+                ? "#568D42"
+                : "#365B35"
         );
 
         box(
             ctx,
-            x + 9, y + 9,
+            x + 9,
+            y + 9,
             30, 30, 6,
             player.color
         );
@@ -561,17 +709,21 @@ async function renderBoard(game) {
         text(
             ctx,
             fitText(ctx, player.name, 245, 21),
-            x + 50, y + 24,
+            x + 50,
+            y + 24,
             21
         );
 
-        text(
-            ctx,
+        const positionText =
             player.finished
                 ? `#${player.place}`
                 : player.position === 0
                     ? "Start"
-                    : `Tile ${player.position}`,
+                    : `Tile ${player.position}`;
+
+        text(
+            ctx,
+            positionText,
             x + 420,
             y + 24,
             19,
@@ -580,7 +732,9 @@ async function renderBoard(game) {
         );
     });
 
-    return await canvas.encode("png");
+    // JPEG reduces upload size.
+
+    return await canvas.encode("jpeg", 90);
 }
 
 // ==========================================
@@ -588,22 +742,27 @@ async function renderBoard(game) {
 // ==========================================
 
 function lobbyEmbed(game) {
-    const players = game.players.map(
+    const participants = game.players.map(
         (player, i) =>
             `**${i + 1}.** <@${player.id}>`
     );
 
     return new EmbedBuilder()
+
         .setTitle("Snakes & Ladders")
+
         .setColor("#75C64D")
+
         .setDescription(
             "A new Growtopia board game is starting!\n\n" +
             "Press **Join Game** to participate."
         )
+
         .addFields(
             {
                 name: "Players",
-                value: `${game.players.length}/${game.maxPlayers}`,
+                value:
+                    `${game.players.length}/${game.maxPlayers}`,
                 inline: true
             },
             {
@@ -613,45 +772,51 @@ function lobbyEmbed(game) {
             },
             {
                 name: "Participants",
-                value: players.join("\n") ||
+                value:
+                    participants.join("\n") ||
                     "Waiting for players..."
             }
         )
+
         .setThumbnail(
             `https://cdn.discordapp.com/emojis/${DICE_EMOJI}.png`
         )
+
         .setFooter({
             text: "The game starts automatically when full."
         });
 }
 
 // ==========================================
-// LIVE GAME EMBED
+// GAME EMBED
 // ==========================================
 
 function gameEmbed(game) {
+    const finished =
+        game.status === "finished";
+
     const embed = new EmbedBuilder()
+
         .setTitle(
-            game.status === "finished"
+            finished
                 ? "Game Finished!"
                 : "Snakes & Ladders"
         )
+
         .setColor(
-            game.status === "finished"
+            finished
                 ? "#F5D547"
                 : "#75C64D"
+        )
+
+        .setDescription(
+            "**Latest Action**\n" +
+            game.lastAction
         );
 
-    // Latest roll only.
-    // Previous results are replaced automatically.
-
-    embed.setDescription(
-        "**Latest Action**\n" +
-        game.lastAction
-    );
-
     if (game.status === "playing") {
-        const current = game.players[game.turn];
+        const current =
+            game.players[game.turn];
 
         embed.addFields({
             name: "Current Turn",
@@ -662,7 +827,8 @@ function gameEmbed(game) {
 
     embed.addFields({
         name: "Winners",
-        value: `${game.winners.length}/${game.winnerCount}`,
+        value:
+            `${game.winners.length}/${game.winnerCount}`,
         inline: true
     });
 
@@ -676,13 +842,15 @@ function gameEmbed(game) {
         });
     }
 
-    embed.setFooter({
-        text: game.status === "finished"
-            ? "NoobV2 • Game completed"
-            : `NoobV2 • Turn ${game.round + 1}`
-    });
+    return embed
 
-    return embed.setImage("attachment://snake.png");
+        .setFooter({
+            text: finished
+                ? "NoobV2 • Game completed"
+                : `NoobV2 • Turn ${game.round + 1}`
+        })
+
+        .setImage("attachment://snake.jpg");
 }
 
 // ==========================================
@@ -694,41 +862,71 @@ function buildButtons(game) {
 
     if (game.status === "waiting") {
         row.addComponents(
+
             new ButtonBuilder()
-                .setCustomId(`snake:${game.id}:join`)
+
+                .setCustomId(
+                    `snake:${game.id}:join`
+                )
+
                 .setLabel("Join Game")
+
                 .setStyle(ButtonStyle.Success),
 
             new ButtonBuilder()
-                .setCustomId(`snake:${game.id}:leave`)
+
+                .setCustomId(
+                    `snake:${game.id}:leave`
+                )
+
                 .setLabel("Leave")
+
                 .setStyle(ButtonStyle.Secondary),
 
             new ButtonBuilder()
-                .setCustomId(`snake:${game.id}:cancel`)
+
+                .setCustomId(
+                    `snake:${game.id}:cancel`
+                )
+
                 .setLabel("Cancel")
+
                 .setStyle(ButtonStyle.Danger)
         );
     }
 
     if (game.status === "playing") {
         row.addComponents(
+
             new ButtonBuilder()
+
                 .setCustomId(
                     `snake:${game.id}:roll:${game.round}`
                 )
-                .setEmoji({ id: DICE_EMOJI })
+
+                .setEmoji({
+                    id: DICE_EMOJI
+                })
+
                 .setLabel("Roll Dice")
+
                 .setStyle(ButtonStyle.Primary),
 
             new ButtonBuilder()
-                .setCustomId(`snake:${game.id}:cancel`)
+
+                .setCustomId(
+                    `snake:${game.id}:cancel`
+                )
+
                 .setLabel("End Game")
+
                 .setStyle(ButtonStyle.Danger)
         );
     }
 
-    return row.components.length ? [row] : [];
+    return row.components.length
+        ? [row]
+        : [];
 }
 
 // ==========================================
@@ -739,43 +937,123 @@ async function gamePayload(game) {
     const image = await renderBoard(game);
 
     return {
-        content: null,
         embeds: [gameEmbed(game)],
 
-        // Remove previous canvas.
-        attachments: [],
-
-        // Replace with updated canvas.
         files: [
             new AttachmentBuilder(image, {
-                name: "snake.png"
+                name: "snake.jpg"
             })
         ],
 
         components: buildButtons(game),
+
         allowedMentions: NO_MENTIONS
     };
 }
 
 // ==========================================
-// UPDATE ORIGINAL MESSAGE ONLY
+// REMOVE PREVIOUS PANEL
+// ==========================================
+
+async function removeOldPanel(message) {
+    if (!message) return;
+
+    try {
+        await message.delete();
+
+    } catch (error) {
+        // Unknown message: already deleted.
+
+        if (Number(error.code) === 10008) {
+            return;
+        }
+
+        console.error(
+            "[SNAKE DELETE]",
+            error.message
+        );
+
+        // Prevent an old panel from remaining
+        // interactive if deletion fails.
+
+        await message.edit({
+            components: []
+        }).catch(() => {});
+    }
+}
+
+// ==========================================
+// ROLLING GAME PANEL
 // ==========================================
 
 async function updateGameMessage(interaction, game) {
-    const payload = game.status === "waiting"
-        ? {
-            content: null,
+
+    // Lobby updates stay in the same message.
+
+    if (game.status === "waiting") {
+        const updated = await interaction.editReply({
             embeds: [lobbyEmbed(game)],
-            attachments: [],
             components: buildButtons(game),
             allowedMentions: NO_MENTIONS
-        }
-        : await gamePayload(game);
+        });
 
-    // Never create a new public game message.
-    // Always edit the original lobby/game panel.
+        game.message = updated;
 
-    return interaction.editReply(payload);
+        return updated;
+    }
+
+    // Generate the new board first.
+
+    const payload = await gamePayload(game);
+
+    const oldMessage =
+        game.message || interaction.message;
+
+    // Upload the updated board at the bottom
+    // of the channel.
+
+    let newMessage;
+
+    try {
+        newMessage = await interaction.channel.send(
+            payload
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[SNAKE REPOST FALLBACK]",
+            error.message
+        );
+
+        // If sending a new board fails,
+        // update the existing board instead.
+
+        const updated = await interaction.editReply({
+            ...payload,
+            attachments: []
+        });
+
+        game.message = updated;
+
+        return updated;
+    }
+
+    // Register the latest panel immediately.
+
+    game.message = newMessage;
+
+    // Remove the old board after the new board
+    // has been successfully uploaded.
+
+    if (
+        oldMessage &&
+        oldMessage.id !== newMessage.id
+    ) {
+        await removeOldPanel(oldMessage);
+    }
+
+    return newMessage;
 }
 
 // ==========================================
@@ -785,7 +1063,8 @@ async function updateGameMessage(interaction, game) {
 function nextTurn(game) {
     for (let i = 0; i < game.players.length; i++) {
         game.turn =
-            (game.turn + 1) % game.players.length;
+            (game.turn + 1) %
+            game.players.length;
 
         if (!game.players[game.turn].finished) {
             return;
@@ -794,19 +1073,49 @@ function nextTurn(game) {
 }
 
 // ==========================================
-// SAVE TEMPORARY STATE
+// STATE BACKUP
 // ==========================================
 
 function snapshot(game) {
     return {
-        players: game.players.map(p => ({ ...p })),
-        winners: game.winners.map(p => ({ ...p })),
+        players: game.players.map(
+            player => ({ ...player })
+        ),
+
+        winners: game.winners.map(
+            player => ({ ...player })
+        ),
+
         turn: game.turn,
         round: game.round,
         status: game.status,
         lastAction: game.lastAction,
-        expires: game.expires
+        expires: game.expires,
+        message: game.message
     };
+}
+
+// ==========================================
+// PRIVATE RESPONSE
+// ==========================================
+
+async function privateReply(interaction, content) {
+    const payload = {
+        content,
+        ephemeral: true,
+        allowedMentions: NO_MENTIONS
+    };
+
+    try {
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp(payload);
+        } else {
+            await interaction.reply(payload);
+        }
+
+    } catch {
+        // Ignore expired interaction responses.
+    }
 }
 
 // ==========================================
@@ -815,27 +1124,33 @@ function snapshot(game) {
 
 async function execute(interaction) {
     if (!interaction.guild) {
-        return interaction.reply({
-            content: "Use this command in a server.",
-            ephemeral: true
-        });
+        return privateReply(
+            interaction,
+            "Use this command in a server."
+        );
     }
 
     const maxPlayers =
-        interaction.options.getInteger("players", true);
+        interaction.options.getInteger(
+            "players",
+            true
+        );
 
     const winnerCount =
-        interaction.options.getInteger("winners", true);
+        interaction.options.getInteger(
+            "winners",
+            true
+        );
 
     if (
         !Number.isInteger(maxPlayers) ||
         maxPlayers < 2 ||
         maxPlayers > 4
     ) {
-        return interaction.reply({
-            content: "Choose between 2 and 4 players.",
-            ephemeral: true
-        });
+        return privateReply(
+            interaction,
+            "Choose between 2 and 4 players."
+        );
     }
 
     if (
@@ -843,11 +1158,13 @@ async function execute(interaction) {
         winnerCount < 1 ||
         winnerCount > maxPlayers
     ) {
-        return interaction.reply({
-            content: "Invalid number of winners.",
-            ephemeral: true
-        });
+        return privateReply(
+            interaction,
+            "Invalid number of winners."
+        );
     }
+
+    // Prevent duplicate games in one channel.
 
     const existing = [...games.values()].find(
         game =>
@@ -857,16 +1174,20 @@ async function execute(interaction) {
     );
 
     if (existing) {
-        return interaction.reply({
-            content: existing.message?.url
-                ? `There is already an active game. [Open game](${existing.message.url})`
-                : "There is already an active game in this channel.",
-            ephemeral: true
-        });
+        return privateReply(
+            interaction,
+
+            existing.message?.url
+
+                ? `A game is already running. [Open game](${existing.message.url})`
+
+                : "A game is already running in this channel."
+        );
     }
 
     const game = {
         id: randomUUID().slice(0, 12),
+
         hostId: interaction.user.id,
         channelId: interaction.channelId,
 
@@ -892,42 +1213,36 @@ async function execute(interaction) {
     games.set(game.id, game);
 
     try {
-        // The ONLY public message created.
-
         await interaction.reply({
             embeds: [lobbyEmbed(game)],
             components: buildButtons(game),
             allowedMentions: NO_MENTIONS
         });
 
-        game.message = await interaction.fetchReply();
+        const lobbyMessage =
+            await interaction.fetchReply();
+
+        if (!game.message) {
+            game.message = lobbyMessage;
+        }
 
     } catch (error) {
         games.delete(game.id);
 
-        console.error("[SNAKE EXECUTE]", error);
+        console.error(
+            "[SNAKE EXECUTE]",
+            error
+        );
 
-        const payload = {
-            content: "Unable to create the game."
-        };
-
-        if (interaction.deferred || interaction.replied) {
-            await interaction.editReply({
-                ...payload,
-                embeds: [],
-                components: []
-            }).catch(() => {});
-        } else {
-            await interaction.reply({
-                ...payload,
-                ephemeral: true
-            }).catch(() => {});
-        }
+        await privateReply(
+            interaction,
+            "Unable to create the game."
+        );
     }
 }
 
 // ==========================================
-// GAME INTERACTIONS
+// INTERACTIONS
 // ==========================================
 
 async function handleInteraction(interaction) {
@@ -943,17 +1258,19 @@ async function handleInteraction(interaction) {
 
     const game = games.get(id);
 
-    const respond = content =>
-        interaction.reply({
-            content,
-            ephemeral: true,
-            allowedMentions: NO_MENTIONS
-        }).catch(() => {});
+    if (
+        !game ||
+        game.expires < Date.now()
+    ) {
+        await privateReply(
+            interaction,
+            "This game has expired."
+        );
 
-    if (!game || game.expires < Date.now()) {
-        await respond("This game has expired.");
         return true;
     }
+
+    // Reject buttons from old boards.
 
     if (
         game.channelId !== interaction.channelId ||
@@ -962,14 +1279,18 @@ async function handleInteraction(interaction) {
             game.message.id !== interaction.message.id
         )
     ) {
-        await respond("Invalid game message.");
+        await interaction.deferUpdate()
+            .catch(() => {});
+
         return true;
     }
 
-    // Silently ignore overlapping clicks.
+    // Prevent simultaneous actions.
 
     if (game.busy) {
-        await interaction.deferUpdate().catch(() => {});
+        await interaction.deferUpdate()
+            .catch(() => {});
+
         return true;
     }
 
@@ -979,13 +1300,20 @@ async function handleInteraction(interaction) {
     let committed = false;
 
     try {
+
         // ==================================
         // CANCEL GAME
         // ==================================
 
         if (action === "cancel") {
-            if (interaction.user.id !== game.hostId) {
-                await respond("Only the host can end the game.");
+            if (
+                interaction.user.id !== game.hostId
+            ) {
+                await privateReply(
+                    interaction,
+                    "Only the host can end the game."
+                );
+
                 return true;
             }
 
@@ -994,8 +1322,11 @@ async function handleInteraction(interaction) {
 
                 embeds: [
                     new EmbedBuilder()
+
                         .setTitle("Game Cancelled")
+
                         .setColor("#D65543")
+
                         .setDescription(
                             "The host has ended the game."
                         )
@@ -1012,27 +1343,39 @@ async function handleInteraction(interaction) {
         }
 
         // ==================================
-        // WAITING LOBBY
+        // LOBBY
         // ==================================
 
         if (game.status === "waiting") {
-            if (!["join", "leave"].includes(action)) {
+            if (
+                !["join", "leave"].includes(action)
+            ) {
                 await interaction.deferUpdate();
+
                 return true;
             }
 
-            const existing = game.players.findIndex(
-                player =>
-                    player.id === interaction.user.id
-            );
-
-            // Ignore repeated join/leave clicks.
+            const existing =
+                game.players.findIndex(
+                    player =>
+                        player.id === interaction.user.id
+                );
 
             if (
-                (action === "join" && existing !== -1) ||
-                (action === "leave" && existing === -1)
+                action === "join" &&
+                existing !== -1
             ) {
                 await interaction.deferUpdate();
+
+                return true;
+            }
+
+            if (
+                action === "leave" &&
+                existing === -1
+            ) {
+                await interaction.deferUpdate();
+
                 return true;
             }
 
@@ -1040,7 +1383,11 @@ async function handleInteraction(interaction) {
                 action === "join" &&
                 game.players.length >= game.maxPlayers
             ) {
-                await respond("The lobby is full.");
+                await privateReply(
+                    interaction,
+                    "The lobby is full."
+                );
+
                 return true;
             }
 
@@ -1049,36 +1396,51 @@ async function handleInteraction(interaction) {
             previous = snapshot(game);
 
             if (action === "join") {
-                game.players.push({
+                const player = {
                     id: interaction.user.id,
 
                     name:
                         interaction.member?.displayName ||
                         interaction.user.username,
 
-                    avatar: interaction.user.displayAvatarURL({
-                        extension: "png",
-                        size: 128
-                    }),
+                    avatar:
+                        interaction.user.displayAvatarURL({
+                            extension: "png",
+                            size: 128
+                        }),
 
                     position: 0,
 
                     finished: false,
+
                     place: null
-                });
+                };
+
+                game.players.push(player);
+
+                // Preload the avatar while
+                // the lobby is still waiting.
+
+                getAvatar(player).catch(() => {});
+
             } else {
                 game.players.splice(existing, 1);
             }
 
-            game.players.forEach((player, i) => {
-                player.color = COLORS[i];
-            });
+            game.players.forEach(
+                (player, i) => {
+                    player.color = COLORS[i];
+                }
+            );
 
-            game.expires = Date.now() + TIMEOUT;
+            game.expires =
+                Date.now() + TIMEOUT;
 
             // Automatically start when full.
 
-            if (game.players.length === game.maxPlayers) {
+            if (
+                game.players.length === game.maxPlayers
+            ) {
                 game.status = "playing";
 
                 game.turn = randomInt(
@@ -1086,11 +1448,15 @@ async function handleInteraction(interaction) {
                 );
 
                 game.lastAction =
-                    "The game has started!\n" +
+                    "The game has started!\n\n" +
+
                     `<@${game.players[game.turn].id}> goes first.`;
             }
 
-            await updateGameMessage(interaction, game);
+            await updateGameMessage(
+                interaction,
+                game
+            );
 
             committed = true;
 
@@ -1098,7 +1464,7 @@ async function handleInteraction(interaction) {
         }
 
         // ==================================
-        // VALIDATE DICE ROLL
+        // VALIDATE DICE
         // ==================================
 
         if (
@@ -1106,31 +1472,39 @@ async function handleInteraction(interaction) {
             action !== "roll"
         ) {
             await interaction.deferUpdate();
+
             return true;
         }
 
-        // Ignore old dice buttons.
+        // Block outdated buttons.
 
         if (Number(round) !== game.round) {
             await interaction.deferUpdate();
+
             return true;
         }
 
-        const player = game.players[game.turn];
+        const player =
+            game.players[game.turn];
 
-        // Wrong player: no public or private spam.
+        // Only current player can roll.
 
-        if (player.id !== interaction.user.id) {
+        if (
+            player.id !== interaction.user.id
+        ) {
             await interaction.deferUpdate();
+
             return true;
         }
+
+        // Immediately acknowledge the click.
 
         await interaction.deferUpdate();
 
         previous = snapshot(game);
 
         // ==================================
-        // ROLL DICE
+        // RANDOM DICE
         // ==================================
 
         const roll = randomInt(0, 7);
@@ -1139,17 +1513,27 @@ async function handleInteraction(interaction) {
             player.position + roll;
 
         let result =
+
             `<:diceblock192x192:${DICE_EMOJI}> ` +
+
             `<@${player.id}> rolled **${roll}**!`;
 
+        // ==================================
+        // MOVEMENT
+        // ==================================
+
         if (roll === 0) {
-            result += "\nNo movement this turn.";
+
+            result +=
+                "\nNo movement this turn.";
 
         } else if (destination > 100) {
+
             result +=
                 "\nAn exact roll is required to reach Tile 100.";
 
         } else {
+
             player.position = destination;
 
             result +=
@@ -1158,19 +1542,23 @@ async function handleInteraction(interaction) {
             // Ladder
 
             if (LADDERS[player.position]) {
+
                 player.position =
                     LADDERS[player.position];
 
                 result +=
+
                     `\nClimbed a ladder to **Tile ${player.position}**!`;
 
             // Snake
 
             } else if (SNAKES[player.position]) {
+
                 player.position =
                     SNAKES[player.position];
 
                 result +=
+
                     `\nSlid down a snake to **Tile ${player.position}**!`;
             }
         }
@@ -1193,65 +1581,66 @@ async function handleInteraction(interaction) {
             });
 
             result +=
+
                 `\n\n🏆 Finished in **#${player.place} place**!`;
         }
 
         game.round++;
 
-        game.expires = Date.now() + TIMEOUT;
+        game.expires =
+            Date.now() + TIMEOUT;
 
-        if (game.winners.length >= game.winnerCount) {
+        if (
+            game.winners.length >= game.winnerCount
+        ) {
             game.status = "finished";
 
-            result += "\n\nThe game is over!";
+            result +=
+                "\n\nThe game is over!";
+
         } else {
             nextTurn(game);
         }
 
-        // Replace previous dice result.
-        // Do not append a new message.
-
         game.lastAction = result;
 
         // ==================================
-        // UPDATE SAME EMBED AND CANVAS
+        // REFRESH GAME PANEL
         // ==================================
 
-        await updateGameMessage(interaction, game);
+        await updateGameMessage(
+            interaction,
+            game
+        );
 
         committed = true;
 
-        // NO interaction.channel.send()
-        // NO separate roll announcements.
-        // NO winner notifications.
-        // NO additional public messages.
+        // No separate dice announcements.
+        // No separate winner announcements.
+        // No notification pings.
 
         if (game.status === "finished") {
             games.delete(id);
         }
 
     } catch (error) {
+
+        // Restore the previous game state if
+        // the updated board could not be sent.
+
         if (previous && !committed) {
             Object.assign(game, previous);
         }
 
-        console.error("[SNAKE INTERACTION]", error);
+        console.error(
+            "[SNAKE INTERACTION]",
+            error
+        );
 
-        // Errors are private only.
-
-        const payload = {
-            content: "Unable to update the game. Please try again.",
-            ephemeral: true,
-            allowedMentions: NO_MENTIONS
-        };
-
-        if (interaction.deferred || interaction.replied) {
-            await interaction.followUp(payload)
-                .catch(() => {});
-        } else {
-            await interaction.reply(payload)
-                .catch(() => {});
-        }
+        await privateReply(
+            interaction,
+            "Unable to update the game. Please try again."
+        );
 
     } finally {
         game.busy = false;
@@ -1265,23 +1654,29 @@ async function handleInteraction(interaction) {
 // ==========================================
 
 const cleanup = setInterval(async () => {
+
     for (const [id, game] of games) {
         if (game.busy) continue;
-        if (game.expires >= Date.now()) continue;
+
+        if (game.expires >= Date.now()) {
+            continue;
+        }
 
         games.delete(id);
 
-        // Edit existing message instead of sending
-        // an expiration notification.
-
         if (game.message) {
+
             await game.message.edit({
+
                 content: null,
 
                 embeds: [
                     new EmbedBuilder()
+
                         .setTitle("Game Expired")
+
                         .setColor("#808080")
+
                         .setDescription(
                             "This game ended due to inactivity."
                         )
@@ -1302,6 +1697,19 @@ const cleanup = setInterval(async () => {
 }, 60_000);
 
 cleanup.unref();
+
+// ==========================================
+// PRELOAD STATIC BOARD
+// ==========================================
+
+try {
+    getStaticBoard();
+} catch (error) {
+    console.error(
+        "[SNAKE BOARD CACHE]",
+        error
+    );
+}
 
 // ==========================================
 // EXPORTS
