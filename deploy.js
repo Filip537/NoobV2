@@ -50,6 +50,9 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
   new SlashCommandBuilder()
+    .setName("chess")
+    .setDescription("Start a two-player chess game"),
+  new SlashCommandBuilder()
     .setName("playsnake")
     .setDescription("Play Growtopia Snakes and Ladders")
     .addIntegerOption(option =>
