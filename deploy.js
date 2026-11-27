@@ -148,9 +148,8 @@ new SlashCommandBuilder()
   ),
 
 new SlashCommandBuilder()
-  .setName("export")
-  .setDescription("Download the current channel history as a TXT file")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  .setName("mystat")
+  .setDescription("View your Growtopia character and backpack"),
 new SlashCommandBuilder()
   .setName("senddashboard")
   .setDescription("Send the Build Your Role dashboard")
