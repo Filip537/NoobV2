@@ -327,6 +327,7 @@ const createpoll = require("./feature/createpoll.js");
 const harvest = require("./feature/harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
+const chess = require("./feature/chess.js");
 const fishing = require("./feature/fishing.js");
 const furryTest = require("./feature/furrytest.js");
 const task = require("./feature/task.js");
@@ -3799,6 +3800,26 @@ async function logSpkUsage(interaction) {
 }
 client.on("interactionCreate", async (interaction) => {
   // GROWTOPIA SNAKES AND LADDERS
+  // ==========================================
+// CHESS SYSTEM
+// ==========================================
+
+if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "chess"
+) {
+    return chess.execute(interaction);
+}
+
+if (
+    (
+        interaction.isButton() ||
+        interaction.isStringSelectMenu()
+    ) &&
+    interaction.customId.startsWith("nv2chess:")
+) {
+    return chess.handleInteraction(interaction);
+}
 
 if (
     interaction.isChatInputCommand() &&
