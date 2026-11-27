@@ -56,13 +56,15 @@ new SlashCommandBuilder()
         option
             .setName("from")
             .setDescription("Source language, e.g. Thai or auto")
-            .setRequired(true)
+.setRequired(true)
+.setAutocomplete(true)
     )
     .addStringOption(option =>
         option
             .setName("to")
             .setDescription("Target language, e.g. English")
-            .setRequired(true)
+.setRequired(true)
+.setAutocomplete(true)
     )
     .addStringOption(option =>
         option
