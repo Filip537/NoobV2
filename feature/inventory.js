@@ -19,20 +19,41 @@ const {
 // FILE PATHS
 // ==========================================
 
-const levelsFile = path.join(__dirname, "..", "levels.json");
+const levelsFile = path.join(
+  __dirname, "..", "levels.json"
+);
 
-const itemBoxPath = path.join(__dirname, "..", "images", "itembox.png");
-const wlPath = path.join(__dirname, "..", "images", "wl.png");
-const dlPath = path.join(__dirname, "..", "images", "dl.png");
-const fishingRodPath = path.join(__dirname, "..", "images", "rod.webp");
-const wigglyWormPath = path.join(__dirname, "..", "images", "wiggly-worm.webp");
+const itemBoxPath = path.join(
+  __dirname, "..", "images", "itembox.png"
+);
 
-const myStatPath = path.join(__dirname, "..", "images", "mystat.png");
+const wlPath = path.join(
+  __dirname, "..", "images", "wl.png"
+);
 
-const fishFolder = path.join(__dirname, "..", "fish");
-const cookingFolder = path.join(__dirname, "..", "images", "cooking");
+const dlPath = path.join(
+  __dirname, "..", "images", "dl.png"
+);
 
-const fontPath = path.join(__dirname, "..", "fonts", "Grobold.ttf");
+const fishingRodPath = path.join(
+  __dirname, "..", "images", "rod.webp"
+);
+
+const wigglyWormPath = path.join(
+  __dirname, "..", "images", "wiggly-worm.webp"
+);
+
+const fishFolder = path.join(
+  __dirname, "..", "fish"
+);
+
+const cookingFolder = path.join(
+  __dirname, "..", "images", "cooking"
+);
+
+const fontPath = path.join(
+  __dirname, "..", "fonts", "Grobold.ttf"
+);
 
 // ==========================================
 // COOKING ITEMS
@@ -89,9 +110,17 @@ const SLOTS_PER_PAGE = 11;
 const SLOTS_PER_UPGRADE = 11;
 
 try {
-  GlobalFonts.registerFromPath(fontPath, "Grobold");
-} catch (err) {
-  console.log("Failed to load Grobold font:", err);
+  if (fs.existsSync(fontPath)) {
+    GlobalFonts.registerFromPath(
+      fontPath,
+      "Grobold"
+    );
+  }
+} catch (error) {
+  console.log(
+    "[INVENTORY] Font error:",
+    error.message
+  );
 }
 
 // ==========================================
@@ -132,8 +161,10 @@ function getTotalSlots(data) {
     data.extraBackpackLevel || 0
   );
 
-  return SLOTS_PER_PAGE +
-    upgradeLevel * SLOTS_PER_UPGRADE;
+  return (
+    SLOTS_PER_PAGE +
+    upgradeLevel * SLOTS_PER_UPGRADE
+  );
 }
 
 function getNextUpgradeCost(data) {
@@ -141,7 +172,8 @@ function getNextUpgradeCost(data) {
     data.extraBackpackLevel || 0
   );
 
-  return BASE_EXTRA_SLOT_COST + upgradeLevel * 100;
+  return BASE_EXTRA_SLOT_COST +
+    upgradeLevel * 100;
 }
 
 function drawAmount(ctx, amount, x, y) {
@@ -155,11 +187,15 @@ function drawAmount(ctx, amount, x, y) {
 }
 
 async function safeLoadImage(imagePath) {
-  if (!imagePath || !fs.existsSync(imagePath)) {
+  if (
+    !imagePath ||
+    !fs.existsSync(imagePath)
+  ) {
     return null;
   }
 
-  return loadImage(imagePath).catch(() => null);
+  return loadImage(imagePath)
+    .catch(() => null);
 }
 
 // ==========================================
@@ -176,24 +212,33 @@ function buildButtons(userId, page, data) {
 
   const nextCost = getNextUpgradeCost(data);
 
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`inv_buy_${userId}_${page}`)
-      .setLabel(`Upgrade Slots - ${nextCost} WL`)
-      .setStyle(ButtonStyle.Success),
+  return new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(
+          `inv_buy_${userId}_${page}`
+        )
+        .setLabel(
+          `Upgrade Slots - ${nextCost} WL`
+        )
+        .setStyle(ButtonStyle.Success),
 
-    new ButtonBuilder()
-      .setCustomId(`inv_prev_${userId}_${page}`)
-      .setLabel("<")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page <= 1),
+      new ButtonBuilder()
+        .setCustomId(
+          `inv_prev_${userId}_${page}`
+        )
+        .setLabel("<")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page <= 1),
 
-    new ButtonBuilder()
-      .setCustomId(`inv_next_${userId}_${page}`)
-      .setLabel(">")
-      .setStyle(ButtonStyle.Primary)
-      .setDisabled(page >= maxPage)
-  );
+      new ButtonBuilder()
+        .setCustomId(
+          `inv_next_${userId}_${page}`
+        )
+        .setLabel(">")
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(page >= maxPage)
+    );
 }
 
 // ==========================================
@@ -207,7 +252,7 @@ function getAllInventoryItems(data) {
   const dl = Math.floor(totalWl / 100);
   const wl = totalWl % 100;
 
-  // Diamond Locks
+  // DIAMOND LOCKS
 
   if (dl > 0) {
     items.push({
@@ -217,7 +262,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // World Locks
+  // WORLD LOCKS
 
   if (wl > 0) {
     items.push({
@@ -227,7 +272,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // Fishing Rod
+  // FISHING ROD
 
   if ((data.items?.fishingRod || 0) > 0) {
     items.push({
@@ -237,7 +282,7 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // Wiggly Worm
+  // WIGGLY WORM
 
   if ((data.items?.wigglyWorm || 0) > 0) {
     items.push({
@@ -247,25 +292,34 @@ function getAllInventoryItems(data) {
     });
   }
 
-  // Cooking ingredients
+  // COOKING INGREDIENTS
 
-  for (const [key, file] of Object.entries(
-    COOKING_ITEM_IMAGES
-  )) {
-    const amount = Number(data.items?.[key] || 0);
+  for (
+    const [key, file] of Object.entries(
+      COOKING_ITEM_IMAGES
+    )
+  ) {
+    const amount = Number(
+      data.items?.[key] || 0
+    );
 
     if (amount <= 0) continue;
 
     items.push({
       type: "image",
-      imagePath: path.join(cookingFolder, file),
+      imagePath: path.join(
+        cookingFolder,
+        file
+      ),
       amount
     });
   }
 
-  // Fishing backpack
+  // FISHING BACKPACK
 
-  const fishes = Array.isArray(data.fishBackpack)
+  const fishes = Array.isArray(
+    data.fishBackpack
+  )
     ? data.fishBackpack
     : [];
 
@@ -274,25 +328,112 @@ function getAllInventoryItems(data) {
   for (const fish of fishes) {
     if (!fish?.file) continue;
 
-    const amount = Number(fish.amount || 1);
+    const amount = Number(
+      fish.amount || 1
+    );
 
     if (amount <= 0) continue;
 
     mergedFish.set(
       fish.file,
-      (mergedFish.get(fish.file) || 0) + amount
+      (mergedFish.get(fish.file) || 0) +
+        amount
     );
   }
 
-  for (const [file, amount] of mergedFish) {
+  for (
+    const [file, amount] of mergedFish
+  ) {
     items.push({
       type: "image",
-      imagePath: path.join(fishFolder, file),
+      imagePath: path.join(
+        fishFolder,
+        file
+      ),
       amount
     });
   }
 
   return items;
+}
+
+// ==========================================
+// GENERATED INVENTORY SLOT
+// ==========================================
+
+function drawInventorySlot(ctx, x, y, size) {
+  // Dark outer border
+
+  ctx.fillStyle = "#092f3e";
+  ctx.fillRect(x, y, size, size);
+
+  // Bright cyan border
+
+  ctx.fillStyle = "#91d9ec";
+  ctx.fillRect(
+    x + 3,
+    y + 3,
+    size - 6,
+    size - 6
+  );
+
+  // Inner bevel
+
+  ctx.fillStyle = "#397e94";
+  ctx.fillRect(
+    x + 7,
+    y + 7,
+    size - 14,
+    size - 14
+  );
+
+  // Empty slot background
+
+  ctx.fillStyle = "#23596e";
+  ctx.fillRect(
+    x + 11,
+    y + 11,
+    size - 22,
+    size - 22
+  );
+
+  // Top shadow
+
+  ctx.fillStyle = "#153e50";
+  ctx.fillRect(
+    x + 11,
+    y + 11,
+    size - 22,
+    6
+  );
+
+  // Left shadow
+
+  ctx.fillRect(
+    x + 11,
+    y + 11,
+    6,
+    size - 22
+  );
+
+  // Bottom highlight
+
+  ctx.fillStyle = "#38768a";
+  ctx.fillRect(
+    x + 11,
+    y + size - 17,
+    size - 22,
+    6
+  );
+
+  // Right highlight
+
+  ctx.fillRect(
+    x + size - 17,
+    y + 11,
+    6,
+    size - 22
+  );
 }
 
 // ==========================================
@@ -314,35 +455,57 @@ async function createInventoryCard(
     Math.ceil(totalSlots / SLOTS_PER_PAGE)
   );
 
-  page = Math.min(Math.max(page, 1), maxPage);
-
-  // Background
+  page = Math.min(
+    Math.max(page, 1),
+    maxPage
+  );
 
   ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
   const username = shorten(
-    member.displayName || member.user.username,
+    member.displayName ||
+    member.user.username,
     14
   ).toUpperCase();
 
-  // Username
+  // USERNAME
 
   ctx.font = '58px "Grobold", Arial';
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(`@${username} INV`, 30, 70);
 
-  // Backpack slots
+  ctx.fillText(
+    `@${username} INV`,
+    30,
+    70
+  );
+
+  // BACKPACK SLOTS
 
   ctx.font = '40px "Grobold", Arial';
-  ctx.fillText(`BP SLOTS: ${totalSlots}`, 37, 124);
 
-  // Current page
+  ctx.fillText(
+    `BP SLOTS: ${totalSlots}`,
+    37,
+    124
+  );
+
+  // PAGE
 
   ctx.font = '28px "Grobold", Arial';
-  ctx.fillText(`PAGE ${page}/${maxPage}`, 650, 124);
 
-  // Inventory background
+  ctx.fillText(
+    `PAGE ${page}/${maxPage}`,
+    650,
+    124
+  );
+
+  // INVENTORY BACKGROUND
 
   ctx.fillStyle = "#8edbf0";
   ctx.fillRect(0, 162, 900, 350);
@@ -350,7 +513,9 @@ async function createInventoryCard(
   ctx.fillStyle = "#164d5c";
   ctx.fillRect(6, 168, 888, 340);
 
-  const itemBox = await loadImage(itemBoxPath);
+  const itemBox = await safeLoadImage(
+    itemBoxPath
+  );
 
   const slotSize = 120;
   const gap = 7;
@@ -361,7 +526,7 @@ async function createInventoryCard(
 
   const slots = [];
 
-  // First row
+  // FIRST ROW
 
   for (let i = 0; i < 6; i++) {
     slots.push({
@@ -370,7 +535,7 @@ async function createInventoryCard(
     });
   }
 
-  // Second row
+  // SECOND ROW
 
   for (let i = 0; i < 5; i++) {
     slots.push({
@@ -379,23 +544,35 @@ async function createInventoryCard(
     });
   }
 
-  // Draw slots
+  // DRAW SLOTS
 
   for (const slot of slots) {
-    ctx.drawImage(
-      itemBox,
-      slot.x,
-      slot.y,
-      slotSize,
-      slotSize
-    );
+    if (itemBox) {
+      ctx.drawImage(
+        itemBox,
+        slot.x,
+        slot.y,
+        slotSize,
+        slotSize
+      );
+    } else {
+      drawInventorySlot(
+        ctx,
+        slot.x,
+        slot.y,
+        slotSize
+      );
+    }
   }
 
-  // Draw items
+  // DRAW ITEMS
 
-  const allItems = getAllInventoryItems(data);
+  const allItems = getAllInventoryItems(
+    data
+  );
 
-  const startIndex = (page - 1) * SLOTS_PER_PAGE;
+  const startIndex =
+    (page - 1) * SLOTS_PER_PAGE;
 
   const pageItems = allItems.slice(
     startIndex,
@@ -407,7 +584,9 @@ async function createInventoryCard(
   for (const item of pageItems) {
     if (!slots[itemIndex]) break;
 
-    const image = await safeLoadImage(item.imagePath);
+    const image = await safeLoadImage(
+      item.imagePath
+    );
 
     if (!image) continue;
 
@@ -449,7 +628,9 @@ async function sendInventory(
       .fetch(targetUser.id)
       .catch(() => null) ||
     {
-      displayName: targetUser.globalName || targetUser.username,
+      displayName:
+        targetUser.globalName ||
+        targetUser.username,
       user: targetUser
     };
 
@@ -463,7 +644,10 @@ async function sendInventory(
     fishBackpack: []
   };
 
-  dev.applyDeveloperPerks(targetUser.id, data);
+  dev.applyDeveloperPerks(
+    targetUser.id,
+    data
+  );
 
   const totalSlots = getTotalSlots(data);
 
@@ -472,7 +656,10 @@ async function sendInventory(
     Math.ceil(totalSlots / SLOTS_PER_PAGE)
   );
 
-  page = Math.min(Math.max(page, 1), maxPage);
+  page = Math.min(
+    Math.max(page, 1),
+    maxPage
+  );
 
   const image = await createInventoryCard(
     member,
@@ -480,27 +667,38 @@ async function sendInventory(
     page
   );
 
-  const attachment = new AttachmentBuilder(image, {
-    name: "inventory.png"
-  });
+  const attachment = new AttachmentBuilder(
+    image,
+    {
+      name: "inventory.png"
+    }
+  );
 
   const payload = {
-    content: `${targetUser}, here's your inventory,`,
+    content:
+      `${targetUser}, here's your inventory,`,
+
     files: [attachment],
+
     components: [
-      buildButtons(targetUser.id, page, data)
+      buildButtons(
+        targetUser.id,
+        page,
+        data
+      )
     ],
+
     allowedMentions: {
       users: [targetUser.id]
     }
   };
 
-  if (update && !interaction.deferred) {
-    return interaction.update(payload);
-  }
-
   if (update) {
     payload.attachments = [];
+  }
+
+  if (update && !interaction.deferred) {
+    return interaction.update(payload);
   }
 
   return interaction.editReply(payload);
@@ -526,7 +724,10 @@ async function executeInventory(interaction) {
     );
 
   } catch (error) {
-    console.error("[INVENTORY ERROR]", error);
+    console.error(
+      "[INVENTORY ERROR]",
+      error
+    );
 
     return interaction.editReply({
       content: "Could not load the inventory."
@@ -535,24 +736,305 @@ async function executeInventory(interaction) {
 }
 
 // ==========================================
-// NEW /MYSTAT CANVAS
+// PIXEL ART DRAWING HELPER
+// ==========================================
+
+function drawPixelArt(
+  ctx,
+  sprite,
+  palette,
+  x,
+  y,
+  scale = 5
+) {
+  ctx.imageSmoothingEnabled = false;
+
+  for (
+    let row = 0;
+    row < sprite.length;
+    row++
+  ) {
+    for (
+      let col = 0;
+      col < sprite[row].length;
+      col++
+    ) {
+      const pixel = sprite[row][col];
+
+      if (
+        pixel === "." ||
+        !palette[pixel]
+      ) {
+        continue;
+      }
+
+      ctx.fillStyle = palette[pixel];
+
+      ctx.fillRect(
+        x + col * scale,
+        y + row * scale,
+        scale,
+        scale
+      );
+    }
+  }
+}
+
+// ==========================================
+// GENERATED GROWTOPIA STYLE CHARACTER
+// ==========================================
+
+function drawGrowtopiaCharacter(
+  ctx,
+  centerX,
+  bottomY,
+  scale = 6
+) {
+  const palette = {
+    X: "#38261d",
+    H: "#693e23",
+    L: "#a66a36",
+    D: "#482d20",
+
+    S: "#f0ad70",
+    A: "#ffd59c",
+    T: "#cb8050",
+
+    W: "#ffffff",
+    E: "#252525",
+
+    G: "#79b448",
+    F: "#a2d568",
+    R: "#477d2d",
+
+    B: "#496b9d",
+    C: "#304a78",
+
+    K: "#302b2b",
+    J: "#60514a"
+  };
+
+  const sprite = [
+    ".......XXXXXX.......",
+    ".....XXHHHHHHXX.....",
+    "....XHLLLLHHHHHX....",
+    "...XHLLLHHHHDDDDX...",
+    "...XHHHHHHHDDDDDX...",
+    "...XHHHXXXXXXXDDX...",
+    "...XHHXAAAAAAAXHX...",
+    "...XHXAAAAAAAASXX...",
+    "...XXAAWWAAWWASXX...",
+    "...XAAAWEAAWEAASX...",
+    "...XAAAAAAAAAAASX...",
+    "...XAAAATTTAAAASX...",
+    "....XAAATXXTAASX....",
+    ".....XSSSSSSSXX.....",
+    "......XXXXXXX.......",
+    ".......XASX.........",
+    ".....XXGGGGXX.......",
+    "....XFFGGGGGRX......",
+    "...XASXGGGGRXASX....",
+    "...XSSXGGGGRXSSX....",
+    "...XSSXGGGGRXSSX....",
+    "....XXGGGGGRXX......",
+    ".....XGGGGRX........",
+    ".....XBBBBBX........",
+    ".....XBBCBBX........",
+    ".....XBCXCBX........",
+    ".....XBC.XBX........",
+    "....XKKX.XKKX.......",
+    "...XJJJX.XJJJX......",
+    "...XXXXX.XXXXX......"
+  ];
+
+  const width = Math.max(
+    ...sprite.map(row => row.length)
+  ) * scale;
+
+  const height = sprite.length * scale;
+
+  drawPixelArt(
+    ctx,
+    sprite,
+    palette,
+    Math.round(centerX - width / 2),
+    Math.round(bottomY - height),
+    scale
+  );
+}
+
+// ==========================================
+// GENERATED GRASS BLOCK
+// ==========================================
+
+function drawGrassBlock(ctx, x, y, size) {
+  const scale = size / 16;
+
+  const palette = {
+    X: "#39291b",
+
+    G: "#488d25",
+    L: "#80ca40",
+    H: "#a5e45a",
+    D: "#326b1e",
+
+    B: "#855126",
+    C: "#a56c35",
+    E: "#69411f",
+    F: "#bd8248",
+    R: "#50331c"
+  };
+
+  const sprite = [
+    "XXXXXXXXXXXXXXXX",
+    "XHHHLHHHLLHHHHLX",
+    "XLLLLGLLGLLLLGLX",
+    "XGGGGGGGGGGGGGGX",
+    "XDDGDDGGDDGDDDGX",
+    "XBBDBBDDBBDBBDBX",
+    "XBCCBBFCCBBCCBBX",
+    "XCBBEBBBCBBEBBCX",
+    "XBBBBCCBBBBCCBBX",
+    "XBEFBBBBEBBBBBBX",
+    "XBBBBEBCBBBFBBBX",
+    "XBCCBBBBBBCBBEBX",
+    "XBBBBRBBEBBBBBBX",
+    "XEBBBBBBBBBBCCBX",
+    "XRRERERRERERRERX",
+    "XXXXXXXXXXXXXXXX"
+  ];
+
+  drawPixelArt(
+    ctx,
+    sprite,
+    palette,
+    x,
+    y,
+    scale
+  );
+}
+
+// ==========================================
+// GENERATED GROWTOPIA BACKPACK PANEL
+// ==========================================
+
+function drawMyStatBackpack(ctx, canvasWidth) {
+  const columns = 6;
+  const rows = 4;
+
+  const slotSize = 126;
+  const gap = 6;
+
+  const gridWidth =
+    columns * slotSize +
+    (columns - 1) * gap;
+
+  const gridHeight =
+    rows * slotSize +
+    (rows - 1) * gap;
+
+  const padding = 15;
+
+  const panelWidth =
+    gridWidth + padding * 2;
+
+  const panelHeight =
+    gridHeight + padding * 2;
+
+  const panelX = Math.round(
+    (canvasWidth - panelWidth) / 2
+  );
+
+  const panelY = 325;
+
+  // OUTER BORDER
+
+  ctx.fillStyle = "#0a2834";
+
+  ctx.fillRect(
+    panelX - 4,
+    panelY - 4,
+    panelWidth + 8,
+    panelHeight + 8
+  );
+
+  // CYAN FRAME
+
+  ctx.fillStyle = "#a0dce9";
+
+  ctx.fillRect(
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight
+  );
+
+  // DARK INNER FRAME
+
+  ctx.fillStyle = "#377b90";
+
+  ctx.fillRect(
+    panelX + 5,
+    panelY + 5,
+    panelWidth - 10,
+    panelHeight - 10
+  );
+
+  // BACKPACK BACKGROUND
+
+  ctx.fillStyle = "#153f50";
+
+  ctx.fillRect(
+    panelX + 10,
+    panelY + 10,
+    panelWidth - 20,
+    panelHeight - 20
+  );
+
+  // DRAW ALL 24 EMPTY SLOTS
+
+  for (let row = 0; row < rows; row++) {
+    for (
+      let col = 0;
+      col < columns;
+      col++
+    ) {
+      const x =
+        panelX +
+        padding +
+        col * (slotSize + gap);
+
+      const y =
+        panelY +
+        padding +
+        row * (slotSize + gap);
+
+      drawInventorySlot(
+        ctx,
+        x,
+        y,
+        slotSize
+      );
+    }
+  }
+}
+
+// ==========================================
+// /MYSTAT CANVAS
+// NO EXTERNAL IMAGE REQUIRED
 // ==========================================
 
 async function createMyStatCard() {
-  const template = await loadImage(myStatPath);
-
   const canvas = createCanvas(
-    template.width,
-    template.height
+    900,
+    900
   );
 
   const ctx = canvas.getContext("2d");
 
-  // Preserve Growtopia pixel-art quality
-
   ctx.imageSmoothingEnabled = false;
 
-  // Black background
+  // BLACK BACKGROUND
 
   ctx.fillStyle = "#000000";
 
@@ -563,37 +1045,49 @@ async function createMyStatCard() {
     canvas.height
   );
 
-  // Draw character, platform and empty backpack
+  const centerX = canvas.width / 2;
 
-  ctx.drawImage(
-    template,
-    0,
-    0,
-    canvas.width,
-    canvas.height
+  // CHARACTER PLATFORM
+
+  const blockSize = 96;
+  const blockY = 205;
+
+  drawGrassBlock(
+    ctx,
+    centerX - blockSize / 2,
+    blockY,
+    blockSize
+  );
+
+  // GROWTOPIA STYLE CHARACTER
+
+  drawGrowtopiaCharacter(
+    ctx,
+    centerX,
+    blockY,
+    6
+  );
+
+  // EMPTY BACKPACK
+
+  drawMyStatBackpack(
+    ctx,
+    canvas.width
   );
 
   return canvas.encode("png");
 }
 
 // ==========================================
-// NEW /MYSTAT COMMAND
+// /MYSTAT COMMAND
 // ==========================================
 
 async function executeMyStat(interaction) {
   await interaction.deferReply();
 
   try {
-    if (!fs.existsSync(myStatPath)) {
-      console.error(
-        "[MYSTAT] Template not found:",
-        myStatPath
-      );
-
-      return interaction.editReply({
-        content: "The mystat.png template is missing."
-      });
-    }
+    // Generate everything using Canvas.
+    // No mystat.png template required.
 
     const image = await createMyStatCard();
 
@@ -604,17 +1098,19 @@ async function executeMyStat(interaction) {
       }
     );
 
-    // Send image publicly
-
     return await interaction.editReply({
       files: [attachment]
     });
 
   } catch (error) {
-    console.error("[MYSTAT ERROR]", error);
+    console.error(
+      "[MYSTAT ERROR]",
+      error
+    );
 
     return interaction.editReply({
-      content: "Could not generate your backpack."
+      content:
+        "Could not generate your backpack."
     }).catch(console.error);
   }
 }
@@ -624,21 +1120,31 @@ async function executeMyStat(interaction) {
 // ==========================================
 
 async function handleButton(interaction) {
-  if (!interaction.isButton()) return false;
-
-  if (!interaction.customId.startsWith("inv_")) {
+  if (!interaction.isButton()) {
     return false;
   }
 
-  const parts = interaction.customId.split("_");
+  if (
+    !interaction.customId.startsWith("inv_")
+  ) {
+    return false;
+  }
+
+  const parts =
+    interaction.customId.split("_");
 
   const action = parts[1];
   const ownerId = parts[2];
-  const currentPage = Number(parts[3] || 1);
+
+  const currentPage = Number(
+    parts[3] || 1
+  );
 
   if (interaction.user.id !== ownerId) {
     await interaction.reply({
-      content: "❌ This is not your inventory.",
+      content:
+        "❌ This is not your inventory.",
+
       ephemeral: true
     });
 
@@ -660,20 +1166,26 @@ async function handleButton(interaction) {
       data.items = {};
     }
 
-    if (!Array.isArray(data.fishBackpack)) {
+    if (
+      !Array.isArray(data.fishBackpack)
+    ) {
       data.fishBackpack = [];
     }
 
-    // Next page
+    // NEXT PAGE
 
     if (action === "next") {
       await interaction.deferUpdate();
 
-      const totalSlots = getTotalSlots(data);
+      const totalSlots = getTotalSlots(
+        data
+      );
 
       const maxPage = Math.max(
         1,
-        Math.ceil(totalSlots / SLOTS_PER_PAGE)
+        Math.ceil(
+          totalSlots / SLOTS_PER_PAGE
+        )
       );
 
       const nextPage = Math.min(
@@ -691,7 +1203,7 @@ async function handleButton(interaction) {
       return true;
     }
 
-    // Previous page
+    // PREVIOUS PAGE
 
     if (action === "prev") {
       await interaction.deferUpdate();
@@ -711,16 +1223,19 @@ async function handleButton(interaction) {
       return true;
     }
 
-    // Upgrade backpack
+    // UPGRADE BACKPACK
 
     if (action === "buy") {
-      const cost = getNextUpgradeCost(data);
+      const cost = getNextUpgradeCost(
+        data
+      );
 
       if ((data.wl || 0) < cost) {
         await interaction.reply({
           content:
             `❌ You need **${cost} World Locks** to upgrade your backpack.\n` +
             `You currently have **${data.wl || 0} WL**.`,
+
           ephemeral: true
         });
 
@@ -730,7 +1245,9 @@ async function handleButton(interaction) {
       data.wl -= cost;
 
       data.extraBackpackLevel =
-        Number(data.extraBackpackLevel || 0) + 1;
+        Number(
+          data.extraBackpackLevel || 0
+        ) + 1;
 
       data.extraBackpack = true;
 
@@ -742,6 +1259,7 @@ async function handleButton(interaction) {
         content:
           `✅ Backpack upgraded for **${cost} WL**!\n` +
           `You now have **${getTotalSlots(data)} slots**.`,
+
         ephemeral: true
       });
 
@@ -751,17 +1269,30 @@ async function handleButton(interaction) {
     return false;
 
   } catch (error) {
-    console.error("[INVENTORY BUTTON ERROR]", error);
+    console.error(
+      "[INVENTORY BUTTON ERROR]",
+      error
+    );
 
     const payload = {
-      content: "Could not process your inventory action.",
+      content:
+        "Could not process your inventory action.",
+
       ephemeral: true
     };
 
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp(payload).catch(console.error);
+    if (
+      interaction.deferred ||
+      interaction.replied
+    ) {
+      await interaction.followUp(
+        payload
+      ).catch(console.error);
+
     } else {
-      await interaction.reply(payload).catch(console.error);
+      await interaction.reply(
+        payload
+      ).catch(console.error);
     }
 
     return true;
