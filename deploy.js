@@ -50,6 +50,9 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
     new SlashCommandBuilder()
+    .setName("surgery")
+    .setDescription("Perform a Growtopia surgery"),
+    new SlashCommandBuilder()
     .setName("sendpanel")
     .setDescription("Post or refresh the NoobV2 Profile Setup panel"),
   new SlashCommandBuilder()
