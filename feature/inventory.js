@@ -1075,12 +1075,11 @@ async function createMyStatCard(user) {
   // CHARACTER ON LEFT
   // ======================================
 
-  drawGrowtopiaCharacter(
-    ctx,
-    MYSTAT_CONFIG.characterCenterX,
-    MYSTAT_CONFIG.characterY,
-    MYSTAT_CONFIG.characterScale - 2
-  );
+  await drawGrowtopiaCharacter(
+  ctx,
+  MYSTAT_CONFIG.characterCenterX,
+  MYSTAT_CONFIG.characterY
+);
 
   // ======================================
   // 25 EMPTY BACKPACK SLOTS ON RIGHT
