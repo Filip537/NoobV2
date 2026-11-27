@@ -52,35 +52,28 @@ new SlashCommandBuilder()
   new SlashCommandBuilder()
     .setName("translate")
     .setDescription("Translate text or a Discord message")
-
     .addStringOption(option =>
         option
             .setName("from")
-            .setDescription("Original language")
+            .setDescription("Source language, e.g. Thai or auto")
             .setRequired(true)
-            .setAutocomplete(true)
     )
-
     .addStringOption(option =>
         option
             .setName("to")
-            .setDescription("Target language")
+            .setDescription("Target language, e.g. English")
             .setRequired(true)
-            .setAutocomplete(true)
     )
-
     .addStringOption(option =>
         option
             .setName("message")
-            .setDescription("Text you want to translate")
+            .setDescription("Text to translate")
             .setRequired(false)
-            .setMaxLength(6000)
     )
-
     .addStringOption(option =>
         option
             .setName("messageid")
-            .setDescription("Discord message ID or message link")
+            .setDescription("Discord message ID or link")
             .setRequired(false)
     ),
   new SlashCommandBuilder()
