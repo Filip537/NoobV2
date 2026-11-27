@@ -324,7 +324,7 @@ const {
   handleCrimeButton
 } = require("./feature/crime.js");
 const createpoll = require("./feature/createpoll.js");
-const harvest = require("./features/harvest.js");
+const harvest = require("./feature/harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
 const slot = require("./feature/slot.js");
 const fishing = require("./feature/fishing.js");
@@ -3651,10 +3651,10 @@ const selected = shuffled.slice(0, 17);
 }
 
   if (
-  interaction.isAutocomplete() &&
+  interaction.isChatInputCommand() &&
   interaction.commandName === "harvest"
 ) {
-  return harvest.autocomplete(interaction);
+  return harvest.execute(interaction);
 }
   if (
     interaction.isChatInputCommand() &&
