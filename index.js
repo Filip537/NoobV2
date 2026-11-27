@@ -323,7 +323,7 @@ const {
   handleCrime,
   handleCrimeButton
 } = require("./feature/crime.js");
-const startopia = require("./startopia");
+const startopia = require("./feature/startopia.js");
 const createpoll = require("./feature/createpoll.js");
 const harvest = require("./feature/harvest.js");
 const inventoryFeature = require("./feature/inventory.js");
@@ -3501,7 +3501,13 @@ if (
   ) {
     return surgery.execute(interaction);
   }
-
+// GROWTOPIA STARTOPIA
+if (
+    interaction.isChatInputCommand() &&
+    interaction.commandName === "startopia"
+) {
+    return startopia.execute(interaction);
+}
   if (
     interaction.isButton() &&
     interaction.customId.startsWith("surg:")
