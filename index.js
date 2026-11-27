@@ -3422,6 +3422,609 @@ async function getGTPrice(itemName) {
 }
 
 async function logSpkUsage(interaction) {
+  
+// ==========================================
+// NOOBV2 TRANSLATION SYSTEM
+// ==========================================
+
+const TRANSLATION_API =
+    "https://translation.googleapis.com/language/translate/v2";
+
+let translationLanguages = [];
+let translationLanguagesUpdated = 0;
+let translationLanguageRequest = null;
+
+const translationCooldowns = new Map();
+
+const TRANSLATION_CACHE_TIME = 24 * 60 * 60 * 1000;
+const TRANSLATION_COOLDOWN = 5000;
+
+// ==========================================
+// LOAD SUPPORTED LANGUAGES
+// ==========================================
+
+async function getTranslationLanguages() {
+    if (
+        translationLanguages.length &&
+        Date.now() - translationLanguagesUpdated <
+            TRANSLATION_CACHE_TIME
+    ) {
+        return translationLanguages;
+    }
+
+    if (translationLanguageRequest) {
+        return translationLanguageRequest;
+    }
+
+    translationLanguageRequest = (async () => {
+        try {
+            const apiKey =
+                process.env.GOOGLE_TRANSLATE_API_KEY;
+
+            if (!apiKey) {
+                throw new Error(
+                    "Missing GOOGLE_TRANSLATE_API_KEY"
+                );
+            }
+
+            const params = new URLSearchParams({
+                key: apiKey,
+                target: "en"
+            });
+
+            const response = await fetch(
+                `${TRANSLATION_API}/languages?${params}`,
+                {
+                    signal: AbortSignal.timeout(10000)
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Language API HTTP ${response.status}`
+                );
+            }
+
+            const result = await response.json();
+
+            const languages = result?.data?.languages;
+
+            if (!Array.isArray(languages)) {
+                throw new Error("Invalid language response");
+            }
+
+            translationLanguages = languages.map(language => ({
+                code: language.language,
+                name: language.name || language.language
+            })).sort((a, b) =>
+                a.name.localeCompare(b.name)
+            );
+
+            translationLanguagesUpdated = Date.now();
+
+            return translationLanguages;
+
+        } finally {
+            translationLanguageRequest = null;
+        }
+    })();
+
+    return translationLanguageRequest;
+}
+
+// ==========================================
+// LANGUAGE AUTOCOMPLETE
+// ==========================================
+
+async function handleTranslateAutocomplete(interaction) {
+    try {
+        const focused =
+            interaction.options.getFocused(true);
+
+        const query = String(focused.value || "")
+            .trim()
+            .toLowerCase();
+
+        const fallback = [
+            { code: "en", name: "English" },
+            { code: "th", name: "Thai" },
+            { code: "lo", name: "Lao" },
+            { code: "vi", name: "Vietnamese" },
+            { code: "id", name: "Indonesian" },
+            { code: "ms", name: "Malay" },
+            { code: "tl", name: "Filipino" },
+            { code: "my", name: "Myanmar (Burmese)" },
+            { code: "km", name: "Khmer" },
+            { code: "zh-CN", name: "Chinese (Simplified)" },
+            { code: "zh-TW", name: "Chinese (Traditional)" },
+            { code: "ja", name: "Japanese" },
+            { code: "ko", name: "Korean" },
+            { code: "fr", name: "French" },
+            { code: "de", name: "German" },
+            { code: "es", name: "Spanish" },
+            { code: "ru", name: "Russian" },
+            { code: "ar", name: "Arabic" },
+            { code: "hi", name: "Hindi" },
+            { code: "pt", name: "Portuguese" },
+            { code: "it", name: "Italian" },
+            { code: "tr", name: "Turkish" }
+        ];
+
+        let languages = translationLanguages.length
+            ? [...translationLanguages]
+            : fallback;
+
+        // Load languages in the background without
+        // delaying Discord autocomplete.
+
+        if (
+            !translationLanguages.length ||
+            Date.now() - translationLanguagesUpdated >
+                TRANSLATION_CACHE_TIME
+        ) {
+            getTranslationLanguages().catch(error => {
+                console.error(
+                    "[TRANSLATE LANGUAGES]",
+                    error.message
+                );
+            });
+        }
+
+        if (focused.name === "from") {
+            languages.unshift({
+                code: "auto",
+                name: "Auto Detect"
+            });
+        }
+
+        const choices = languages
+            .filter(language =>
+                language.name.toLowerCase().includes(query) ||
+                language.code.toLowerCase().includes(query)
+            )
+            .slice(0, 25)
+            .map(language => ({
+                name: `${language.name} (${language.code})`,
+                value: language.code
+            }));
+
+        return await interaction.respond(choices);
+
+    } catch (error) {
+        console.error("[TRANSLATE AUTOCOMPLETE]", error);
+
+        await interaction.respond([]).catch(() => {});
+    }
+}
+
+// ==========================================
+// RESOLVE LANGUAGE NAME OR CODE
+// ==========================================
+
+function resolveTranslationLanguage(
+    input,
+    languages,
+    allowAuto = false
+) {
+    const value = String(input || "")
+        .trim()
+        .toLowerCase();
+
+    if (
+        allowAuto &&
+        ["auto", "auto detect", "detect"].includes(value)
+    ) {
+        return {
+            code: "auto",
+            name: "Auto Detect"
+        };
+    }
+
+    return languages.find(language =>
+        language.code.toLowerCase() === value ||
+        language.name.toLowerCase() === value
+    ) || null;
+}
+
+// ==========================================
+// TRANSLATE API
+// ==========================================
+
+async function translateText(text, from, to) {
+    const apiKey =
+        process.env.GOOGLE_TRANSLATE_API_KEY;
+
+    if (!apiKey) {
+        throw new Error("Translation API is not configured.");
+    }
+
+    const body = {
+        q: text,
+        target: to,
+        format: "text"
+    };
+
+    if (from !== "auto") {
+        body.source = from;
+    }
+
+    const response = await fetch(
+        `${TRANSLATION_API}?key=${encodeURIComponent(apiKey)}`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(body),
+
+            signal: AbortSignal.timeout(15000)
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            `Translation API HTTP ${response.status}`
+        );
+    }
+
+    const translation =
+        result?.data?.translations?.[0];
+
+    if (!translation?.translatedText) {
+        throw new Error("No translation returned.");
+    }
+
+    return {
+        text: translation.translatedText,
+
+        detected:
+            translation.detectedSourceLanguage || from
+    };
+}
+
+// ==========================================
+// MESSAGE ID / MESSAGE LINK
+// ==========================================
+
+async function getMessageForTranslation(interaction, input) {
+    let messageId = String(input).trim();
+
+    let channel = interaction.channel;
+
+    const link = messageId.match(
+        /^https:\/\/(?:canary\.|ptb\.)?discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)\/?$/
+    );
+
+    if (link) {
+        const [, guildId, channelId, targetMessageId] = link;
+
+        if (guildId !== interaction.guildId) {
+            throw new Error(
+                "You can only translate messages from this server."
+            );
+        }
+
+        channel = await interaction.guild.channels
+            .fetch(channelId)
+            .catch(() => null);
+
+        messageId = targetMessageId;
+    }
+
+    if (!/^\d{17,20}$/.test(messageId)) {
+        throw new Error("Invalid message ID.");
+    }
+
+    if (!channel?.isTextBased() || !channel.messages) {
+        throw new Error("Invalid message channel.");
+    }
+
+    const member = await interaction.guild.members
+        .fetch(interaction.user.id);
+
+    const permissions = channel.permissionsFor(member);
+
+    if (
+        !permissions?.has(PermissionFlagsBits.ViewChannel) ||
+        !permissions?.has(PermissionFlagsBits.ReadMessageHistory)
+    ) {
+        throw new Error(
+            "You do not have permission to read this message."
+        );
+    }
+
+    // Raw IDs use the current channel.
+    // Other channels require a message link.
+    // Private threads are restricted to the current channel.
+
+    if (
+        channel.isThread?.() &&
+        channel.type === 12 &&
+        channel.id !== interaction.channelId
+    ) {
+        throw new Error(
+            "Use this command inside the private thread."
+        );
+    }
+
+    const message = await channel.messages
+        .fetch(messageId)
+        .catch(() => null);
+
+    if (!message) {
+        throw new Error(
+            "Message not found or the bot cannot access it."
+        );
+    }
+
+    const content = message.content?.trim();
+
+    if (!content) {
+        throw new Error(
+            "This message does not contain translatable text."
+        );
+    }
+
+    return content;
+}
+
+// ==========================================
+// EMBED TEXT LIMIT
+// ==========================================
+
+function translationPreview(text, maxLength = 850) {
+    const characters = Array.from(String(text));
+
+    if (characters.length <= maxLength) {
+        return characters.join("");
+    }
+
+    return characters
+        .slice(0, maxLength - 3)
+        .join("") + "...";
+}
+
+// ==========================================
+// /TRANSLATE COMMAND
+// ==========================================
+
+async function handleTranslate(interaction) {
+    const userId = interaction.user.id;
+
+    const fromInput =
+        interaction.options.getString("from", true);
+
+    const toInput =
+        interaction.options.getString("to", true);
+
+    const messageInput =
+        interaction.options.getString("message");
+
+    const messageId =
+        interaction.options.getString("messageid");
+
+    if (!interaction.guild) {
+        return interaction.reply({
+            content: "Use this command inside a server.",
+            ephemeral: true
+        });
+    }
+
+    if (!messageInput && !messageId) {
+        return interaction.reply({
+            content:
+                "Please provide either message or messageid.",
+            ephemeral: true
+        });
+    }
+
+    if (messageInput && messageId) {
+        return interaction.reply({
+            content:
+                "Please provide only message OR messageid, not both.",
+            ephemeral: true
+        });
+    }
+
+    const lastUsed =
+        translationCooldowns.get(userId) || 0;
+
+    if (
+        Date.now() - lastUsed <
+        TRANSLATION_COOLDOWN
+    ) {
+        return interaction.reply({
+            content: "Please wait 5 seconds before translating again.",
+            ephemeral: true
+        });
+    }
+
+    if (!process.env.GOOGLE_TRANSLATE_API_KEY) {
+        return interaction.reply({
+            content: "The translation API has not been configured.",
+            ephemeral: true
+        });
+    }
+
+    const cooldownTime = Date.now();
+
+    translationCooldowns.set(
+        userId,
+        cooldownTime
+    );
+
+    const cleanup = setTimeout(() => {
+        if (
+            translationCooldowns.get(userId) === cooldownTime
+        ) {
+            translationCooldowns.delete(userId);
+        }
+    }, TRANSLATION_COOLDOWN);
+
+    cleanup.unref?.();
+
+    try {
+        // Keep translated messages private to the requester.
+        // Prevents reposting text from restricted channels.
+
+        await interaction.deferReply({
+            ephemeral: true
+        });
+
+        let original = messageInput?.trim();
+
+        if (messageId) {
+            try {
+                original = await getMessageForTranslation(
+                    interaction,
+                    messageId
+                );
+            } catch (error) {
+                return interaction.editReply({
+                    content: error.message
+                });
+            }
+        }
+
+        if (!original) {
+            return interaction.editReply({
+                content: "No text was provided."
+            });
+        }
+
+        if (Array.from(original).length > 6000) {
+            return interaction.editReply({
+                content: "The maximum translation length is 6,000 characters."
+            });
+        }
+
+        const languages =
+            await getTranslationLanguages();
+
+        const from = resolveTranslationLanguage(
+            fromInput,
+            languages,
+            true
+        );
+
+        const to = resolveTranslationLanguage(
+            toInput,
+            languages
+        );
+
+        if (!from || !to) {
+            return interaction.editReply({
+                content: "Invalid language. Please select a supported language from autocomplete."
+            });
+        }
+
+        if (from.code === to.code) {
+            return interaction.editReply({
+                content: "The source and target languages are the same."
+            });
+        }
+
+        const result = await translateText(
+            original,
+            from.code,
+            to.code
+        );
+
+        const detectedLanguage =
+            languages.find(language =>
+                language.code.toLowerCase() ===
+                    result.detected.toLowerCase()
+            );
+
+        const fromName =
+            detectedLanguage?.name ||
+            from.name;
+
+        const embed = new EmbedBuilder()
+
+            .setTitle("Translation")
+
+            .setColor(0x3498DB)
+
+            .setDescription(
+                `**${fromName} → ${to.name}**`
+            )
+
+            .addFields(
+                {
+                    name: "Original",
+                    value: translationPreview(original),
+                    inline: false
+                },
+                {
+                    name: "Translated",
+                    value: translationPreview(result.text),
+                    inline: false
+                }
+            )
+
+            .setFooter({
+                text: "NoobV2 • Translator"
+            });
+
+        const payload = {
+            embeds: [embed],
+
+            allowedMentions: {
+                parse: []
+            }
+        };
+
+        // Attach the full translation when the text
+        // is too long for a compact embed.
+
+        if (
+            Array.from(original).length > 850 ||
+            Array.from(result.text).length > 850
+        ) {
+            payload.files = [{
+                attachment: Buffer.from(
+                    `Language: ${fromName} → ${to.name}\n\n` +
+                    `ORIGINAL\n${original}\n\n` +
+                    `TRANSLATED\n${result.text}`,
+                    "utf8"
+                ),
+
+                name: "translation.txt"
+            }];
+        }
+
+        return await interaction.editReply(payload);
+
+    } catch (error) {
+        console.error(
+            "[TRANSLATE]",
+            error.message
+        );
+
+        const payload = {
+            content: "Unable to translate this message. Please try again later."
+        };
+
+        if (
+            interaction.deferred ||
+            interaction.replied
+        ) {
+            await interaction.editReply(payload)
+                .catch(() => {});
+        } else {
+            await interaction.reply({
+                ...payload,
+                ephemeral: true
+            }).catch(() => {});
+        }
+    }
+}
+
   try {
     const LOG_CHANNEL_ID = "1503741904636874756";
 
