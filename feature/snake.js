@@ -21,6 +21,8 @@ const avatarCache = new Map();
 
 const TIMEOUT = 15 * 60 * 1000;
 
+const NO_MENTIONS = { parse: [] };
+
 const COLORS = [
     "#FF5555",
     "#55AFFF",
@@ -89,18 +91,23 @@ function text(
 function fitText(ctx, value, width, size) {
     ctx.font = `bold ${size}px sans-serif`;
 
-    let label = String(value);
+    const original = String(value);
+    let characters = Array.from(original);
 
-    while (
-        label.length > 1 &&
-        ctx.measureText(label).width > width
-    ) {
-        label = label.slice(0, -1);
+    if (ctx.measureText(original).width <= width) {
+        return original;
     }
 
-    return label === String(value)
-        ? label
-        : label.slice(0, -1) + "…";
+    while (
+        characters.length &&
+        ctx.measureText(
+            characters.join("") + "…"
+        ).width > width
+    ) {
+        characters.pop();
+    }
+
+    return characters.join("") + "…";
 }
 
 // ==========================================
@@ -190,6 +197,7 @@ function drawBackground(ctx) {
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Pixel clouds
+
     ctx.fillStyle = "#E8F9FF";
 
     for (const [x, y] of [
@@ -201,7 +209,8 @@ function drawBackground(ctx) {
         ctx.fillRect(x + 25, y - 20, 95, 20);
     }
 
-    // Dirt blocks
+    // Dirt and grass blocks
+
     for (let x = 0; x < WIDTH; x += 50) {
         ctx.fillStyle = "#795033";
         ctx.fillRect(x, HEIGHT - 45, 50, 45);
@@ -232,17 +241,14 @@ function drawLadder(ctx, start, end) {
     ctx.translate(a.x, a.y);
     ctx.rotate(Math.atan2(dy, dx));
 
-    // Dark wooden outlines
     ctx.fillStyle = "#57351D";
     ctx.fillRect(0, -18, length, 10);
     ctx.fillRect(0, 8, length, 10);
 
-    // Wooden rails
     ctx.fillStyle = "#C48B48";
     ctx.fillRect(0, -16, length, 6);
     ctx.fillRect(0, 10, length, 6);
 
-    // Ladder steps
     for (let x = 10; x < length; x += 25) {
         ctx.fillStyle = "#57351D";
         ctx.fillRect(x, -15, 10, 30);
@@ -313,6 +319,7 @@ function drawSnake(ctx, start, end, index) {
     drawPath(5, "#FFFFFF35");
 
     // Snake head
+
     box(ctx, a.x - 18, a.y - 15, 36, 30, 9, "#30402B");
     box(ctx, a.x - 15, a.y - 12, 30, 24, 7, color);
 
@@ -333,10 +340,10 @@ function drawToken(ctx, player, avatar, index) {
     const cell = getCell(player.position);
 
     const offsets = [
-        [23, 28],
-        [66, 28],
-        [23, 67],
-        [66, 67]
+        [23, 34],
+        [66, 34],
+        [23, 70],
+        [66, 70]
     ];
 
     const [ox, oy] = offsets[index];
@@ -347,29 +354,35 @@ function drawToken(ctx, player, avatar, index) {
     ctx.save();
 
     ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
     ctx.fillStyle = "#24382B";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(x, y, 17, 0, Math.PI * 2);
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
     ctx.fillStyle = player.color;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(x, y, 13, 0, Math.PI * 2);
+    ctx.arc(x, y, 11, 0, Math.PI * 2);
     ctx.clip();
 
     if (avatar) {
         ctx.drawImage(
             avatar,
-            x - 13,
-            y - 13,
-            26,
-            26
+            x - 11,
+            y - 11,
+            22,
+            22
         );
     } else {
-        text(ctx, index + 1, x, y, 17, "#FFFFFF", "center");
+        text(
+            ctx,
+            index + 1,
+            x, y, 16,
+            "#FFFFFF",
+            "center"
+        );
     }
 
     ctx.restore();
@@ -384,6 +397,8 @@ async function renderBoard(game) {
     const ctx = canvas.getContext("2d");
 
     drawBackground(ctx);
+
+    // Header
 
     box(ctx, 40, 25, 920, 110, 15, "#294C34");
     box(ctx, 48, 33, 904, 94, 12, "#417D38");
@@ -403,9 +418,11 @@ async function renderBoard(game) {
     );
 
     // Board outline
+
     box(ctx, 39, 144, 922, 922, 8, "#563C28");
 
     // Draw 100 squares
+
     for (let position = 1; position <= 100; position++) {
         const { x, y } = getCell(position);
 
@@ -423,36 +440,49 @@ async function renderBoard(game) {
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, CELL, CELL);
 
-        // Grass block detail
         ctx.fillStyle = "#FFFFFF25";
         ctx.fillRect(x + 3, y + 3, CELL - 6, 5);
 
         if (position === 1) {
             ctx.fillStyle = "#72C95A";
-            ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
+            ctx.fillRect(
+                x + 3, y + 3,
+                CELL - 6, CELL - 6
+            );
         }
 
         if (position === 100) {
             ctx.fillStyle = "#FFDE66";
-            ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
+            ctx.fillRect(
+                x + 3, y + 3,
+                CELL - 6, CELL - 6
+            );
         }
     }
 
     // Ladders
+
     Object.entries(LADDERS).forEach(([start, end]) => {
         drawLadder(ctx, Number(start), end);
     });
 
     // Snakes
+
     Object.entries(SNAKES).forEach(([start, end], i) => {
         drawSnake(ctx, Number(start), end, i);
     });
 
-    // Numbers drawn above scenery
+    // Tile numbers
+
     for (let position = 1; position <= 100; position++) {
         const { x, y } = getCell(position);
 
-        box(ctx, x + 3, y + 3, 37, 22, 4, "#FFFFFFD9");
+        box(
+            ctx,
+            x + 3, y + 3,
+            37, 22, 4,
+            "#FFFFFFD9"
+        );
 
         text(
             ctx,
@@ -466,33 +496,46 @@ async function renderBoard(game) {
 
         if (position === 100) {
             text(
-                ctx, "FINISH",
+                ctx,
+                "FINISH",
                 x + 45, y + 47,
-                19, "#6B4C17", "center"
+                19,
+                "#6B4C17",
+                "center"
             );
         }
 
         if (position === 1) {
             text(
-                ctx, "START",
+                ctx,
+                "START",
                 x + 45, y + 47,
-                19, "#29482A", "center"
+                19,
+                "#29482A",
+                "center"
             );
         }
     }
 
     // Player avatars
+
     const avatars = await Promise.all(
         game.players.map(getAvatar)
     );
 
     game.players.forEach((player, i) => {
         if (player.position > 0) {
-            drawToken(ctx, player, avatars[i], i);
+            drawToken(
+                ctx,
+                player,
+                avatars[i],
+                i
+            );
         }
     });
 
-    // Player information
+    // Player information panel
+
     box(ctx, 40, 1080, 920, 140, 12, "#294C34");
 
     game.players.forEach((player, i) => {
@@ -508,21 +551,32 @@ async function renderBoard(game) {
             active ? "#568D42" : "#365B35"
         );
 
-        box(ctx, x + 9, y + 9, 30, 30, 6, player.color);
+        box(
+            ctx,
+            x + 9, y + 9,
+            30, 30, 6,
+            player.color
+        );
 
         text(
             ctx,
             fitText(ctx, player.name, 245, 21),
-            x + 50, y + 24, 21
+            x + 50, y + 24,
+            21
         );
 
         text(
             ctx,
             player.finished
                 ? `#${player.place}`
-                : `Tile ${player.position}`,
-            x + 420, y + 24, 19,
-            "#FFE68A", "right"
+                : player.position === 0
+                    ? "Start"
+                    : `Tile ${player.position}`,
+            x + 420,
+            y + 24,
+            19,
+            "#FFE68A",
+            "right"
         );
     });
 
@@ -530,7 +584,7 @@ async function renderBoard(game) {
 }
 
 // ==========================================
-// GAME EMBEDS
+// LOBBY EMBED
 // ==========================================
 
 function lobbyEmbed(game) {
@@ -559,7 +613,8 @@ function lobbyEmbed(game) {
             },
             {
                 name: "Participants",
-                value: players.join("\n") || "Waiting for players..."
+                value: players.join("\n") ||
+                    "Waiting for players..."
             }
         )
         .setThumbnail(
@@ -570,6 +625,10 @@ function lobbyEmbed(game) {
         });
 }
 
+// ==========================================
+// LIVE GAME EMBED
+// ==========================================
+
 function gameEmbed(game) {
     const embed = new EmbedBuilder()
         .setTitle(
@@ -577,24 +636,51 @@ function gameEmbed(game) {
                 ? "Game Finished!"
                 : "Snakes & Ladders"
         )
-        .setColor("#75C64D")
-        .setDescription(game.lastAction)
-        .addFields({
-            name: "Winners",
-            value: game.winners.length
-                ? game.winners.map(
-                    (player, i) =>
-                        `**#${i + 1}** — <@${player.id}>`
-                ).join("\n")
-                : "No winners yet."
-        });
+        .setColor(
+            game.status === "finished"
+                ? "#F5D547"
+                : "#75C64D"
+        );
+
+    // Latest roll only.
+    // Previous results are replaced automatically.
+
+    embed.setDescription(
+        "**Latest Action**\n" +
+        game.lastAction
+    );
 
     if (game.status === "playing") {
+        const current = game.players[game.turn];
+
         embed.addFields({
             name: "Current Turn",
-            value: `<@${game.players[game.turn].id}>`
+            value: `<@${current.id}>`,
+            inline: true
         });
     }
+
+    embed.addFields({
+        name: "Winners",
+        value: `${game.winners.length}/${game.winnerCount}`,
+        inline: true
+    });
+
+    if (game.winners.length) {
+        embed.addFields({
+            name: "Final Rankings",
+            value: game.winners.map(
+                (player, i) =>
+                    `**#${i + 1}** — <@${player.id}>`
+            ).join("\n")
+        });
+    }
+
+    embed.setFooter({
+        text: game.status === "finished"
+            ? "NoobV2 • Game completed"
+            : `NoobV2 • Turn ${game.round + 1}`
+    });
 
     return embed.setImage("attachment://snake.png");
 }
@@ -653,16 +739,43 @@ async function gamePayload(game) {
     const image = await renderBoard(game);
 
     return {
+        content: null,
         embeds: [gameEmbed(game)],
+
+        // Remove previous canvas.
         attachments: [],
+
+        // Replace with updated canvas.
         files: [
             new AttachmentBuilder(image, {
                 name: "snake.png"
             })
         ],
+
         components: buildButtons(game),
-        allowedMentions: { parse: [] }
+        allowedMentions: NO_MENTIONS
     };
+}
+
+// ==========================================
+// UPDATE ORIGINAL MESSAGE ONLY
+// ==========================================
+
+async function updateGameMessage(interaction, game) {
+    const payload = game.status === "waiting"
+        ? {
+            content: null,
+            embeds: [lobbyEmbed(game)],
+            attachments: [],
+            components: buildButtons(game),
+            allowedMentions: NO_MENTIONS
+        }
+        : await gamePayload(game);
+
+    // Never create a new public game message.
+    // Always edit the original lobby/game panel.
+
+    return interaction.editReply(payload);
 }
 
 // ==========================================
@@ -678,6 +791,22 @@ function nextTurn(game) {
             return;
         }
     }
+}
+
+// ==========================================
+// SAVE TEMPORARY STATE
+// ==========================================
+
+function snapshot(game) {
+    return {
+        players: game.players.map(p => ({ ...p })),
+        winners: game.winners.map(p => ({ ...p })),
+        turn: game.turn,
+        round: game.round,
+        status: game.status,
+        lastAction: game.lastAction,
+        expires: game.expires
+    };
 }
 
 // ==========================================
@@ -698,9 +827,24 @@ async function execute(interaction) {
     const winnerCount =
         interaction.options.getInteger("winners", true);
 
-    if (winnerCount > maxPlayers) {
+    if (
+        !Number.isInteger(maxPlayers) ||
+        maxPlayers < 2 ||
+        maxPlayers > 4
+    ) {
         return interaction.reply({
-            content: "Winners cannot exceed the number of players.",
+            content: "Choose between 2 and 4 players.",
+            ephemeral: true
+        });
+    }
+
+    if (
+        !Number.isInteger(winnerCount) ||
+        winnerCount < 1 ||
+        winnerCount > maxPlayers
+    ) {
+        return interaction.reply({
+            content: "Invalid number of winners.",
             ephemeral: true
         });
     }
@@ -708,12 +852,15 @@ async function execute(interaction) {
     const existing = [...games.values()].find(
         game =>
             game.channelId === interaction.channelId &&
+            game.expires > Date.now() &&
             ["waiting", "playing"].includes(game.status)
     );
 
     if (existing) {
         return interaction.reply({
-            content: "There is already an active game in this channel.",
+            content: existing.message?.url
+                ? `There is already an active game. [Open game](${existing.message.url})`
+                : "There is already an active game in this channel.",
             ephemeral: true
         });
     }
@@ -722,32 +869,60 @@ async function execute(interaction) {
         id: randomUUID().slice(0, 12),
         hostId: interaction.user.id,
         channelId: interaction.channelId,
+
         maxPlayers,
         winnerCount,
+
         players: [],
         winners: [],
+
         turn: 0,
         round: 0,
+
         status: "waiting",
         busy: false,
+
         lastAction: "The game has started!",
-        expires: Date.now() + TIMEOUT
+
+        expires: Date.now() + TIMEOUT,
+
+        message: null
     };
 
     games.set(game.id, game);
 
     try {
+        // The ONLY public message created.
+
         await interaction.reply({
             embeds: [lobbyEmbed(game)],
             components: buildButtons(game),
-            allowedMentions: { parse: [] }
+            allowedMentions: NO_MENTIONS
         });
 
         game.message = await interaction.fetchReply();
 
     } catch (error) {
         games.delete(game.id);
-        throw error;
+
+        console.error("[SNAKE EXECUTE]", error);
+
+        const payload = {
+            content: "Unable to create the game."
+        };
+
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
+                ...payload,
+                embeds: [],
+                components: []
+            }).catch(() => {});
+        } else {
+            await interaction.reply({
+                ...payload,
+                ephemeral: true
+            }).catch(() => {});
+        }
     }
 }
 
@@ -771,16 +946,30 @@ async function handleInteraction(interaction) {
     const respond = content =>
         interaction.reply({
             content,
-            ephemeral: true
-        });
+            ephemeral: true,
+            allowedMentions: NO_MENTIONS
+        }).catch(() => {});
 
     if (!game || game.expires < Date.now()) {
         await respond("This game has expired.");
         return true;
     }
 
+    if (
+        game.channelId !== interaction.channelId ||
+        (
+            game.message &&
+            game.message.id !== interaction.message.id
+        )
+    ) {
+        await respond("Invalid game message.");
+        return true;
+    }
+
+    // Silently ignore overlapping clicks.
+
     if (game.busy) {
-        await respond("The previous action is still processing.");
+        await interaction.deferUpdate().catch(() => {});
         return true;
     }
 
@@ -790,7 +979,10 @@ async function handleInteraction(interaction) {
     let committed = false;
 
     try {
-        // Cancel game
+        // ==================================
+        // CANCEL GAME
+        // ==================================
+
         if (action === "cancel") {
             if (interaction.user.id !== game.hostId) {
                 await respond("Only the host can end the game.");
@@ -798,65 +990,79 @@ async function handleInteraction(interaction) {
             }
 
             await interaction.update({
-                content: "The Snakes & Ladders game was cancelled.",
-                embeds: [],
+                content: null,
+
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("Game Cancelled")
+                        .setColor("#D65543")
+                        .setDescription(
+                            "The host has ended the game."
+                        )
+                ],
+
                 attachments: [],
-                components: []
+                components: [],
+                allowedMentions: NO_MENTIONS
             });
 
             games.delete(id);
+
             return true;
         }
 
-        // Lobby
+        // ==================================
+        // WAITING LOBBY
+        // ==================================
+
         if (game.status === "waiting") {
             if (!["join", "leave"].includes(action)) {
-                await respond("Invalid lobby action.");
+                await interaction.deferUpdate();
                 return true;
             }
 
             const existing = game.players.findIndex(
-                player => player.id === interaction.user.id
+                player =>
+                    player.id === interaction.user.id
             );
 
-            if (action === "join" && existing !== -1) {
-                await respond("You have already joined.");
+            // Ignore repeated join/leave clicks.
+
+            if (
+                (action === "join" && existing !== -1) ||
+                (action === "leave" && existing === -1)
+            ) {
+                await interaction.deferUpdate();
                 return true;
             }
 
-            if (action === "leave" && existing === -1) {
-                await respond("You have not joined this game.");
-                return true;
-            }
-
-            if (action === "join" &&
-                game.players.length >= game.maxPlayers) {
+            if (
+                action === "join" &&
+                game.players.length >= game.maxPlayers
+            ) {
                 await respond("The lobby is full.");
                 return true;
             }
 
             await interaction.deferUpdate();
 
-            previous = {
-                players: game.players.map(p => ({ ...p })),
-                status: game.status,
-                turn: game.turn,
-                round: game.round,
-                lastAction: game.lastAction,
-                expires: game.expires
-            };
+            previous = snapshot(game);
 
             if (action === "join") {
                 game.players.push({
                     id: interaction.user.id,
+
                     name:
                         interaction.member?.displayName ||
                         interaction.user.username,
+
                     avatar: interaction.user.displayAvatarURL({
                         extension: "png",
                         size: 128
                     }),
+
                     position: 0,
+
                     finished: false,
                     place: null
                 });
@@ -864,107 +1070,123 @@ async function handleInteraction(interaction) {
                 game.players.splice(existing, 1);
             }
 
-            game.players.forEach((p, i) => {
-                p.color = COLORS[i];
+            game.players.forEach((player, i) => {
+                player.color = COLORS[i];
             });
 
             game.expires = Date.now() + TIMEOUT;
 
+            // Automatically start when full.
+
             if (game.players.length === game.maxPlayers) {
                 game.status = "playing";
 
-                game.turn = randomInt(game.players.length);
-
-                game.lastAction =
-                    `The game has started!\n\n` +
-                    `<@${game.players[game.turn].id}> goes first.`;
-
-                await interaction.editReply(
-                    await gamePayload(game)
+                game.turn = randomInt(
+                    game.players.length
                 );
 
-                committed = true;
-
-            } else {
-                await interaction.editReply({
-                    embeds: [lobbyEmbed(game)],
-                    components: buildButtons(game),
-                    allowedMentions: { parse: [] }
-                });
-
-                committed = true;
+                game.lastAction =
+                    "The game has started!\n" +
+                    `<@${game.players[game.turn].id}> goes first.`;
             }
 
+            await updateGameMessage(interaction, game);
+
+            committed = true;
+
             return true;
         }
 
-        // Dice roll
-        if (game.status !== "playing" || action !== "roll") {
-            await respond("This game is not active.");
+        // ==================================
+        // VALIDATE DICE ROLL
+        // ==================================
+
+        if (
+            game.status !== "playing" ||
+            action !== "roll"
+        ) {
+            await interaction.deferUpdate();
             return true;
         }
+
+        // Ignore old dice buttons.
 
         if (Number(round) !== game.round) {
-            await respond("Please use the updated dice button.");
+            await interaction.deferUpdate();
             return true;
         }
 
         const player = game.players[game.turn];
 
+        // Wrong player: no public or private spam.
+
         if (player.id !== interaction.user.id) {
-            await respond("It is not your turn.");
+            await interaction.deferUpdate();
             return true;
         }
 
         await interaction.deferUpdate();
 
-        previous = {
-            players: game.players.map(p => ({ ...p })),
-            winners: [...game.winners],
-            turn: game.turn,
-            round: game.round,
-            status: game.status,
-            lastAction: game.lastAction,
-            expires: game.expires
-        };
+        previous = snapshot(game);
 
-        // Random roll: 0–6 inclusive
+        // ==================================
+        // ROLL DICE
+        // ==================================
+
         const roll = randomInt(0, 7);
 
-        let destination = player.position + roll;
+        const destination =
+            player.position + roll;
 
         let result =
+            `<:diceblock192x192:${DICE_EMOJI}> ` +
             `<@${player.id}> rolled **${roll}**!`;
 
         if (roll === 0) {
             result += "\nNo movement this turn.";
 
         } else if (destination > 100) {
-            result += "\nYou need an exact roll to reach Tile 100.";
+            result +=
+                "\nAn exact roll is required to reach Tile 100.";
 
         } else {
             player.position = destination;
 
-            result += `\nMoved to **Tile ${destination}**.`;
+            result +=
+                `\nMoved to **Tile ${destination}**.`;
+
+            // Ladder
 
             if (LADDERS[player.position]) {
-                player.position = LADDERS[player.position];
+                player.position =
+                    LADDERS[player.position];
 
                 result +=
                     `\nClimbed a ladder to **Tile ${player.position}**!`;
 
+            // Snake
+
             } else if (SNAKES[player.position]) {
-                player.position = SNAKES[player.position];
+                player.position =
+                    SNAKES[player.position];
 
                 result +=
                     `\nSlid down a snake to **Tile ${player.position}**!`;
             }
         }
 
-        // Winner
-        if (player.position === 100 && !player.finished) {
+        // ==================================
+        // WINNER
+        // ==================================
+
+        if (
+            player.position === 100 &&
+            !player.finished
+        ) {
             player.finished = true;
-            player.place = game.winners.length + 1;
+
+            player.place =
+                game.winners.length + 1;
 
             game.winners.push({
                 ...player
@@ -975,33 +1197,34 @@ async function handleInteraction(interaction) {
         }
 
         game.round++;
+
         game.expires = Date.now() + TIMEOUT;
 
         if (game.winners.length >= game.winnerCount) {
             game.status = "finished";
-            result += "\n\nThe game is over!";
 
+            result += "\n\nThe game is over!";
         } else {
             nextTurn(game);
         }
 
+        // Replace previous dice result.
+        // Do not append a new message.
+
         game.lastAction = result;
 
-        // Update existing canvas
-        await interaction.editReply(
-            await gamePayload(game)
-        );
+        // ==================================
+        // UPDATE SAME EMBED AND CANVAS
+        // ==================================
+
+        await updateGameMessage(interaction, game);
 
         committed = true;
 
-        // Public dice announcement
-        await interaction.channel.send({
-            content:
-                `<:diceblock192x192:${DICE_EMOJI}> ` + result,
-            allowedMentions: { parse: [] }
-        }).catch(error => {
-            console.error("[SNAKE ANNOUNCEMENT]", error);
-        });
+        // NO interaction.channel.send()
+        // NO separate roll announcements.
+        // NO winner notifications.
+        // NO additional public messages.
 
         if (game.status === "finished") {
             games.delete(id);
@@ -1012,17 +1235,22 @@ async function handleInteraction(interaction) {
             Object.assign(game, previous);
         }
 
-        console.error("[SNAKE]", error);
+        console.error("[SNAKE INTERACTION]", error);
+
+        // Errors are private only.
 
         const payload = {
-            content: "Unable to process the game action. Try again.",
-            ephemeral: true
+            content: "Unable to update the game. Please try again.",
+            ephemeral: true,
+            allowedMentions: NO_MENTIONS
         };
 
         if (interaction.deferred || interaction.replied) {
-            await interaction.followUp(payload).catch(() => {});
+            await interaction.followUp(payload)
+                .catch(() => {});
         } else {
-            await interaction.reply(payload).catch(() => {});
+            await interaction.reply(payload)
+                .catch(() => {});
         }
 
     } finally {
@@ -1038,12 +1266,31 @@ async function handleInteraction(interaction) {
 
 const cleanup = setInterval(async () => {
     for (const [id, game] of games) {
-        if (!game.busy && game.expires < Date.now()) {
-            games.delete(id);
+        if (game.busy) continue;
+        if (game.expires >= Date.now()) continue;
 
-            await game.message?.edit({
-                content: "This Snakes & Ladders game has expired.",
-                components: []
+        games.delete(id);
+
+        // Edit existing message instead of sending
+        // an expiration notification.
+
+        if (game.message) {
+            await game.message.edit({
+                content: null,
+
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("Game Expired")
+                        .setColor("#808080")
+                        .setDescription(
+                            "This game ended due to inactivity."
+                        )
+                ],
+
+                attachments: [],
+                components: [],
+                allowedMentions: NO_MENTIONS
+
             }).catch(() => {});
         }
     }
@@ -1051,6 +1298,7 @@ const cleanup = setInterval(async () => {
     if (avatarCache.size > 500) {
         avatarCache.clear();
     }
+
 }, 60_000);
 
 cleanup.unref();
