@@ -3799,7 +3799,7 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.commandName === "sendnoti") {
+if (interaction.commandName === "sendnoti") {
   if (!interaction.memberPermissions?.has(
     PermissionFlagsBits.Administrator
   )) {
@@ -3811,19 +3811,33 @@ client.on("interactionCreate", async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const user = interaction.options.getUser("user");
+  const target = interaction.options.getUser("user");
   const message = interaction.options.getString("message");
 
   try {
-    await user.send({ content: message });
+    const user = await interaction.client.users.fetch(
+      target.id,
+      { force: true }
+    );
+
+    const dm = await user.createDM(true);
+
+    await dm.send({
+      content: message
+    });
 
     return interaction.editReply({
       content: `Message successfully sent to ${user.tag}.`
     });
 
   } catch (error) {
+    console.error("[SENDNOTI ERROR]", error);
+
     return interaction.editReply({
-      content: `Failed to send message to ${user.tag}. Their DMs may be closed.`
+      content:
+        `Failed to send message to ${target.tag}.\n` +
+        `Error code: ${error.code || "Unknown"}\n` +
+        `Reason: ${error.message}`
     });
   }
 }
