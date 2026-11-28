@@ -50,6 +50,21 @@ new SlashCommandBuilder()
       .setMaxValue(new Date().getFullYear())
   ),
   new SlashCommandBuilder()
+  .setName("sendnoti")
+  .setDescription("Send a direct message to a user")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  .addUserOption(option =>
+    option.setName("user")
+      .setDescription("Select a user")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("message")
+      .setDescription("Message to send")
+      .setMaxLength(2000)
+      .setRequired(true)
+  ),
+  new SlashCommandBuilder()
     .setName("chess")
     .setDescription("Start a two-player chess game"),
   new SlashCommandBuilder()
