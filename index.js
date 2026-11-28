@@ -3799,6 +3799,34 @@ async function logSpkUsage(interaction) {
   }
 }
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.commandName === "sendnoti") {
+  if (!interaction.memberPermissions?.has(
+    PermissionFlagsBits.Administrator
+  )) {
+    return interaction.reply({
+      content: "Administrator permission required.",
+      ephemeral: true
+    });
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const user = interaction.options.getUser("user");
+  const message = interaction.options.getString("message");
+
+  try {
+    await user.send({ content: message });
+
+    return interaction.editReply({
+      content: `Message successfully sent to ${user.tag}.`
+    });
+
+  } catch (error) {
+    return interaction.editReply({
+      content: `Failed to send message to ${user.tag}. Their DMs may be closed.`
+    });
+  }
+}
   // GROWTOPIA SNAKES AND LADDERS
   // ==========================================
 // CHESS SYSTEM
